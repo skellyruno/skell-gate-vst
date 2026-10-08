@@ -1,50 +1,58 @@
 #pragma once
 
-#include <JuceHeader.h>
+#include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
-#include "SkellLookAndFeel.h"
-#include "SkellComponents.h"
 
-class DelayAudioProcessorEditor  : public juce::AudioProcessorEditor, private juce::Timer
+class PatternEditorComponent : public juce::Component
 {
 public:
-    DelayAudioProcessorEditor (DelayAudioProcessor&);
-    ~DelayAudioProcessorEditor() override;
+    PatternEditorComponent(SkellgateAudioProcessor& p);
+    void paint(juce::Graphics& g) override;
+    void mouseDown(const juce::MouseEvent& event) override;
+
+private:
+    SkellgateAudioProcessor& processor;
+};
+
+class SkellgateAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                      public juce::Button::Listener
+{
+public:
+    SkellgateAudioProcessorEditor (SkellgateAudioProcessor&);
+    ~SkellgateAudioProcessorEditor() override;
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    void buttonClicked (juce::Button* button) override;
 
 private:
-    void timerCallback() override;
-    void updateModeButtons (int selectedIndex);
+    SkellgateAudioProcessor& audioProcessor;
 
-    DelayAudioProcessor& audioProcessor;
-    SkellLookAndFeel skellLookAndFeel;
-    juce::Image bgImage;
+    // Pattern & Preset Clicker
+    PatternEditorComponent patternEditor;
+    juce::TextButton presetButton;
 
-    // Meters & Display
-    SkellMeter leftMeter, rightMeter;
-    SkellDisplay delayDisplay;
+    // 0-100 Knobs
+    juce::Slider attackSlider;
+    juce::Slider releaseSlider;
+    juce::Slider lengthSlider;
+    juce::Slider timeSlider;
 
-    // Sliders
-    juce::Slider panSlider, smoothSlider;
-    juce::Slider timeSlider, feedbackSlider;
-    juce::Slider duckingSlider, drySlider, wetSlider;
-    juce::ToggleButton pingPongButton { "" };
+    // Toggle Buttons
+    juce::ToggleButton bypassButton;
+    juce::ToggleButton reverseButton;
 
-    // Mode Buttons
-    juce::TextButton digitalBtn { "DIGITAL" }, analogBtn { "ANALOG" }, tapeBtn { "TAPE" };
-
-    // Neon Green Labels
-    juce::Label panLabel, smoothLabel, timeLabel, feedbackLabel;
-    juce::Label duckingLabel, dryLabel, wetLabel, pingPongLabel;
-
+    // Attachments
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
 
-    std::unique_ptr<SliderAttachment> panAttach, smoothAttach, timeAttach, feedbackAttach;
-    std::unique_ptr<SliderAttachment> duckingAttach, dryAttach, wetAttach;
-    std::unique_ptr<ButtonAttachment> pingPongAttach;
+    std::unique_ptr<SliderAttachment> attackAttachment;
+    std::unique_ptr<SliderAttachment> releaseAttachment;
+    std::unique_ptr<SliderAttachment> lengthAttachment;
+    std::unique_ptr<SliderAttachment> timeAttachment;
+    std::unique_ptr<ButtonAttachment> bypassAttachment;
+    std::unique_ptr<ButtonAttachment> reverseAttachment;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DelayAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SkellgateAudioProcessorEditor)
 };
