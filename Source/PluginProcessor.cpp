@@ -30,7 +30,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout SkellgateAudioProcessor::cre
 
 void SkellgateAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    juce::ignoreUnused(samplesPerBlock); // Silence C4100 warning
+    juce::ignoreUnused(samplesPerBlock);
     currentSampleRate = sampleRate;
     bufferSize = static_cast<int>(sampleRate * 4.0);
     delayBuffer.resize(bufferSize, 0.0f);
@@ -71,7 +71,7 @@ std::vector<float> SkellgateAudioProcessor::getCurrentCurveValues(float phase)
 void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ignoreUnused(midiMessages);
-    juce::ScopedNoDenormals noDenormals; // Corrected class name
+    juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
@@ -94,7 +94,8 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
 
         delayBuffer[writeHead] = inSample;
 
-        float phase = std::fmod((float)writeHead / (currentSampleRate * 1.0f), 1.0f);
+        // Clean double-to-float conversion
+        float phase = static_cast<float>(std::fmod(static_cast<double>(writeHead) / currentSampleRate, 1.0));
         auto curve = getCurrentCurveValues(phase);
 
         int readHead = (writeHead - static_cast<int>(curve[0]) + bufferSize) % bufferSize;
