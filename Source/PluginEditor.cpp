@@ -9,16 +9,14 @@ void PatternEditorComponent::paint(juce::Graphics& g)
     g.setColour(juce::Colours::green);
     g.drawRect(getLocalBounds(), 2);
 
-    // Draw grid representation & default curve line
     g.setFont(14.0f);
     int preset = processor.getCurrentPresetIndex();
     juce::String presetName = (preset == 0) ? "Preset: Default (1:1 Pass-through)" : (preset == 1) ? "Preset: Stutter Gate" : "Preset: Reverse Warp";
     g.drawText(presetName, getLocalBounds(), juce::Justification::centred, true);
 }
 
-void PatternEditorComponent::mouseDown(const juce::MouseEvent& event)
+void PatternEditorComponent::mouseDown(const juce::MouseEvent& /*event*/)
 {
-    // Click through presets directly on the pattern editor area
     processor.nextPreset();
     repaint();
 }
@@ -32,8 +30,7 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
     presetButton.addListener(this);
     addAndMakeVisible(presetButton);
 
-    // Setup Knobs (0-100 styling)
-    auto setupSlider = [this](juce::Slider& slider, const juce::String& name) {
+    auto setupSlider = [this](juce::Slider& slider, const juce::String& /*name*/) {
         slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
         slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 20);
         addAndMakeVisible(slider);
@@ -86,19 +83,16 @@ void SkellgateAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(20);
     
-    // Top title / bypass area
     auto topArea = area.removeFromTop(40);
     bypassButton.setBounds(topArea.removeFromRight(80));
     reverseButton.setBounds(topArea.removeFromRight(90).reduced(0, 5));
 
-    // Graphical Pattern Window & Preset Button
     auto patternArea = area.removeFromTop(200);
     patternEditor.setBounds(patternArea.removeFromTop(160));
     presetButton.setBounds(patternArea.reduced(200, 5));
 
     area.removeFromTop(10);
 
-    // Bottom Knobs layout (Attack, Release, Length, Time)
     auto knobWidth = area.getWidth() / 4;
     attackSlider.setBounds(area.removeFromLeft(knobWidth).reduced(10));
     releaseSlider.setBounds(area.removeFromLeft(knobWidth).reduced(10));
