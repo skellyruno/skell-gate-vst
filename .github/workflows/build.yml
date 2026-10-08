@@ -1,24 +1,36 @@
-name: Build Windows Plugin
+name: Build VST3 Plugin
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest]
 
     steps:
-    - name: Checkout Repository
+    - name: Checkout repository recursively
       uses: actions/checkout@v4
+      with:
+        submodules: recursive
 
     - name: Configure CMake
-      run: cmake -B build -G "Visual Studio 17 2022" -A x64
+      run: >
+        cmake -B build
+        -DCMAKE_BUILD_TYPE=Release
+        -DCSOUND_BUILD_STATIC=ON
 
-    - name: Build Release Binaries
-      run: cmake --build build --config Release --parallel 4
+    - name: Build Plugin Target
+      run: cmake --build build --config Release
 
-    - name: Upload VST3 Artifact
+    # Package build outputs as downloadable artifacts
+    - name: Upload Windows VST3 Artifact
+      if: runner.os == 'Windows'
       uses: actions/upload-artifact@v4
       with:
-        name: Skellgate-Windows-VST3
-        path: build/Skellgate_artefacts/Release/VST3/
+        name: VST3-Windows
+        path: build/DelayPlugin_artefacts/Release/VST3/*.vst3
