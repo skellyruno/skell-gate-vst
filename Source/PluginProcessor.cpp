@@ -94,7 +94,6 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
 
         delayBuffer[writeHead] = inSample;
 
-        // Clean double-to-float conversion
         float phase = static_cast<float>(std::fmod(static_cast<double>(writeHead) / currentSampleRate, 1.0));
         auto curve = getCurrentCurveValues(phase);
 
@@ -111,6 +110,12 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
         auto* rightData = buffer.getWritePointer(1);
         juce::FloatVectorOperations::copy(rightData, channelData, numSamples);
     }
+}
+
+// Added the missing editor creation function definition
+juce::AudioProcessorEditor* SkellgateAudioProcessor::createEditor()
+{
+    return new SkellgateAudioProcessorEditor (*this);
 }
 
 void SkellgateAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
