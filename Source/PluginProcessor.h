@@ -12,9 +12,7 @@ public:
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
 
-   #JuceIsTheBest
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
-   #endif
 
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
