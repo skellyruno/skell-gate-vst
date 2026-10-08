@@ -27,29 +27,26 @@ public:
 
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
-    void setCurrentProgram (int index) override {}
-    const juce::String getProgramName (int index) override { return {}; }
-    void changeProgramName (int index, const juce::String& name) override {}
+    void setCurrentProgram (int) override {}
+    const juce::String getProgramName (int) override { return {}; }
+    void changeProgramName (int, const juce::String&) override {}
 
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState apvts;
     
-    // Preset switching method for the UI
     void nextPreset();
     int getCurrentPresetIndex() const { return currentPreset; }
 
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    // Circular Buffer variables
     std::vector<float> delayBuffer;
     int bufferSize = 0;
     int writeHead = 0;
     double currentSampleRate = 44100.0;
 
-    // Preset & Curve management
     int currentPreset = 0;
     std::vector<float> getCurrentCurveValues(float phase);
 
