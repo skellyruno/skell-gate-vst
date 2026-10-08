@@ -1,64 +1,55 @@
 cmake_minimum_required(VERSION 3.22)
-project(DelayPlugin VERSION 1.0.0 LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+project(Skellgate VERSION 1.0.0)
 
+# Optional: Force Windows-only restriction check in CMake
+if(NOT WIN32)
+    message(FATAL_ERROR "Skellgate is configured to build exclusively for Windows.")
+endif()
+
+# Fetch JUCE framework automatically (ensures smooth CI builds)
 include(FetchContent)
 FetchContent_Declare(
-    juce
+    JUCE
     GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-    GIT_TAG        8.0.0
+    GIT_TAG        master
 )
-FetchContent_MakeAvailable(juce)
+FetchContent_MakeAvailable(JUCE)
 
-juce_add_plugin(DelayPlugin
-    COMPANY_NAME "MyAudioDev"
-    IS_SYNTH FALSE
-    NEEDS_MIDI_INPUT FALSE
-    NEEDS_MIDI_OUTPUT FALSE
-    IS_MIDI_EFFECT FALSE
-    EDITOR_WANTS_KEYBOARD_FOCUS FALSE
-    COPY_PLUGIN_AFTER_BUILD TRUE
-    PLUGIN_MANUFACTURER_CODE Mydv
-    PLUGIN_CODE Dlay
-    FORMATS VST3 AU
-    PRODUCT_NAME "Custom Delay"
+# Define the JUCE plugin target
+juce_add_plugin(Skellgate
+    COMPANY_NAME "Skell"
+    PLUGIN_MANUFACTURER_CODE Skel
+    PLUGIN_CODE Skgl
+    FORMATS VST3 Standalone
+    PRODUCT_NAME "Skellgate"
 )
 
-juce_generate_juce_header(DelayPlugin)
-
-# FIX: Disable legacy VST2 preset compatibility in the VST3 wrapper
-target_compile_definitions(DelayPlugin
+# Add your plugin source files
+target_sources(Skellgate
     PRIVATE
-        JUCE_VST3_CAN_REPLACE_VST2=0
+        PluginProcessor.cpp
+        PluginProcessor.h
+        PluginEditor.cpp
+        PluginEditor.h
+)
+
+# Compile definitions to strip unused web/curl bloat for faster compilation
+target_compile_definitions(Skellgate
+    PRIVATE
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
 )
 
-target_sources(DelayPlugin
+# Link necessary JUCE modules
+target_link_libraries(Skellgate
     PRIVATE
-        Source/PluginProcessor.h
-        Source/PluginProcessor.cpp
-        Source/PluginEditor.h
-        Source/PluginEditor.cpp
-        Source/SkellLookAndFeel.h
-        Source/SkellComponents.h
-)
-
-# Add BinaryData for assets
-juce_add_binary_data(DelayAssets
-    SOURCES
-        Source/Assets/skell_bg.png
-)
-
-target_link_libraries(DelayPlugin
-    PRIVATE
-        DelayAssets
         juce::juce_audio_utils
-        juce::juce_dsp
+        juce::juce_gui_basics
+        juce::juce_graphics
+        juce::juce_data_structures
+        juce::juce_core
     PUBLIC
         juce::juce_recommended_config_flags
-        juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags
 )
