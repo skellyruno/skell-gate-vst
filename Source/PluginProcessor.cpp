@@ -16,7 +16,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout SkellgateAudioProcessor::cre
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    // All parameters scaled 0 to 100
     params.push_back(std::make_unique<juce::AudioParameterFloat>("attack", "Attack", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 10.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("release", "Release", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 10.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("length", "Length", juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 50.0f));
@@ -31,8 +30,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout SkellgateAudioProcessor::cre
 
 void SkellgateAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
+    juce::ignoreUnused(samplesPerBlock); // Silence C4100 warning
     currentSampleRate = sampleRate;
-    // Allocate 4 seconds of buffer space for time stretching/delay history
     bufferSize = static_cast<int>(sampleRate * 4.0);
     delayBuffer.resize(bufferSize, 0.0f);
     writeHead = 0;
@@ -52,22 +51,17 @@ bool SkellgateAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts
 
 void SkellgateAudioProcessor::nextPreset()
 {
-    currentPreset = (currentPreset + 1) % 3; // Cycles through 3 presets (0 = Default Pass-through)
+    currentPreset = (currentPreset + 1) % 3;
 }
 
 std::vector<float> SkellgateAudioProcessor::getCurrentCurveValues(float phase)
 {
-    // Preset 0: Default flat pass-through (keeps signal identical)
-    // Preset 1: Stutter effect
-    // Preset 2: Jump/Warp effect
     float targetOffset = 0.0f;
     float targetGain = 1.0f;
 
     if (currentPreset == 1) {
-        // Simple stutter gate pattern
         targetOffset = (std::fmod(phase * 4.0f, 1.0f)) * 5000.0f;
     } else if (currentPreset == 2) {
-        // Reverse warp pattern
         targetOffset = (1.0f - phase) * 20000.0f;
     }
 
@@ -76,7 +70,8 @@ std::vector<float> SkellgateAudioProcessor::getCurrentCurveValues(float phase)
 
 void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
-    jucescopedNoDenormals noDenormals;
+    juce::ignoreUnused(midiMessages);
+    juce::ScopedNoDenormals noDenormals; // Corrected class name
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
@@ -97,23 +92,19 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     {
         float inSample = channelData[i];
 
-        // Write to circular buffer
         delayBuffer[writeHead] = inSample;
 
-        // Calculate a basic phase loop (mock 1-bar cycle)
         float phase = std::fmod((float)writeHead / (currentSampleRate * 1.0f), 1.0f);
         auto curve = getCurrentCurveValues(phase);
 
         int readHead = (writeHead - static_cast<int>(curve[0]) + bufferSize) % bufferSize;
         float outSample = delayBuffer[readHead] * curve[1];
 
-        // Apply mix and output gain
         channelData[i] = (inSample * (1.0f - mixParam) + outSample * mixParam) * (outParam * 2.0f);
 
         writeHead = (writeHead + 1) % bufferSize;
     }
 
-    // Mirror to right channel if stereo
     if (totalNumInputChannels > 1)
     {
         auto* rightData = buffer.getWritePointer(1);
