@@ -2,12 +2,11 @@ cmake_minimum_required(VERSION 3.22)
 
 project(Skellgate VERSION 1.0.0)
 
-# Optional: Force Windows-only restriction check in CMake
 if(NOT WIN32)
     message(FATAL_ERROR "Skellgate is configured to build exclusively for Windows.")
 endif()
 
-# Fetch JUCE framework automatically (ensures smooth CI builds)
+# Fetch JUCE framework automatically
 include(FetchContent)
 FetchContent_Declare(
     JUCE
@@ -25,13 +24,13 @@ juce_add_plugin(Skellgate
     PRODUCT_NAME "Skellgate"
 )
 
-# Add your plugin source files
+# Add your plugin source files from the Source directory
 target_sources(Skellgate
     PRIVATE
-        PluginProcessor.cpp
-        PluginProcessor.h
-        PluginEditor.cpp
-        PluginEditor.h
+        Source/PluginProcessor.cpp
+        Source/PluginProcessor.h
+        Source/PluginEditor.cpp
+        Source/PluginEditor.h
 )
 
 # Compile definitions to strip unused web/curl bloat for faster compilation
