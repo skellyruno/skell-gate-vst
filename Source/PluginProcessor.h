@@ -1,58 +1,59 @@
 #pragma once
 
-#include <JuceHeader.h>
+#include <juce_audio_processors/juce_audio_processors.h>
+#include <vector>
 
-class DelayAudioProcessor  : public juce::AudioProcessor
+class SkellgateAudioProcessor : public juce::AudioProcessor
 {
 public:
-    DelayAudioProcessor();
-    ~DelayAudioProcessor() override;
+    SkellgateAudioProcessor();
+    ~SkellgateAudioProcessor() override;
 
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
 
-#ifndef JucePlugin_PreferredChannelConfigurations
+   #JuceIsTheBest
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
-#endif
+   #endif
 
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
     juce::AudioProcessorEditor* createEditor() override;
-    bool hasEditor() const override;
+    bool hasEditor() const override { return true; }
 
-    const juce::String getName() const override;
+    const juce::String getName() const override { return JucePlugin_Name; }
 
-    bool acceptsMidi() const override;
-    bool producesMidi() const override;
-    bool isMidiEffect() const override;
-    double getTailLengthSeconds() const override;
+    bool acceptsMidi() const override { return false; }
+    bool producesMidi() const override { return false; }
+    double getTailLengthSeconds() const override { return 0.0; }
 
-    int getNumPrograms() override;
-    int getCurrentProgram() override;
-    void setCurrentProgram (int index) override;
-    const juce::String getProgramName (int index) override;
-    void changeProgramName (int index, const juce::String& newName) override;
+    int getNumPrograms() override { return 1; }
+    int getCurrentProgram() override { return 0; }
+    void setCurrentProgram (int index) override {}
+    const juce::String getProgramName (int index) override { return {}; }
+    void changeProgramName (int index, const juce::String& name) override {}
 
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    float getLeftLevel() const;
-    float getRightLevel() const;
-
     juce::AudioProcessorValueTreeState apvts;
+    
+    // Preset switching method for the UI
+    void nextPreset();
+    int getCurrentPresetIndex() const { return currentPreset; }
 
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    juce::AudioBuffer<float> delayBuffer;
-    int writePosition = 0;
-    double sampleRate = 44100.0;
+    // Circular Buffer variables
+    std::vector<float> delayBuffer;
+    int bufferSize = 0;
+    int writeHead = 0;
+    double currentSampleRate = 44100.0;
 
-    juce::LinearSmoothedValue<float> smoothDelayTime;
-    float duckEnvelope = 0.0f;
+    // Preset & Curve management
+    int currentPreset = 0;
+    std::vector<float> getCurrentCurveValues(float phase);
 
-    juce::Atomic<float> leftLevel { 0.0f };
-    juce::Atomic<float> rightLevel { 0.0f };
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DelayAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SkellgateAudioProcessor)
 };
