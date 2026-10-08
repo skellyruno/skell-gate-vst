@@ -33,11 +33,12 @@ target_sources(Skellgate
         Source/PluginEditor.h
 )
 
-# Compile definitions to strip unused web/curl bloat for faster compilation
+# Compile definitions to strip bloat and bypass VST3 parameter warnings
 target_compile_definitions(Skellgate
     PRIVATE
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
+        JUCE_IGNORE_VST3_MISMATCHED_PARAMETER_ID_WARNING=1
 )
 
 # Link necessary JUCE modules
