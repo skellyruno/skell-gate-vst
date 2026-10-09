@@ -32,5 +32,5 @@ jobs:
       if: runner.os == 'Windows'
       uses: actions/upload-artifact@v4
       with:
-        name: VST3-Windows
-        path: build/DelayPlugin_artefacts/Release/VST3/*.vst3
+        name: Skellgate-Windows-VST3
+        path: build/Skellgate_artefacts/Release/VST3/
