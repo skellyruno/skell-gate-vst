@@ -12,14 +12,6 @@ public:
         setColour(juce::Slider::rotarySliderFillColourId, juce::Colours::lime);
         setColour(juce::Slider::thumbColourId, juce::Colours::black);
         setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colours::darkgrey);
-        setColour(juce::ComboBox::backgroundColourId, juce::Colour::fromRGB(24, 24, 24));
-        setColour(juce::ComboBox::outlineColourId, juce::Colours::lime);
-        setColour(juce::ComboBox::arrowColourId, juce::Colours::lime);
-        setColour(juce::ComboBox::textColourId, juce::Colours::lime);
-        setColour(juce::PopupMenu::backgroundColourId, juce::Colour::fromRGB(18, 18, 18));
-        setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colours::lime.withAlpha(0.3f));
-        setColour(juce::PopupMenu::textColourId, juce::Colours::lightgrey);
-        setColour(juce::PopupMenu::highlightedTextColourId, juce::Colours::lime);
     }
 
     void drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height,
@@ -44,7 +36,6 @@ public:
             g.strokePath (valueArc, juce::PathStrokeType (4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         }
 
-        // Glowing outer aura ring
         g.setColour(juce::Colours::lime.withAlpha(0.25f));
         g.drawEllipse(center.x - radius, center.y - radius, radius * 2.0f, radius * 2.0f, 1.5f);
 
@@ -57,11 +48,11 @@ public:
     }
 };
 
-class PatternEditorComponent : public juce::Component, public juce::Timer
+class DualGraphComponent : public juce::Component, public juce::Timer
 {
 public:
-    PatternEditorComponent(SkellgateAudioProcessor& p);
-    ~PatternEditorComponent() override;
+    DualGraphComponent(SkellgateAudioProcessor& p);
+    ~DualGraphComponent() override;
     void paint(juce::Graphics& g) override;
     void mouseDown(const juce::MouseEvent& event) override;
     void mouseDrag(const juce::MouseEvent& event) override;
@@ -74,8 +65,7 @@ private:
 };
 
 class SkellgateAudioProcessorEditor : public juce::AudioProcessorEditor,
-                                      public juce::Button::Listener,
-                                      public juce::ComboBox::Listener
+                                      public juce::Button::Listener
 {
 public:
     SkellgateAudioProcessorEditor (SkellgateAudioProcessor&);
@@ -84,21 +74,21 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void buttonClicked (juce::Button* button) override;
-    void comboBoxChanged (juce::ComboBox* comboBoxThatHasChanged) override;
-    void updatePresetUI();
+    void updateSlotMatrixUI();
 
 private:
     SkellgateAudioProcessor& audioProcessor;
     SkellgateLookAndFeel skellLookAndFeel;
 
-    PatternEditorComponent patternEditor;
-    
-    juce::TextButton prevButton;
-    juce::TextButton nextButton;
-    juce::ComboBox presetDropdown;
+    DualGraphComponent dualGraph;
 
-    // Gross Beat Style Slot Matrix Buttons (16 Slots)[cite: 3]
-    std::vector<std::unique_ptr<juce::TextButton>> slotButtons;
+    // Lane Toggle Buttons (Time vs Volume)
+    juce::TextButton timeLaneButton;
+    juce::TextButton volumeLaneButton;
+
+    // Dual 12-Slot Matrices (Gross Beat Style)[cite: 3]
+    std::vector<std::unique_ptr<juce::TextButton>> timeSlotButtons;
+    std::vector<std::unique_ptr<juce::TextButton>> volumeSlotButtons;
 
     juce::Slider attackSlider;
     juce::Slider releaseSlider;
