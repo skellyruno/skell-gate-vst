@@ -40,6 +40,7 @@ public:
     void loadPreset(int index);
     int getCurrentPresetIndex() const { return currentPreset; }
     float getCurrentPhase() const { return currentPhase; }
+    float getCurrentAudioLevel() const { return currentAudioLevel; }
 
     struct Node { float x; float y; };
     std::vector<Node>& getCurveNodes() { return curveNodes; }
@@ -53,6 +54,7 @@ private:
     int writeHead = 0;
     double currentSampleRate = 44100.0;
     float currentPhase = 0.0f;
+    float currentAudioLevel = 0.0f;
 
     int currentPreset = 0;
     std::vector<Node> curveNodes;
