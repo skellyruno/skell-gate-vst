@@ -35,16 +35,22 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
     
-    void nextPreset();
-    void previousPreset();
-    void loadPreset(int index);
-    int getCurrentPresetIndex() const { return currentPreset; }
+    void setTimePreset(int index);
+    void setVolumePreset(int index);
+    int getCurrentTimePreset() const { return currentTimePreset; }
+    int getCurrentVolumePreset() const { return currentVolumePreset; }
     float getCurrentPhase() const { return currentPhase; }
     float getCurrentAudioLevel() const { return currentAudioLevel; }
 
     struct Node { float x; float y; };
-    std::vector<Node>& getCurveNodes() { return curveNodes; }
-    void updateNodePosition(int index, float newY);
+    std::vector<Node>& getTimeCurveNodes() { return timeCurveNodes; }
+    std::vector<Node>& getVolumeCurveNodes() { return volumeCurveNodes; }
+    void updateNodePosition(bool isTimeLane, int index, float newY);
+
+    enum ActiveLane { LaneTime, LaneVolume };
+    ActiveLane activeViewLane = LaneTime;
+    void setActiveViewLane(ActiveLane lane) { activeViewLane = lane; }
+    ActiveLane getActiveViewLane() const { return activeViewLane; }
 
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -56,9 +62,13 @@ private:
     float currentPhase = 0.0f;
     float currentAudioLevel = 0.0f;
 
-    int currentPreset = 0;
-    std::vector<Node> curveNodes;
-    float evaluateCustomCurve(float phase);
+    int currentTimePreset = 0;
+    int currentVolumePreset = 0;
+
+    std::vector<Node> timeCurveNodes;
+    std::vector<Node> volumeCurveNodes;
+
+    float evaluateCurve(const std::vector<Node>& nodes, float phase);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SkellgateAudioProcessor)
 };
