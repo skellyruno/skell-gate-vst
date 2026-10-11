@@ -6,6 +6,7 @@ SkellgateAudioProcessor::SkellgateAudioProcessor()
                                         .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
        apvts(*this, nullptr, "Parameters", createParameterLayout())
 {
+    loadPreset(0);
 }
 
 SkellgateAudioProcessor::~SkellgateAudioProcessor() {}
@@ -47,46 +48,89 @@ bool SkellgateAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts
 
 void SkellgateAudioProcessor::nextPreset()
 {
-    currentPreset = (currentPreset + 1) % 4;
+    currentPreset = (currentPreset + 1) % 8;
+    loadPreset(currentPreset);
 }
 
 void SkellgateAudioProcessor::previousPreset()
 {
-    currentPreset = (currentPreset - 1 + 4) % 4;
+    currentPreset = (currentPreset - 1 + 8) % 8;
+    loadPreset(currentPreset);
 }
 
-void SkellgateAudioProcessor::setPreset(int index)
+void SkellgateAudioProcessor::loadPreset(int index)
 {
-    currentPreset = juce::jlimit(0, 3, index);
+    currentPreset = juce::jlimit(0, 7, index);
+    curveNodes.clear();
+
+    switch (currentPreset)
+    {
+        case 0: // Pass-Through
+            curveNodes = { {0.0f, 0.0f}, {1.0f, 0.0f} };
+            break;
+        case 1: // 1/8 Stutter Gate
+            curveNodes = { {0.0f, 0.0f}, {0.125f, 0.5f}, {0.25f, 0.0f}, {0.375f, 0.5f}, {0.5f, 0.0f}, {0.625f, 0.5f}, {0.75f, 0.0f}, {0.875f, 0.5f}, {1.0f, 0.0f} };
+            break;
+        case 2: // Tape Stop
+            curveNodes = { {0.0f, 0.0f}, {0.5f, 0.4f}, {1.0f, 1.0f} };
+            break;
+        case 3: // Half-Time Stretch
+            curveNodes = { {0.0f, 0.0f}, {0.5f, 0.5f}, {1.0f, 1.0f} };
+            break;
+        case 4: // Reverse Sweep
+            curveNodes = { {0.0f, 1.0f}, {0.5f, 0.5f}, {1.0f, 0.0f} };
+            break;
+        case 5: // Vinyl Scratch
+            curveNodes = { {0.0f, 0.0f}, {0.2f, 0.8f}, {0.4f, 0.1f}, {0.6f, 0.9f}, {0.8f, 0.2f}, {1.0f, 0.0f} };
+            break;
+        case 6: // Granular Scatter
+            curveNodes = { {0.0f, 0.1f}, {0.2f, 0.7f}, {0.4f, 0.3f}, {0.6f, 0.9f}, {0.8f, 0.2f}, {1.0f, 0.5f} };
+            break;
+        case 7: // Double-Time Glitch
+            curveNodes = { {0.0f, 0.0f}, {0.25f, 0.9f}, {0.5f, 0.0f}, {0.75f, 0.9f}, {1.0f, 0.0f} };
+            break;
+    }
 }
 
-SkellgateAudioProcessor::CurvePoint SkellgateAudioProcessor::evaluateCurve(float phase)
+void SkellgateAudioProcessor::updateNodePosition(int index, float newY)
 {
-    float targetOffset = 0.0f;
-    float targetGain = 1.0f;
-    float timeMultiplier = *apvts.getRawParameterValue("time") / 50.0f;
-    bool isReverse = *apvts.getRawParameterValue("reverse");
+    if (index >= 0 && index < static_cast<int>(curveNodes.size()))
+    {
+        curveNodes[index].y = juce::jlimit(0.0f, 1.0f, newY);
+    }
+}
 
-    float adjustedPhase = std::fmod(phase * timeMultiplier, 1.0f);
+float SkellgateAudioProcessor::evaluateCustomCurve(float phase)
+{
+    if (curveNodes.empty()) return 0.0f;
 
-    if (currentPreset == 1) {
-        // Stutter Gate 1/8
-        targetOffset = std::floor(adjustedPhase * 8.0f) * 2000.0f;
-        targetGain = (std::fmod(adjustedPhase * 8.0f, 1.0f) < 0.7f) ? 1.0f : 0.0f;
-    } else if (currentPreset == 2) {
-        // Tape Stop / Pitch Warp
-        targetOffset = (adjustedPhase * adjustedPhase) * 15000.0f;
-    } else if (currentPreset == 3) {
-        // Reverse Octave Stutter
-        targetOffset = (1.0f - adjustedPhase) * 8000.0f;
-        targetGain = 0.8f + 0.2f * std::sin(adjustedPhase * 30.0f);
+    int idx = 0;
+    for (size_t i = 0; i < curveNodes.size(); ++i)
+    {
+        if (curveNodes[i].x <= phase)
+            idx = static_cast<int>(i);
     }
 
-    if (isReverse) {
-        targetOffset = -targetOffset;
-    }
+    int nextIdx = (idx + 1) % curveNodes.size();
+    float x1 = curveNodes[idx].x;
+    float y1 = curveNodes[idx].y;
+    float x2 = curveNodes[nextIdx].x;
+    float y2 = curveNodes[nextIdx].y;
 
-    return { targetOffset, targetGain };
+    if (x2 < x1) x2 += 1.0f;
+    float p = phase;
+    if (p < x1) p += 1.0f;
+
+    float factor = (x2 == x1) ? 0.0f : (p - x1) / (x2 - x1);
+    float interpolatedY = y1 + factor * (y2 - y1);
+
+    float maxOffsetSamples = currentSampleRate * 1.0f; // Up to 1 second time warp range
+    float offset = interpolatedY * maxOffsetSamples;
+
+    if (*apvts.getRawParameterValue("reverse"))
+        offset = -offset;
+
+    return offset;
 }
 
 void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -104,7 +148,9 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
 
     float mixParam = *apvts.getRawParameterValue("mix") / 100.0f;
     float lengthParam = *apvts.getRawParameterValue("length");
-    double loopDurationSecs = 0.25 + (lengthParam / 100.0f) * 3.75;
+    float timeParam = *apvts.getRawParameterValue("time") / 50.0f;
+
+    double loopDurationSecs = (0.25 + (lengthParam / 100.0f) * 3.75);
 
     auto* channelData = buffer.getWritePointer (0);
     int numSamples = buffer.getNumSamples();
@@ -114,10 +160,10 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
         float inSample = channelData[i];
         delayBuffer[writeHead] = inSample;
 
-        currentPhase = static_cast<float>(std::fmod(static_cast<double>(writeHead) / (currentSampleRate * loopDurationSecs), 1.0));
-        CurvePoint cp = evaluateCurve(currentPhase);
+        currentPhase = static_cast<float>(std::fmod((static_cast<double>(writeHead) / (currentSampleRate * loopDurationSecs)) * timeParam, 1.0));
+        float delayOffsetSamples = evaluateCustomCurve(currentPhase);
 
-        double exactReadPos = static_cast<double>(writeHead) - static_cast<double>(cp.offset);
+        double exactReadPos = static_cast<double>(writeHead) - static_cast<double>(delayOffsetSamples);
         while (exactReadPos < 0) exactReadPos += bufferSize;
         while (exactReadPos >= bufferSize) exactReadPos -= bufferSize;
 
@@ -127,11 +173,8 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
 
         float sample1 = delayBuffer[readIndex1];
         float sample2 = delayBuffer[readIndex2];
-        float interpolatedSample = sample1 + frac * (sample2 - sample1);
+        float outSample = sample1 + frac * (sample2 - sample1);
 
-        float outSample = interpolatedSample * cp.gain;
-
-        // Clean output mix without separate output gain stage
         channelData[i] = inSample * (1.0f - mixParam) + outSample * mixParam;
 
         writeHead = (writeHead + 1) % bufferSize;
