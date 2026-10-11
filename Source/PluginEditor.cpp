@@ -1,18 +1,49 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-PatternEditorComponent::PatternEditorComponent(SkellgateAudioProcessor& p) : processor(p) {}
+PatternEditorComponent::PatternEditorComponent(SkellgateAudioProcessor& p) : processor(p)
+{
+    startTimerHz(30); // 30 FPS smooth playhead animation
+}
+
+PatternEditorComponent::~PatternEditorComponent()
+{
+    stopTimer();
+}
+
+void PatternEditorComponent::timerCallback()
+{
+    repaint();
+}
 
 void PatternEditorComponent::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colours::darkgrey);
-    g.setColour(juce::Colours::green);
+    // Sleek dark cyberpunk panel background
+    g.fillAll(juce::Colour::fromRGB(18, 18, 18));
+    g.setColour(juce::Colours::lime.withAlpha(0.7f));
     g.drawRect(getLocalBounds(), 2);
 
+    // Draw grid lines
+    g.setColour(juce::Colours::darkgrey.withAlpha(0.4f));
+    g.drawHorizontalLine(getLocalBounds().getCentreY(), 0.0f, static_cast<float>(getWidth()));
+
+    // Draw Preset Title & Info
     g.setFont(14.0f);
     int preset = processor.getCurrentPresetIndex();
-    juce::String presetName = (preset == 0) ? "Preset: Default (1:1 Pass-through)" : (preset == 1) ? "Preset: Stutter Gate" : "Preset: Reverse Warp";
-    g.drawText(presetName, getLocalBounds(), juce::Justification::centred, true);
+    juce::String presetName;
+    if (preset == 0) presetName = "Preset 1: Default Pass-Through";
+    else if (preset == 1) presetName = "Preset 2: Stutter Gate 1/8";
+    else if (preset == 2) presetName = "Preset 3: Tape Pitch Warp";
+    else presetName = "Preset 4: Reverse Octave Stutter";
+
+    g.setColour(juce::Colours::lime);
+    g.drawText(presetName, getLocalBounds().removeFromTop(30), juce::Justification::centred, true);
+
+    // Draw Live Playhead Cursor across the visualizer grid
+    float phase = processor.getCurrentPhase();
+    float cursorX = phase * getWidth();
+    g.setColour(juce::Colours::lime.withAlpha(0.9f));
+    g.fillRect(cursorX - 1.0f, 30.0f, 2.0f, static_cast<float>(getHeight() - 30));
 }
 
 void PatternEditorComponent::mouseDown(const juce::MouseEvent& /*event*/)
@@ -24,15 +55,19 @@ void PatternEditorComponent::mouseDown(const juce::MouseEvent& /*event*/)
 SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p), patternEditor(p)
 {
+    setStyle(&skellLookAndFeel, false);
+
     addAndMakeVisible(patternEditor);
 
-    presetButton.setButtonText("Next Preset");
+    presetButton.setButtonText("NEXT PRESET SLOT");
     presetButton.addListener(this);
+    presetButton.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
+    presetButton.setColour(juce::TextButton::textColourOffId, juce::Colours::lime);
     addAndMakeVisible(presetButton);
 
     auto setupSlider = [this](juce::Slider& slider, const juce::String& /*name*/) {
         slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 20);
+        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 16);
         addAndMakeVisible(slider);
     };
 
@@ -40,25 +75,30 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
     setupSlider(releaseSlider, "Release");
     setupSlider(lengthSlider, "Length");
     setupSlider(timeSlider, "Time");
+    setupSlider(mixSlider, "Mix");
+    setupSlider(outputSlider, "Output");
 
     attackAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "attack", attackSlider);
     releaseAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "release", releaseSlider);
     lengthAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "length", lengthSlider);
     timeAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "time", timeSlider);
+    mixAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "mix", mixSlider);
+    outputAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "output", outputSlider);
 
-    bypassButton.setButtonText("Bypass");
+    bypassButton.setButtonText("BYPASS");
     addAndMakeVisible(bypassButton);
     bypassAttachment = std::make_unique<ButtonAttachment>(audioProcessor.apvts, "bypass", bypassButton);
 
-    reverseButton.setButtonText("Reverse");
+    reverseButton.setButtonText("REVERSE");
     addAndMakeVisible(reverseButton);
     reverseAttachment = std::make_unique<ButtonAttachment>(audioProcessor.apvts, "reverse", reverseButton);
 
-    setSize (700, 450);
+    setSize (750, 500);
 }
 
 SkellgateAudioProcessorEditor::~SkellgateAudioProcessorEditor()
 {
+    setStyle(nullptr, false);
 }
 
 void SkellgateAudioProcessorEditor::buttonClicked (juce::Button* button)
@@ -72,11 +112,16 @@ void SkellgateAudioProcessorEditor::buttonClicked (juce::Button* button)
 
 void SkellgateAudioProcessorEditor::paint (juce::Graphics& g)
 {
-    g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
+    g.fillAll (juce::Colour::fromRGB(24, 24, 24));
 
-    g.setColour (juce::Colours::green);
-    g.setFont (24.0f);
-    g.drawText ("Skellgate", 20, 15, 200, 30, juce::Justification::left);
+    // Plugin Title Brand Header
+    g.setColour (juce::Colours::lime);
+    g.setFont (juce::Font("Consolas", 26.0f, juce::Font::bold));
+    g.drawText ("SKELLGATE", 20, 15, 200, 30, juce::Justification::left);
+
+    g.setFont (12.0f);
+    g.setColour (juce::Colours::lightgrey);
+    g.drawText ("TIME & BUFFER MANIPULATOR", 155, 22, 200, 20, juce::Justification::left);
 }
 
 void SkellgateAudioProcessorEditor::resized()
@@ -85,17 +130,21 @@ void SkellgateAudioProcessorEditor::resized()
     
     auto topArea = area.removeFromTop(40);
     bypassButton.setBounds(topArea.removeFromRight(80));
-    reverseButton.setBounds(topArea.removeFromRight(90).reduced(0, 5));
+    reverseButton.setBounds(topArea.removeFromRight(95).reduced(0, 5));
 
-    auto patternArea = area.removeFromTop(200);
-    patternEditor.setBounds(patternArea.removeFromTop(160));
-    presetButton.setBounds(patternArea.reduced(200, 5));
+    // Pattern Screen Area
+    auto patternArea = area.removeFromTop(180);
+    patternEditor.setBounds(patternArea.removeFromTop(130));
+    presetButton.setBounds(patternArea.reduced(180, 5));
 
-    area.removeFromTop(10);
+    area.removeFromTop(15);
 
-    auto knobWidth = area.getWidth() / 4;
-    attackSlider.setBounds(area.removeFromLeft(knobWidth).reduced(10));
-    releaseSlider.setBounds(area.removeFromLeft(knobWidth).reduced(10));
-    lengthSlider.setBounds(area.removeFromLeft(knobWidth).reduced(10));
-    timeSlider.setBounds(area.removeFromLeft(knobWidth).reduced(10));
+    // 6 Knobs Layout Grid (Attack, Release, Length, Time, Mix, Output)
+    auto knobWidth = area.getWidth() / 6;
+    attackSlider.setBounds(area.removeFromLeft(knobWidth).reduced(5));
+    releaseSlider.setBounds(area.removeFromLeft(knobWidth).reduced(5));
+    lengthSlider.setBounds(area.removeFromLeft(knobWidth).reduced(5));
+    timeSlider.setBounds(area.removeFromLeft(knobWidth).reduced(5));
+    mixSlider.setBounds(area.removeFromLeft(knobWidth).reduced(5));
+    outputSlider.setBounds(area.removeFromLeft(knobWidth).reduced(5));
 }
