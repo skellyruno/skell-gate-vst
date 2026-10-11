@@ -12,6 +12,14 @@ public:
         setColour(juce::Slider::rotarySliderFillColourId, juce::Colours::lime);
         setColour(juce::Slider::thumbColourId, juce::Colours::black);
         setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colours::darkgrey);
+        setColour(juce::ComboBox::backgroundColourId, juce::Colour::fromRGB(28, 28, 28));
+        setColour(juce::ComboBox::outlineColourId, juce::Colours::lime);
+        setColour(juce::ComboBox::arrowColourId, juce::Colours::lime);
+        setColour(juce::ComboBox::textColourId, juce::Colours::lime);
+        setColour(juce::PopupMenu::backgroundColourId, juce::Colour::fromRGB(22, 22, 22));
+        setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colours::lime.withAlpha(0.3f));
+        setColour(juce::PopupMenu::textColourId, juce::Colours::lightgrey);
+        setColour(juce::PopupMenu::highlightedTextColourId, juce::Colours::lime);
     }
 
     void drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height,
@@ -23,13 +31,11 @@ public:
         auto center = bounds.getCentre();
         auto angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
 
-        // Background Track
         juce::Path bgArc;
         bgArc.addCentredArc (center.x, center.y, radius, radius, 0.0f, rotaryStartAngle, rotaryEndAngle, true);
         g.setColour (juce::Colours::darkgrey.darker(0.5f));
         g.strokePath (bgArc, juce::PathStrokeType (4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-        // Active Lime Arc
         if (sliderPos > 0.0f)
         {
             juce::Path valueArc;
@@ -38,7 +44,6 @@ public:
             g.strokePath (valueArc, juce::PathStrokeType (4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         }
 
-        // Thumb Knob
         auto thumbWidth = 8.0f;
         auto innerRadius = radius - 10.0f;
         juce::Point<float> thumbPoint (center.x + innerRadius * std::sin (angle),
@@ -48,14 +53,12 @@ public:
     }
 };
 
-class PatternEditorComponent : public juce::Component,
-                               public juce::Timer
+class PatternEditorComponent : public juce::Component, public juce::Timer
 {
 public:
     PatternEditorComponent(SkellgateAudioProcessor& p);
     ~PatternEditorComponent() override;
     void paint(juce::Graphics& g) override;
-    void mouseDown(const juce::MouseEvent& event) override;
     void timerCallback() override;
 
 private:
@@ -63,7 +66,8 @@ private:
 };
 
 class SkellgateAudioProcessorEditor : public juce::AudioProcessorEditor,
-                                      public juce::Button::Listener
+                                      public juce::Button::Listener,
+                                      public juce::ComboBox::Listener
 {
 public:
     SkellgateAudioProcessorEditor (SkellgateAudioProcessor&);
@@ -72,20 +76,26 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void buttonClicked (juce::Button* button) override;
+    void comboBoxChanged (juce::ComboBox* comboBoxThatHasChanged) override;
+    void updatePresetSelection();
 
 private:
     SkellgateAudioProcessor& audioProcessor;
     SkellgateLookAndFeel skellLookAndFeel;
 
     PatternEditorComponent patternEditor;
-    juce::TextButton presetButton;
+    
+    // Preset Bar controls (Forward, Backward, Dropdown)
+    juce::TextButton prevButton;
+    juce::TextButton nextButton;
+    juce::ComboBox presetDropdown;
 
+    // 5 Clean Core Knobs
     juce::Slider attackSlider;
     juce::Slider releaseSlider;
     juce::Slider lengthSlider;
     juce::Slider timeSlider;
     juce::Slider mixSlider;
-    juce::Slider outputSlider;
 
     juce::ToggleButton bypassButton;
     juce::ToggleButton reverseButton;
@@ -98,7 +108,6 @@ private:
     std::unique_ptr<SliderAttachment> lengthAttachment;
     std::unique_ptr<SliderAttachment> timeAttachment;
     std::unique_ptr<SliderAttachment> mixAttachment;
-    std::unique_ptr<SliderAttachment> outputAttachment;
     std::unique_ptr<ButtonAttachment> bypassAttachment;
     std::unique_ptr<ButtonAttachment> reverseAttachment;
 
