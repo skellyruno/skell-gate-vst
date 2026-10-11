@@ -26,15 +26,15 @@ void PatternEditorComponent::paint(juce::Graphics& g)
     g.setColour(juce::Colours::darkgrey.withAlpha(0.3f));
     g.drawHorizontalLine(getLocalBounds().getCentreY(), 0.0f, static_cast<float>(getWidth()));
 
-    // Draw Interactive Curve Lines & Nodes
+    // Draw Interactive Curve Lines & Nodes (Fixed to use startNewSubPath)
     auto& nodes = processor.getCurveNodes();
     if (nodes.size() > 1)
     {
         juce::Path curvePath;
-        curvePath.startNewPath(nodes[0].x * getWidth(), (1.0f - nodes[0].y) * getHeight());
+        curvePath.startNewSubPath(nodes[0].x * static_cast<float>(getWidth()), (1.0f - nodes[0].y) * static_cast<float>(getHeight()));
         for (size_t i = 1; i < nodes.size(); ++i)
         {
-            curvePath.lineTo(nodes[i].x * getWidth(), (1.0f - nodes[i].y) * getHeight());
+            curvePath.lineTo(nodes[i].x * static_cast<float>(getWidth()), (1.0f - nodes[i].y) * static_cast<float>(getHeight()));
         }
 
         g.setColour(juce::Colours::lime);
@@ -43,8 +43,8 @@ void PatternEditorComponent::paint(juce::Graphics& g)
         // Draw draggable nodes
         for (size_t i = 0; i < nodes.size(); ++i)
         {
-            float px = nodes[i].x * getWidth();
-            float py = (1.0f - nodes[i].y) * getHeight();
+            float px = nodes[i].x * static_cast<float>(getWidth());
+            float py = (1.0f - nodes[i].y) * static_cast<float>(getHeight());
             g.setColour(juce::Colours::black);
             g.fillEllipse(px - 5.0f, py - 5.0f, 10.0f, 10.0f);
             g.setColour(juce::Colours::lime);
@@ -54,7 +54,7 @@ void PatternEditorComponent::paint(juce::Graphics& g)
 
     // Playhead Cursor
     float phase = processor.getCurrentPhase();
-    float cursorX = phase * getWidth();
+    float cursorX = phase * static_cast<float>(getWidth());
     g.setColour(juce::Colours::white.withAlpha(0.9f));
     g.fillRect(cursorX - 1.0f, 0.0f, 2.0f, static_cast<float>(getHeight()));
 }
@@ -66,8 +66,8 @@ void PatternEditorComponent::mouseDown(const juce::MouseEvent& event)
 
     for (size_t i = 0; i < nodes.size(); ++i)
     {
-        float px = nodes[i].x * getWidth();
-        float py = (1.0f - nodes[i].y) * getHeight();
+        float px = nodes[i].x * static_cast<float>(getWidth());
+        float py = (1.0f - nodes[i].y) * static_cast<float>(getHeight());
         if (event.getPosition().getDistanceFrom({static_cast<int>(px), static_cast<int>(py)}) < 12)
         {
             draggedNodeIndex = static_cast<int>(i);
