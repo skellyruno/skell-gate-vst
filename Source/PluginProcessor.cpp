@@ -34,6 +34,7 @@ void SkellgateAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     delayBuffer.resize(bufferSize, 0.0f);
     writeHead = 0;
     currentPhase = 0.0f;
+    currentAudioLevel = 0.0f;
 }
 
 void SkellgateAudioProcessor::releaseResources() {}
@@ -48,47 +49,55 @@ bool SkellgateAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts
 
 void SkellgateAudioProcessor::nextPreset()
 {
-    currentPreset = (currentPreset + 1) % 8;
+    currentPreset = (currentPreset + 1) % 16;
     loadPreset(currentPreset);
 }
 
 void SkellgateAudioProcessor::previousPreset()
 {
-    currentPreset = (currentPreset - 1 + 8) % 8;
+    currentPreset = (currentPreset - 1 + 16) % 16;
     loadPreset(currentPreset);
 }
 
 void SkellgateAudioProcessor::loadPreset(int index)
 {
-    currentPreset = juce::jlimit(0, 7, index);
+    currentPreset = juce::jlimit(0, 15, index);
     curveNodes.clear();
 
     switch (currentPreset)
     {
-        case 0: // Pass-Through
-            curveNodes = { {0.0f, 0.0f}, {1.0f, 0.0f} };
-            break;
+        case 0: // Pass-Through Clean
+            curveNodes = { {0.0f, 0.0f}, {1.0f, 0.0f} }; break;
         case 1: // 1/8 Stutter Gate
-            curveNodes = { {0.0f, 0.0f}, {0.125f, 0.5f}, {0.25f, 0.0f}, {0.375f, 0.5f}, {0.5f, 0.0f}, {0.625f, 0.5f}, {0.75f, 0.0f}, {0.875f, 0.5f}, {1.0f, 0.0f} };
-            break;
-        case 2: // Tape Stop
-            curveNodes = { {0.0f, 0.0f}, {0.5f, 0.4f}, {1.0f, 1.0f} };
-            break;
+            curveNodes = { {0.0f, 0.0f}, {0.125f, 0.6f}, {0.25f, 0.0f}, {0.375f, 0.6f}, {0.5f, 0.0f}, {0.625f, 0.6f}, {0.75f, 0.0f}, {0.875f, 0.6f}, {1.0f, 0.0f} }; break;
+        case 2: // Tape Stop Warp
+            curveNodes = { {0.0f, 0.0f}, {0.4f, 0.3f}, {1.0f, 1.0f} }; break;
         case 3: // Half-Time Stretch
-            curveNodes = { {0.0f, 0.0f}, {0.5f, 0.5f}, {1.0f, 1.0f} };
-            break;
+            curveNodes = { {0.0f, 0.0f}, {0.5f, 0.5f}, {1.0f, 1.0f} }; break;
         case 4: // Reverse Sweep
-            curveNodes = { {0.0f, 1.0f}, {0.5f, 0.5f}, {1.0f, 0.0f} };
-            break;
-        case 5: // Vinyl Scratch
-            curveNodes = { {0.0f, 0.0f}, {0.2f, 0.8f}, {0.4f, 0.1f}, {0.6f, 0.9f}, {0.8f, 0.2f}, {1.0f, 0.0f} };
-            break;
+            curveNodes = { {0.0f, 1.0f}, {0.5f, 0.6f}, {1.0f, 0.0f} }; break;
+        case 5: // Vinyl Scratch FX
+            curveNodes = { {0.0f, 0.0f}, {0.15f, 0.9f}, {0.3f, 0.1f}, {0.6f, 0.8f}, {1.0f, 0.0f} }; break;
         case 6: // Granular Scatter
-            curveNodes = { {0.0f, 0.1f}, {0.2f, 0.7f}, {0.4f, 0.3f}, {0.6f, 0.9f}, {0.8f, 0.2f}, {1.0f, 0.5f} };
-            break;
+            curveNodes = { {0.0f, 0.2f}, {0.2f, 0.8f}, {0.4f, 0.1f}, {0.6f, 0.9f}, {0.8f, 0.3f}, {1.0f, 0.5f} }; break;
         case 7: // Double-Time Glitch
-            curveNodes = { {0.0f, 0.0f}, {0.25f, 0.9f}, {0.5f, 0.0f}, {0.75f, 0.9f}, {1.0f, 0.0f} };
-            break;
+            curveNodes = { {0.0f, 0.0f}, {0.25f, 0.8f}, {0.5f, 0.0f}, {0.75f, 0.8f}, {1.0f, 0.0f} }; break;
+        case 8: // Pitch Rise
+            curveNodes = { {0.0f, 1.0f}, {1.0f, 0.0f} }; break;
+        case 9: // Trance Gater
+            curveNodes = { {0.0f, 0.0f}, {0.1f, 0.7f}, {0.2f, 0.0f}, {0.3f, 0.7f}, {0.4f, 0.0f}, {0.5f, 0.7f}, {0.6f, 0.0f}, {0.7f, 0.7f}, {0.8f, 0.0f}, {0.9f, 0.7f}, {1.0f, 0.0f} }; break;
+        case 10: // Chaos Loop A
+            curveNodes = { {0.0f, 0.0f}, {0.2f, 0.5f}, {0.3f, 0.1f}, {0.7f, 0.9f}, {1.0f, 0.2f} }; break;
+        case 11: // Chaos Loop B
+            curveNodes = { {0.0f, 0.3f}, {0.4f, 0.9f}, {0.6f, 0.1f}, {1.0f, 0.5f} }; break;
+        case 12: // Stutter 1/4
+            curveNodes = { {0.0f, 0.0f}, {0.25f, 0.5f}, {0.2501f, 0.0f}, {0.5f, 0.5f}, {0.5001f, 0.0f}, {0.75f, 0.5f}, {0.7501f, 0.0f}, {1.0f, 0.0f} }; break;
+        case 13: // Sub Drop Warp
+            curveNodes = { {0.0f, 0.0f}, {0.8f, 0.2f}, {1.0f, 1.0f} }; break;
+        case 14: // Glitch Stutter Fast
+            curveNodes = { {0.0f, 0.0f}, {0.1f, 0.9f}, {0.2f, 0.0f}, {0.3f, 0.9f}, {0.4f, 0.0f}, {0.5f, 0.9f}, {0.6f, 0.0f}, {0.7f, 0.9f}, {0.8f, 0.0f}, {0.9f, 0.9f}, {1.0f, 0.0f} }; break;
+        case 15: // Cosmic Swell
+            curveNodes = { {0.0f, 0.5f}, {0.5f, 0.0f}, {1.0f, 1.0f} }; break;
     }
 }
 
@@ -124,7 +133,7 @@ float SkellgateAudioProcessor::evaluateCustomCurve(float phase)
     float factor = (x2 == x1) ? 0.0f : (p - x1) / (x2 - x1);
     float interpolatedY = y1 + factor * (y2 - y1);
 
-    float maxOffsetSamples = static_cast<float>(currentSampleRate * 1.0);
+    float maxOffsetSamples = static_cast<float>(currentSampleRate * 1.5);
     float offset = interpolatedY * maxOffsetSamples;
 
     if (*apvts.getRawParameterValue("reverse"))
@@ -154,13 +163,14 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
 
     auto* channelData = buffer.getWritePointer (0);
     int numSamples = buffer.getNumSamples();
+    float rmsSum = 0.0f;
 
     for (int i = 0; i < numSamples; ++i)
     {
         float inSample = channelData[i];
+        rmsSum += inSample * inSample;
         delayBuffer[writeHead] = inSample;
 
-        // Clean double-to-float phase calculation avoiding C4244 warnings
         double phaseDouble = std::fmod((static_cast<double>(writeHead) / (currentSampleRate * loopDurationSecs)) * static_cast<double>(timeParam), 1.0);
         currentPhase = static_cast<float>(phaseDouble);
 
@@ -182,6 +192,8 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
 
         writeHead = (writeHead + 1) % bufferSize;
     }
+
+    currentAudioLevel = std::sqrt(rmsSum / static_cast<float>(numSamples));
 
     if (totalNumInputChannels > 1)
     {
