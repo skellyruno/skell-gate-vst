@@ -36,6 +36,8 @@ public:
     juce::AudioProcessorValueTreeState apvts;
     
     void nextPreset();
+    void previousPreset();
+    void setPreset(int index);
     int getCurrentPresetIndex() const { return currentPreset; }
     float getCurrentPhase() const { return currentPhase; }
 
