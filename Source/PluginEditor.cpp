@@ -22,16 +22,68 @@ void PatternEditorComponent::paint(juce::Graphics& g)
     g.setColour(juce::Colours::lime.withAlpha(0.6f));
     g.drawRect(getLocalBounds(), 2);
 
-    // Subtle grid background lines
+    // Grid lines
     g.setColour(juce::Colours::darkgrey.withAlpha(0.3f));
     g.drawHorizontalLine(getLocalBounds().getCentreY(), 0.0f, static_cast<float>(getWidth()));
-    g.drawVerticalLine(getWidth() / 2, 0.0f, static_cast<float>(getHeight()));
 
-    // Active Playhead Cursor
+    // Draw Interactive Curve Lines & Nodes
+    auto& nodes = processor.getCurveNodes();
+    if (nodes.size() > 1)
+    {
+        juce::Path curvePath;
+        curvePath.startNewPath(nodes[0].x * getWidth(), (1.0f - nodes[0].y) * getHeight());
+        for (size_t i = 1; i < nodes.size(); ++i)
+        {
+            curvePath.lineTo(nodes[i].x * getWidth(), (1.0f - nodes[i].y) * getHeight());
+        }
+
+        g.setColour(juce::Colours::lime);
+        g.strokePath(curvePath, juce::PathStrokeType(2.5f));
+
+        // Draw draggable nodes
+        for (size_t i = 0; i < nodes.size(); ++i)
+        {
+            float px = nodes[i].x * getWidth();
+            float py = (1.0f - nodes[i].y) * getHeight();
+            g.setColour(juce::Colours::black);
+            g.fillEllipse(px - 5.0f, py - 5.0f, 10.0f, 10.0f);
+            g.setColour(juce::Colours::lime);
+            g.drawEllipse(px - 5.0f, py - 5.0f, 10.0f, 10.0f, 2.0f);
+        }
+    }
+
+    // Playhead Cursor
     float phase = processor.getCurrentPhase();
     float cursorX = phase * getWidth();
-    g.setColour(juce::Colours::lime.withAlpha(0.9f));
-    g.fillRect(cursorX - 1.5f, 0.0f, 3.0f, static_cast<float>(getHeight()));
+    g.setColour(juce::Colours::white.withAlpha(0.9f));
+    g.fillRect(cursorX - 1.0f, 0.0f, 2.0f, static_cast<float>(getHeight()));
+}
+
+void PatternEditorComponent::mouseDown(const juce::MouseEvent& event)
+{
+    auto& nodes = processor.getCurveNodes();
+    draggedNodeIndex = -1;
+
+    for (size_t i = 0; i < nodes.size(); ++i)
+    {
+        float px = nodes[i].x * getWidth();
+        float py = (1.0f - nodes[i].y) * getHeight();
+        if (event.getPosition().getDistanceFrom({static_cast<int>(px), static_cast<int>(py)}) < 12)
+        {
+            draggedNodeIndex = static_cast<int>(i);
+            break;
+        }
+    }
+}
+
+void PatternEditorComponent::mouseDrag(const juce::MouseEvent& event)
+{
+    if (draggedNodeIndex != -1)
+    {
+        float normalizedY = 1.0f - (static_cast<float>(event.getPosition().y) / static_cast<float>(getHeight()));
+        processor.updateNodePosition(draggedNodeIndex, normalizedY);
+        repaint();
+    }
 }
 
 SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProcessor& p)
@@ -41,7 +93,6 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
 
     addAndMakeVisible(patternEditor);
 
-    // Preset Controls Setup
     prevButton.setButtonText("<");
     prevButton.addListener(this);
     prevButton.setColour(juce::TextButton::buttonColourId, juce::Colour::fromRGB(30, 30, 30));
@@ -56,13 +107,16 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
 
     presetDropdown.addItem("Slot 1: Pass-Through (Clean)", 1);
     presetDropdown.addItem("Slot 2: 1/8 Stutter Gate", 2);
-    presetDropdown.addItem("Slot 3: Tape Pitch Warp", 3);
-    presetDropdown.addItem("Slot 4: Reverse Octave Stutter", 4);
+    presetDropdown.addItem("Slot 3: Tape Stop Warp", 3);
+    presetDropdown.addItem("Slot 4: Half-Time Stretch", 4);
+    presetDropdown.addItem("Slot 5: Reverse Sweep", 5);
+    presetDropdown.addItem("Slot 6: Vinyl Scratch", 6);
+    presetDropdown.addItem("Slot 7: Granular Scatter", 7);
+    presetDropdown.addItem("Slot 8: Double-Time Glitch", 8);
     presetDropdown.addListener(this);
     addAndMakeVisible(presetDropdown);
-    updatePresetSelection();
+    updatePresetDropdown();
 
-    // Setup 5 Clean Knobs
     auto setupSlider = [this](juce::Slider& slider) {
         slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
         slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 55, 16);
@@ -89,7 +143,7 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
     addAndMakeVisible(reverseButton);
     reverseAttachment = std::make_unique<ButtonAttachment>(audioProcessor.apvts, "reverse", reverseButton);
 
-    setSize (720, 480);
+    setSize (720, 500);
 }
 
 SkellgateAudioProcessorEditor::~SkellgateAudioProcessorEditor()
@@ -102,12 +156,12 @@ void SkellgateAudioProcessorEditor::buttonClicked (juce::Button* button)
     if (button == &prevButton)
     {
         audioProcessor.previousPreset();
-        updatePresetSelection();
+        updatePresetDropdown();
     }
     else if (button == &nextButton)
     {
         audioProcessor.nextPreset();
-        updatePresetSelection();
+        updatePresetDropdown();
     }
 }
 
@@ -118,13 +172,13 @@ void SkellgateAudioProcessorEditor::comboBoxChanged (juce::ComboBox* comboBoxTha
         int selectedId = presetDropdown.getSelectedId();
         if (selectedId > 0)
         {
-            audioProcessor.setPreset(selectedId - 1);
+            audioProcessor.loadPreset(selectedId - 1);
             patternEditor.repaint();
         }
     }
 }
 
-void SkellgateAudioProcessorEditor::updatePresetSelection()
+void SkellgateAudioProcessorEditor::updatePresetDropdown()
 {
     presetDropdown.setSelectedId(audioProcessor.getCurrentPresetIndex() + 1, juce::dontSendNotification);
     patternEditor.repaint();
@@ -134,26 +188,23 @@ void SkellgateAudioProcessorEditor::paint (juce::Graphics& g)
 {
     g.fillAll (juce::Colour::fromRGB(22, 22, 22));
 
-    // Sleek Brand Title
     g.setColour (juce::Colours::lime);
     g.setFont (juce::Font (juce::FontOptions().withName("Consolas").withHeight(24.0f).withStyle("Bold")));
     g.drawText ("SKELLGATE", 20, 15, 180, 30, juce::Justification::left);
 
     g.setFont (11.0f);
     g.setColour (juce::Colours::grey);
-    g.drawText ("GLITCH BUFFER ENGINE", 145, 22, 180, 20, juce::Justification::left);
+    g.drawText ("INTERACTIVE TIME-WARP ENGINE", 145, 22, 220, 20, juce::Justification::left);
 }
 
 void SkellgateAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(20);
     
-    // Top Bar (Bypass & Reverse)
     auto topArea = area.removeFromTop(40);
     bypassButton.setBounds(topArea.removeFromRight(80));
     reverseButton.setBounds(topArea.removeFromRight(95).reduced(0, 5));
 
-    // Preset Selector Bar (Forward, Backward, Dropdown)
     auto presetBar = area.removeFromTop(35);
     prevButton.setBounds(presetBar.removeFromLeft(40));
     nextButton.setBounds(presetBar.removeFromLeft(40));
@@ -162,12 +213,10 @@ void SkellgateAudioProcessorEditor::resized()
 
     area.removeFromTop(10);
 
-    // Visualizer Window
-    patternEditor.setBounds(area.removeFromTop(150));
+    patternEditor.setBounds(area.removeFromTop(160));
 
     area.removeFromTop(15);
 
-    // 5 Knobs Layout Grid (Attack, Release, Length, Time, Mix)
     auto knobWidth = area.getWidth() / 5;
     attackSlider.setBounds(area.removeFromLeft(knobWidth).reduced(6));
     releaseSlider.setBounds(area.removeFromLeft(knobWidth).reduced(6));
