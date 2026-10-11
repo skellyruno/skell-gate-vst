@@ -124,7 +124,7 @@ float SkellgateAudioProcessor::evaluateCustomCurve(float phase)
     float factor = (x2 == x1) ? 0.0f : (p - x1) / (x2 - x1);
     float interpolatedY = y1 + factor * (y2 - y1);
 
-    float maxOffsetSamples = currentSampleRate * 1.0f; // Up to 1 second time warp range
+    float maxOffsetSamples = static_cast<float>(currentSampleRate * 1.0);
     float offset = interpolatedY * maxOffsetSamples;
 
     if (*apvts.getRawParameterValue("reverse"))
@@ -150,7 +150,7 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     float lengthParam = *apvts.getRawParameterValue("length");
     float timeParam = *apvts.getRawParameterValue("time") / 50.0f;
 
-    double loopDurationSecs = (0.25 + (lengthParam / 100.0f) * 3.75);
+    double loopDurationSecs = (0.25 + (lengthParam / 100.0) * 3.75);
 
     auto* channelData = buffer.getWritePointer (0);
     int numSamples = buffer.getNumSamples();
@@ -160,7 +160,10 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
         float inSample = channelData[i];
         delayBuffer[writeHead] = inSample;
 
-        currentPhase = static_cast<float>(std::fmod((static_cast<double>(writeHead) / (currentSampleRate * loopDurationSecs)) * timeParam, 1.0));
+        // Clean double-to-float phase calculation avoiding C4244 warnings
+        double phaseDouble = std::fmod((static_cast<double>(writeHead) / (currentSampleRate * loopDurationSecs)) * static_cast<double>(timeParam), 1.0);
+        currentPhase = static_cast<float>(phaseDouble);
+
         float delayOffsetSamples = evaluateCustomCurve(currentPhase);
 
         double exactReadPos = static_cast<double>(writeHead) - static_cast<double>(delayOffsetSamples);
