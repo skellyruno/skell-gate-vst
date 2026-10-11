@@ -59,10 +59,13 @@ public:
     PatternEditorComponent(SkellgateAudioProcessor& p);
     ~PatternEditorComponent() override;
     void paint(juce::Graphics& g) override;
+    void mouseDown(const juce::MouseEvent& event) override;
+    void mouseDrag(const juce::MouseEvent& event) override;
     void timerCallback() override;
 
 private:
     SkellgateAudioProcessor& processor;
+    int draggedNodeIndex = -1;
 };
 
 class SkellgateAudioProcessorEditor : public juce::AudioProcessorEditor,
@@ -77,7 +80,7 @@ public:
     void resized() override;
     void buttonClicked (juce::Button* button) override;
     void comboBoxChanged (juce::ComboBox* comboBoxThatHasChanged) override;
-    void updatePresetSelection();
+    void updatePresetDropdown();
 
 private:
     SkellgateAudioProcessor& audioProcessor;
@@ -85,12 +88,10 @@ private:
 
     PatternEditorComponent patternEditor;
     
-    // Preset Bar controls (Forward, Backward, Dropdown)
     juce::TextButton prevButton;
     juce::TextButton nextButton;
     juce::ComboBox presetDropdown;
 
-    // 5 Clean Core Knobs
     juce::Slider attackSlider;
     juce::Slider releaseSlider;
     juce::Slider lengthSlider;
