@@ -19,7 +19,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout SkellgateAudioProcessor::cre
     params.push_back(std::make_unique<juce::AudioParameterFloat>("length", "Length", juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 50.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("time", "Time", juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 50.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("mix", "Mix", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 100.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("output", "Output", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 75.0f));
     params.push_back(std::make_unique<juce::AudioParameterBool>("bypass", "Bypass", false));
     params.push_back(std::make_unique<juce::AudioParameterBool>("reverse", "Reverse", false));
 
@@ -30,7 +29,7 @@ void SkellgateAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
 {
     juce::ignoreUnused(samplesPerBlock);
     currentSampleRate = sampleRate;
-    bufferSize = static_cast<int>(sampleRate * 4.0); // 4 seconds buffer memory
+    bufferSize = static_cast<int>(sampleRate * 4.0);
     delayBuffer.resize(bufferSize, 0.0f);
     writeHead = 0;
     currentPhase = 0.0f;
@@ -48,7 +47,17 @@ bool SkellgateAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts
 
 void SkellgateAudioProcessor::nextPreset()
 {
-    currentPreset = (currentPreset + 1) % 4; // Cycles through 4 unique rhythmic presets
+    currentPreset = (currentPreset + 1) % 4;
+}
+
+void SkellgateAudioProcessor::previousPreset()
+{
+    currentPreset = (currentPreset - 1 + 4) % 4;
+}
+
+void SkellgateAudioProcessor::setPreset(int index)
+{
+    currentPreset = juce::jlimit(0, 3, index);
 }
 
 SkellgateAudioProcessor::CurvePoint SkellgateAudioProcessor::evaluateCurve(float phase)
@@ -61,14 +70,14 @@ SkellgateAudioProcessor::CurvePoint SkellgateAudioProcessor::evaluateCurve(float
     float adjustedPhase = std::fmod(phase * timeMultiplier, 1.0f);
 
     if (currentPreset == 1) {
-        // Stutter Gate Pattern
+        // Stutter Gate 1/8
         targetOffset = std::floor(adjustedPhase * 8.0f) * 2000.0f;
         targetGain = (std::fmod(adjustedPhase * 8.0f, 1.0f) < 0.7f) ? 1.0f : 0.0f;
     } else if (currentPreset == 2) {
         // Tape Stop / Pitch Warp
         targetOffset = (adjustedPhase * adjustedPhase) * 15000.0f;
     } else if (currentPreset == 3) {
-        // Octave Jump / Reverse Stutter
+        // Reverse Octave Stutter
         targetOffset = (1.0f - adjustedPhase) * 8000.0f;
         targetGain = 0.8f + 0.2f * std::sin(adjustedPhase * 30.0f);
     }
@@ -94,10 +103,7 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
         return;
 
     float mixParam = *apvts.getRawParameterValue("mix") / 100.0f;
-    float outParam = *apvts.getRawParameterValue("output") / 100.0f;
     float lengthParam = *apvts.getRawParameterValue("length");
-    
-    // Calculate loop duration in samples based on Length knob (0-100 mapped to 0.25 to 4 seconds)
     double loopDurationSecs = 0.25 + (lengthParam / 100.0f) * 3.75;
 
     auto* channelData = buffer.getWritePointer (0);
@@ -111,7 +117,6 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
         currentPhase = static_cast<float>(std::fmod(static_cast<double>(writeHead) / (currentSampleRate * loopDurationSecs), 1.0));
         CurvePoint cp = evaluateCurve(currentPhase);
 
-        // Linear interpolation for smooth, artifact-free buffer reading
         double exactReadPos = static_cast<double>(writeHead) - static_cast<double>(cp.offset);
         while (exactReadPos < 0) exactReadPos += bufferSize;
         while (exactReadPos >= bufferSize) exactReadPos -= bufferSize;
@@ -126,7 +131,8 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
 
         float outSample = interpolatedSample * cp.gain;
 
-        channelData[i] = (inSample * (1.0f - mixParam) + outSample * mixParam) * (outParam * 1.5f);
+        // Clean output mix without separate output gain stage
+        channelData[i] = inSample * (1.0f - mixParam) + outSample * mixParam;
 
         writeHead = (writeHead + 1) % bufferSize;
     }
