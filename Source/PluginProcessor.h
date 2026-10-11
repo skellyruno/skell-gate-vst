@@ -13,7 +13,6 @@ public:
     void releaseResources() override;
 
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
-
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
     juce::AudioProcessorEditor* createEditor() override;
@@ -38,6 +37,7 @@ public:
     
     void nextPreset();
     int getCurrentPresetIndex() const { return currentPreset; }
+    float getCurrentPhase() const { return currentPhase; }
 
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -46,9 +46,11 @@ private:
     int bufferSize = 0;
     int writeHead = 0;
     double currentSampleRate = 44100.0;
+    float currentPhase = 0.0f;
 
     int currentPreset = 0;
-    std::vector<float> getCurrentCurveValues(float phase);
+    struct CurvePoint { float offset; float gain; };
+    CurvePoint evaluateCurve(float phase);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SkellgateAudioProcessor)
 };
