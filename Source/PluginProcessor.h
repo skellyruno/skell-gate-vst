@@ -37,9 +37,13 @@ public:
     
     void nextPreset();
     void previousPreset();
-    void setPreset(int index);
+    void loadPreset(int index);
     int getCurrentPresetIndex() const { return currentPreset; }
     float getCurrentPhase() const { return currentPhase; }
+
+    struct Node { float x; float y; };
+    std::vector<Node>& getCurveNodes() { return curveNodes; }
+    void updateNodePosition(int index, float newY);
 
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -51,8 +55,8 @@ private:
     float currentPhase = 0.0f;
 
     int currentPreset = 0;
-    struct CurvePoint { float offset; float gain; };
-    CurvePoint evaluateCurve(float phase);
+    std::vector<Node> curveNodes;
+    float evaluateCustomCurve(float phase);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SkellgateAudioProcessor)
 };
