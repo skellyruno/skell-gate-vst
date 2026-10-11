@@ -55,7 +55,8 @@ void PatternEditorComponent::mouseDown(const juce::MouseEvent& /*event*/)
 SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p), patternEditor(p)
 {
-    setStyle(&skellLookAndFeel, false);
+    // Fixed: Use setLookAndFeel instead of setStyle
+    setLookAndFeel(&skellLookAndFeel);
 
     addAndMakeVisible(patternEditor);
 
@@ -98,7 +99,8 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
 
 SkellgateAudioProcessorEditor::~SkellgateAudioProcessorEditor()
 {
-    setStyle(nullptr, false);
+    // Fixed: Clear look and feel on destruction
+    setLookAndFeel(nullptr);
 }
 
 void SkellgateAudioProcessorEditor::buttonClicked (juce::Button* button)
@@ -114,9 +116,9 @@ void SkellgateAudioProcessorEditor::paint (juce::Graphics& g)
 {
     g.fillAll (juce::Colour::fromRGB(24, 24, 24));
 
-    // Plugin Title Brand Header
+    // Plugin Title Brand Header (Fixed with FontOptions for modern JUCE)
     g.setColour (juce::Colours::lime);
-    g.setFont (juce::Font("Consolas", 26.0f, juce::Font::bold));
+    g.setFont (juce::Font (juce::FontOptions().withName("Consolas").withHeight(26.0f)));
     g.drawText ("SKELLGATE", 20, 15, 200, 30, juce::Justification::left);
 
     g.setFont (12.0f);
