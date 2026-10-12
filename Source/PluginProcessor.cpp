@@ -22,10 +22,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout SkellgateAudioProcessor::cre
     params.push_back(std::make_unique<juce::AudioParameterFloat>("length", "Length", juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 50.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("time", "Time", juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 50.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("mix", "Mix", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 100.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("scratch", "Scratch", juce::NormalisableRange<float>(-1.0f, 1.0f, 0.01f), 0.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("pitch", "Pitch", juce::NormalisableRange<float>(-24.0f, 24.0f, 1.0f), 0.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("saturation", "Saturation", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 15.0f));
     params.push_back(std::make_unique<juce::AudioParameterBool>("bypass", "Bypass", false));
     params.push_back(std::make_unique<juce::AudioParameterBool>("reverse", "Reverse", false));
+    params.push_back(std::make_unique<juce::AudioParameterBool>("hq", "HQ Resampling", true));
+    params.push_back(std::make_unique<juce::AudioParameterBool>("clickReduction", "Click Reduction", true));
 
     return { params.begin(), params.end() };
 }
@@ -34,14 +37,11 @@ void SkellgateAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
 {
     juce::ignoreUnused(samplesPerBlock);
     currentSampleRate = sampleRate;
-    bufferSize = static_cast<int>(sampleRate * 4.0);
+    bufferSize = static_cast<int>(sampleRate * 4.0); // 2-bar rolling buffer base
     delayBuffer.resize(bufferSize, 0.0f);
     writeHead = 0;
     currentPhase = 0.0f;
     currentAudioLevel = 0.0f;
-    
-    std::lock_guard<std::mutex> lock(scopeMutex);
-    scopeBuffer.assign(300, 0.0f);
 }
 
 void SkellgateAudioProcessor::releaseResources() {}
@@ -56,53 +56,45 @@ bool SkellgateAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts
 
 void SkellgateAudioProcessor::setTimePreset(int index)
 {
-    currentTimePreset = juce::jlimit(0, 31, index);
+    currentTimePreset = juce::jlimit(0, 35, index);
     timeCurveNodes.clear();
 
-    switch (currentTimePreset % 16)
+    switch (currentTimePreset % 12)
     {
         case 0: timeCurveNodes = { {0.0f, 0.0f}, {1.0f, 0.0f} }; break; // Pass
-        case 1: timeCurveNodes = { {0.0f, 0.0f}, {0.125f, 0.5f}, {0.25f, 0.0f}, {0.375f, 0.5f}, {0.5f, 0.0f}, {0.75f, 0.5f}, {1.0f, 0.0f} }; break; // 1/8 Stutter
-        case 2: timeCurveNodes = { {0.0f, 0.0f}, {0.4f, 0.4f}, {1.0f, 1.0f} }; break; // Tape Stop
-        case 3: timeCurveNodes = { {0.0f, 0.0f}, {0.5f, 0.5f}, {1.0f, 1.0f} }; break; // Half-Time
-        case 4: timeCurveNodes = { {0.0f, 1.0f}, {0.5f, 0.5f}, {1.0f, 0.0f} }; break; // Reverse Warp
-        case 5: timeCurveNodes = { {0.0f, 0.0f}, {0.2f, 0.9f}, {0.4f, 0.1f}, {0.7f, 0.8f}, {1.0f, 0.0f} }; break; // Vinyl Scratch
-        case 6: timeCurveNodes = { {0.0f, 0.0f}, {0.25f, 0.7f}, {0.3f, 0.1f}, {0.6f, 0.9f}, {1.0f, 0.0f} }; break; // Complex A
-        case 7: timeCurveNodes = { {0.0f, 0.2f}, {0.4f, 0.8f}, {0.6f, 0.1f}, {1.0f, 0.5f} }; break; // Complex B
-        case 8: timeCurveNodes = { {0.0f, 0.0f}, {0.1f, 0.9f}, {0.2f, 0.0f}, {0.3f, 0.9f}, {0.5f, 0.0f}, {1.0f, 0.0f} }; break; // Chaos
-        case 9: timeCurveNodes = { {0.0f, 1.0f}, {1.0f, 0.0f} }; break; // Pitch Rise
-        case 10: timeCurveNodes = { {0.0f, 0.0f}, {0.8f, 0.6f}, {1.0f, 1.0f} }; break; // Slow Down
-        case 11: timeCurveNodes = { {0.0f, 0.1f}, {0.2f, 0.7f}, {0.4f, 0.3f}, {0.6f, 0.9f}, {1.0f, 0.5f} }; break; // Granular Scatter
-        case 12: timeCurveNodes = { {0.0f, 0.0f}, {0.2f, 0.5f}, {0.4f, 0.0f}, {0.6f, 0.5f}, {0.8f, 0.0f}, {1.0f, 0.0f} }; break; // Stutter Fast
-        case 13: timeCurveNodes = { {0.0f, 0.5f}, {0.3f, 0.0f}, {0.7f, 1.0f}, {1.0f, 0.5f} }; break; // Wobble Warp
-        case 14: timeCurveNodes = { {0.0f, 0.0f}, {0.15f, 0.8f}, {0.5f, 0.2f}, {1.0f, 0.0f} }; break; // Dive Bomb
-        case 15: timeCurveNodes = { {0.0f, 0.0f}, {0.5f, 1.0f}, {0.5001f, 0.0f}, {1.0f, 1.0f} }; break; // Jump Stutter
+        case 1: timeCurveNodes = { {0.0f, 0.0f}, {0.125f, 0.5f}, {0.25f, 0.0f}, {0.375f, 0.5f}, {0.5f, 0.0f}, {0.75f, 0.5f}, {1.0f, 0.0f} }; break; // 1/8 Stutter[cite: 3]
+        case 2: timeCurveNodes = { {0.0f, 0.0f}, {0.4f, 0.4f}, {1.0f, 1.0f} }; break; // Tape Stop[cite: 3]
+        case 3: timeCurveNodes = { {0.0f, 0.0f}, {0.5f, 0.5f}, {1.0f, 1.0f} }; break; // Half-Time[cite: 3]
+        case 4: timeCurveNodes = { {0.0f, 1.0f}, {0.5f, 0.5f}, {1.0f, 0.0f} }; break; // Reverse Warp[cite: 3]
+        case 5: timeCurveNodes = { {0.0f, 0.0f}, {0.2f, 0.9f}, {0.4f, 0.1f}, {0.7f, 0.8f}, {1.0f, 0.0f} }; break; // Vinyl Scratch[cite: 3]
+        case 6: timeCurveNodes = { {0.0f, 0.0f}, {0.25f, 0.7f}, {0.3f, 0.1f}, {0.6f, 0.9f}, {1.0f, 0.0f} }; break; // Complex A[cite: 3]
+        case 7: timeCurveNodes = { {0.0f, 0.2f}, {0.4f, 0.8f}, {0.6f, 0.1f}, {1.0f, 0.5f} }; break; // Complex B[cite: 3]
+        case 8: timeCurveNodes = { {0.0f, 0.0f}, {0.1f, 0.9f}, {0.2f, 0.0f}, {0.3f, 0.9f}, {0.5f, 0.0f}, {1.0f, 0.0f} }; break; // Chaos[cite: 3]
+        case 9: timeCurveNodes = { {0.0f, 1.0f}, {1.0f, 0.0f} }; break; // Pitch Rise[cite: 3]
+        case 10: timeCurveNodes = { {0.0f, 0.0f}, {0.8f, 0.6f}, {1.0f, 1.0f} }; break; // Slow Down[cite: 3]
+        case 11: timeCurveNodes = { {0.0f, 0.1f}, {0.2f, 0.7f}, {0.4f, 0.3f}, {0.6f, 0.9f}, {1.0f, 0.5f} }; break; // Granular Scatter[cite: 3]
     }
 }
 
 void SkellgateAudioProcessor::setVolumePreset(int index)
 {
-    currentVolumePreset = juce::jlimit(0, 31, index);
+    currentVolumePreset = juce::jlimit(0, 35, index);
     volumeCurveNodes.clear();
 
-    switch (currentVolumePreset % 16)
+    switch (currentVolumePreset % 12)
     {
-        case 0: volumeCurveNodes = { {0.0f, 1.0f}, {1.0f, 1.0f} }; break; // Full
-        case 1: volumeCurveNodes = { {0.0f, 1.0f}, {0.45f, 1.0f}, {0.5f, 0.0f}, {1.0f, 1.0f} }; break; // 1/2 Gate
-        case 2: volumeCurveNodes = { {0.0f, 1.0f}, {0.2f, 0.0f}, {0.25f, 1.0f}, {0.5f, 0.0f}, {1.0f, 1.0f} }; break; // 1/4 Gate
-        case 3: volumeCurveNodes = { {0.0f, 1.0f}, {0.1f, 0.0f}, {0.2f, 1.0f}, {0.3f, 0.0f}, {0.4f, 1.0f}, {0.5f, 0.0f}, {1.0f, 1.0f} }; break; // Trance Gater
-        case 4: volumeCurveNodes = { {0.0f, 1.0f}, {0.5f, 0.0f}, {0.5001f, 1.0f}, {1.0f, 0.0f} }; break; // Saw Gate
-        case 5: volumeCurveNodes = { {0.0f, 0.0f}, {0.25f, 1.0f}, {1.0f, 1.0f} }; break; // 1st Step Fade
-        case 6: volumeCurveNodes = { {0.0f, 1.0f}, {1.0f, 0.0f} }; break; // Fade Out
-        case 7: volumeCurveNodes = { {0.0f, 0.0f}, {1.0f, 1.0f} }; break; // Fade In
-        case 8: volumeCurveNodes = { {0.0f, 1.0f}, {0.25f, 0.2f}, {0.5f, 1.0f}, {0.75f, 0.2f}, {1.0f, 1.0f} }; break; // Tremolo Slow
-        case 9: volumeCurveNodes = { {0.0f, 1.0f}, {0.1f, 0.1f}, {0.2f, 1.0f}, {0.3f, 0.1f}, {0.5f, 1.0f}, {1.0f, 1.0f} }; break; // Tremolo Fast
-        case 10: volumeCurveNodes = { {0.0f, 0.1f}, {0.15f, 1.0f}, {1.0f, 1.0f} }; break; // Sidechain Duck
-        case 11: volumeCurveNodes = { {0.0f, 0.0f}, {1.0f, 0.0f} }; break; // Mute
-        case 12: volumeCurveNodes = { {0.0f, 1.0f}, {0.125f, 0.0f}, {0.25f, 1.0f}, {0.375f, 0.0f}, {1.0f, 1.0f} }; break; // Stutter Gate
-        case 13: volumeCurveNodes = { {0.0f, 0.3f}, {0.5f, 1.0f}, {1.0f, 0.3f} }; break; // Pumping Pulse
-        case 14: volumeCurveNodes = { {0.0f, 1.0f}, {0.2f, 0.2f}, {0.4f, 1.0f}, {0.6f, 0.2f}, {1.0f, 1.0f} }; break; // Rhythmic Chop
-        case 15: volumeCurveNodes = { {0.0f, 0.0f}, {0.1f, 1.0f}, {0.2f, 0.0f}, {0.3f, 1.0f}, {1.0f, 0.0f} }; break; // Strobe Gate
+        case 0: volumeCurveNodes = { {0.0f, 1.0f}, {1.0f, 1.0f} }; break; // Full (Clean)[cite: 3]
+        case 1: volumeCurveNodes = { {0.0f, 1.0f}, {0.45f, 1.0f}, {0.5f, 0.0f}, {0.95f, 0.0f}, {1.0f, 1.0f} }; break; // 1/2 Beat Gate[cite: 3]
+        case 2: volumeCurveNodes = { {0.0f, 1.0f}, {0.2f, 0.0f}, {0.25f, 1.0f}, {0.5f, 0.0f}, {0.55f, 1.0f}, {1.0f, 1.0f} }; break; // 1/4 Beat Gate[cite: 3]
+        case 3: volumeCurveNodes = { {0.0f, 1.0f}, {0.1f, 0.0f}, {0.2f, 1.0f}, {0.3f, 0.0f}, {0.4f, 1.0f}, {0.5f, 0.0f}, {1.0f, 1.0f} }; break; // Trance Gater[cite: 3]
+        case 4: volumeCurveNodes = { {0.0f, 1.0f}, {0.5f, 0.0f}, {0.5001f, 1.0f}, {1.0f, 0.0f} }; break; // Saw Gate[cite: 3]
+        case 5: volumeCurveNodes = { {0.0f, 0.0f}, {0.25f, 1.0f}, {1.0f, 1.0f} }; break; // 1st Step Fade[cite: 3]
+        case 6: volumeCurveNodes = { {0.0f, 1.0f}, {1.0f, 0.0f} }; break; // Fade Out[cite: 3]
+        case 7: volumeCurveNodes = { {0.0f, 0.0f}, {1.0f, 1.0f} }; break; // Fade In[cite: 3]
+        case 8: volumeCurveNodes = { {0.0f, 1.0f}, {0.25f, 0.2f}, {0.5f, 1.0f}, {0.75f, 0.2f}, {1.0f, 1.0f} }; break; // Tremolo Slow[cite: 3]
+        case 9: volumeCurveNodes = { {0.0f, 1.0f}, {0.1f, 0.1f}, {0.2f, 1.0f}, {0.3f, 0.1f}, {0.5f, 1.0f}, {1.0f, 1.0f} }; break; // Tremolo Fast[cite: 3]
+        case 10: volumeCurveNodes = { {0.0f, 0.1f}, {0.15f, 1.0f}, {1.0f, 1.0f} }; break; // Sidechain Duck[cite: 3]
+        case 11: volumeCurveNodes = { {0.0f, 0.0f}, {1.0f, 0.0f} }; break; // Mute[cite: 3]
     }
 }
 
@@ -137,8 +129,6 @@ float SkellgateAudioProcessor::evaluateSmoothCurve(const std::vector<Node>& node
     if (p < x1) p += 1.0f;
 
     float factor = (x2 == x1) ? 0.0f : (p - x1) / (x2 - x1);
-    
-    // Smooth Cosine Interpolation (S-Curve feel for buttery smooth transitions)
     float smoothFactor = (1.0f - std::cos(factor * juce::MathConstants<float>::pi)) * 0.5f;
     return y1 + smoothFactor * (y2 - y1);
 }
@@ -150,27 +140,21 @@ float SkellgateAudioProcessor::applySaturation(float sample, float drive)
     return std::tanh(sample * gain) / std::tanh(gain);
 }
 
-std::vector<float> SkellgateAudioProcessor::getScopeHistory() const
-{
-    // Return a copy safely for UI thread waveform rendering
-    // (Implementation relies on scopeBuffer shared state)
-    return {};
-}
-
 void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
 
-    // Handle MIDI Note Triggers (e.g., Notes 36-67 map to 32 time slots)
+    // MIDI Note mapping matching Gross Beat specifications (C1+ for Volume, C4+ for Time)[cite: 3]
     for (const auto metadata : midiMessages)
     {
         auto msg = metadata.getMessage();
         if (msg.isNoteOn())
         {
             int noteNumber = msg.getNoteNumber();
-            int slot = (noteNumber - 36) % 32;
-            if (slot < 0) slot += 32;
-            setTimePreset(slot);
+            if (noteNumber >= 24 && noteNumber < 60) // C1 to B3 -> Volume slots
+                setVolumePreset(noteNumber - 24);
+            else if (noteNumber >= 60) // C4+ -> Time slots[cite: 3]
+                setTimePreset(noteNumber - 60);
         }
     }
 
@@ -186,8 +170,10 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     float mixParam = *apvts.getRawParameterValue("mix") / 100.0f;
     float lengthParam = *apvts.getRawParameterValue("length");
     float timeParam = *apvts.getRawParameterValue("time") / 50.0f;
+    float scratchParam = *apvts.getRawParameterValue("scratch");
     float pitchParam = *apvts.getRawParameterValue("pitch");
     float satParam = *apvts.getRawParameterValue("saturation");
+    bool clickReduction = *apvts.getRawParameterValue("clickReduction");
 
     double loopDurationSecs = (0.25 + (lengthParam / 100.0) * 3.75);
     double pitchRatio = std::pow(2.0, static_cast<double>(pitchParam) / 12.0);
@@ -202,10 +188,10 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
         rmsSum += inSample * inSample;
         delayBuffer[writeHead] = inSample;
 
-        double phaseDouble = std::fmod((static_cast<double>(writeHead) / (currentSampleRate * loopDurationSecs)) * static_cast<double>(timeParam), 1.0);
+        double phaseDouble = std::fmod((static_cast<double>(writeHead) / (currentSampleRate * loopDurationSecs)) * static_cast<double>(timeParam) + static_cast<double>(scratchParam), 1.0);
+        if (phaseDouble < 0.0) phaseDouble += 1.0;
         currentPhase = static_cast<float>(phaseDouble);
 
-        // Evaluate Time & Volume curves with smooth interpolation
         float timeVal = evaluateSmoothCurve(timeCurveNodes, currentPhase);
         float maxOffsetSamples = static_cast<float>(currentSampleRate * 1.5);
         float timeOffset = timeVal * maxOffsetSamples;
@@ -226,6 +212,13 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
         float timeSample = sample1 + frac * (sample2 - sample1);
 
         float volVal = evaluateSmoothCurve(volumeCurveNodes, currentPhase);
+        
+        // Manual click reduction envelope smoothing at jump points[cite: 3]
+        if (clickReduction && std::abs(timeVal - 0.5f) > 0.45f)
+        {
+            volVal *= 0.85f;
+        }
+
         float processedSample = applySaturation(timeSample * volVal, satParam);
 
         channelData[i] = inSample * (1.0f - mixParam) + processedSample * mixParam;
