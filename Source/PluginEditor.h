@@ -36,8 +36,9 @@ public:
             g.strokePath (valueArc, juce::PathStrokeType (4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         }
 
-        g.setColour(juce::Colours::lime.withAlpha(0.25f));
-        g.drawEllipse(center.x - radius, center.y - radius, radius * 2.0f, radius * 2.0f, 1.5f);
+        // Cyberpunk Neon Glow Aura
+        g.setColour(juce::Colours::lime.withAlpha(0.3f));
+        g.drawEllipse(center.x - radius, center.y - radius, radius * 2.0f, radius * 2.0f, 2.0f);
 
         auto thumbWidth = 8.0f;
         auto innerRadius = radius - 10.0f;
@@ -82,11 +83,10 @@ private:
 
     DualGraphComponent dualGraph;
 
-    // Lane Toggle Buttons (Time vs Volume)
     juce::TextButton timeLaneButton;
     juce::TextButton volumeLaneButton;
 
-    // Dual 12-Slot Matrices (Gross Beat Style)[cite: 3]
+    // 32-Slot Matrix Banks (Time & Volume)
     std::vector<std::unique_ptr<juce::TextButton>> timeSlotButtons;
     std::vector<std::unique_ptr<juce::TextButton>> volumeSlotButtons;
 
@@ -95,6 +95,8 @@ private:
     juce::Slider lengthSlider;
     juce::Slider timeSlider;
     juce::Slider mixSlider;
+    juce::Slider pitchSlider;
+    juce::Slider saturationSlider;
 
     juce::ToggleButton bypassButton;
     juce::ToggleButton reverseButton;
@@ -107,6 +109,8 @@ private:
     std::unique_ptr<SliderAttachment> lengthAttachment;
     std::unique_ptr<SliderAttachment> timeAttachment;
     std::unique_ptr<SliderAttachment> mixAttachment;
+    std::unique_ptr<SliderAttachment> pitchAttachment;
+    std::unique_ptr<SliderAttachment> saturationAttachment;
     std::unique_ptr<ButtonAttachment> bypassAttachment;
     std::unique_ptr<ButtonAttachment> reverseAttachment;
 
