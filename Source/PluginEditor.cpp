@@ -1,6 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+//==============================================================================
 GrossLCDGraphComponent::GrossLCDGraphComponent(SkellgateAudioProcessor& p) : processor(p)
 {
     startTimerHz(60);
@@ -18,51 +19,66 @@ void GrossLCDGraphComponent::timerCallback()
 
 void GrossLCDGraphComponent::paint(juce::Graphics& g)
 {
+    const float w = static_cast<float>(getWidth());
+    const float h = static_cast<float>(getHeight());
+
     // Dark LCD Screen Background
     g.fillAll(juce::Colour::fromRGB(18, 24, 28));
 
-    // Vertical Grid Lines (Time Slices)
-    g.setColour(juce::Colour::fromRGB(35, 50, 60));
-    int numColumns = 32;
-    for (int i = 1; i < numColumns; ++i)
+    // Vertical grid: 32 columns = 1/16 of a beat; beat lines are brighter
+    for (int i = 1; i < 32; ++i)
     {
-        float x = static_cast<float>(getWidth() * i / numColumns);
-        g.drawVerticalLine(static_cast<int>(x), 0.0f, static_cast<float>(getHeight()));
+        const bool isBeat = (i % 16 == 0);
+        const bool isEighth = (i % 4 == 0);
+        g.setColour(juce::Colour::fromRGB(35, 50, 60).withMultipliedBrightness(isBeat ? 2.2f : (isEighth ? 1.4f : 1.0f)));
+        g.drawVerticalLine(static_cast<int>(w * (float) i / 32.0f), 0.0f, h);
     }
 
-    // Vertical Measure Marker Numbers (-1 to -7)
+    // Snap grid overlay
+    if (snapX > 0.0f)
+    {
+        g.setColour(juce::Colours::white.withAlpha(0.08f));
+        for (float x = snapX; x < 0.999f; x += snapX)
+            g.drawVerticalLine(static_cast<int>(w * x), 0.0f, h);
+    }
+
+    // Horizontal marker lines (-1 to -7)
     g.setColour(juce::Colours::grey.withAlpha(0.6f));
     g.setFont(12.0f);
     for (int i = 1; i <= 7; ++i)
     {
-        float y = static_cast<float>(getHeight() * i / 8);
-        g.drawHorizontalLine(static_cast<int>(y), 0.0f, static_cast<float>(getWidth()));
+        const float y = h * (float) i / 8.0f;
+        g.drawHorizontalLine(static_cast<int>(y), 0.0f, w);
         g.drawText("-" + juce::String(i), 5, static_cast<int>(y) - 12, 20, 12, juce::Justification::left);
     }
 
-    // Active Lane Nodes & Envelope Curve
-    bool isTime = (processor.getActiveViewLane() == SkellgateAudioProcessor::LaneTime);
-    auto& nodes = isTime ? processor.getTimeCurveNodes() : processor.getVolumeCurveNodes();
+    // Active lane curve
+    const bool isTime = (processor.getActiveViewLane() == SkellgateAudioProcessor::LaneTime);
+    const auto curve = processor.getCurve(isTime);
+    const juce::Colour lineCol = isTime ? juce::Colours::lime : juce::Colours::orange;
 
-    if (nodes.size() > 1)
+    if (curve.count > 1)
     {
         juce::Path curvePath;
-        curvePath.startNewSubPath(nodes[0].x * static_cast<float>(getWidth()), (1.0f - nodes[0].y) * static_cast<float>(getHeight()));
-        for (size_t i = 1; i < nodes.size(); ++i)
-        {
-            curvePath.lineTo(nodes[i].x * static_cast<float>(getWidth()), (1.0f - nodes[i].y) * static_cast<float>(getHeight()));
-        }
+        curvePath.startNewSubPath(curve.nodes[0].x * w, (1.0f - curve.nodes[0].y) * h);
+        for (int i = 1; i < curve.count; ++i)
+            curvePath.lineTo(curve.nodes[(size_t) i].x * w, (1.0f - curve.nodes[(size_t) i].y) * h);
 
-        // Neon Green / Orange Envelope Line
-        juce::Colour lineCol = isTime ? juce::Colours::lime : juce::Colours::orange;
+        // fill under the curve
+        juce::Path fillPath(curvePath);
+        fillPath.lineTo(curve.nodes[(size_t) curve.count - 1].x * w, h);
+        fillPath.lineTo(curve.nodes[0].x * w, h);
+        fillPath.closeSubPath();
+        g.setColour(lineCol.withAlpha(0.10f));
+        g.fillPath(fillPath);
+
         g.setColour(lineCol);
         g.strokePath(curvePath, juce::PathStrokeType(2.0f));
 
-        // Nodes
-        for (size_t i = 0; i < nodes.size(); ++i)
+        for (int i = 0; i < curve.count; ++i)
         {
-            float px = nodes[i].x * static_cast<float>(getWidth());
-            float py = (1.0f - nodes[i].y) * static_cast<float>(getHeight());
+            const float px = curve.nodes[(size_t) i].x * w;
+            const float py = (1.0f - curve.nodes[(size_t) i].y) * h;
             g.setColour(juce::Colours::white);
             g.fillEllipse(px - 4.0f, py - 4.0f, 8.0f, 8.0f);
             g.setColour(lineCol);
@@ -70,45 +86,98 @@ void GrossLCDGraphComponent::paint(juce::Graphics& g)
         }
     }
 
-    // Active Green Playhead
-    float phase = processor.getCurrentPhase();
-    float cursorX = phase * static_cast<float>(getWidth());
+    // Playhead
+    const float cursorX = processor.getCurrentPhase() * w;
     g.setColour(juce::Colours::lime);
-    g.fillRect(cursorX - 1.0f, 0.0f, 2.0f, static_cast<float>(getHeight()));
+    g.fillRect(cursorX - 1.0f, 0.0f, 2.0f, h);
+}
+
+int GrossLCDGraphComponent::findNodeAt(const SkellgateAudioProcessor::Curve& curve, juce::Point<int> pos) const
+{
+    const float w = static_cast<float>(getWidth());
+    const float h = static_cast<float>(getHeight());
+
+    int best = -1;
+    float bestDist = 12.0f;
+    for (int i = 0; i < curve.count; ++i)
+    {
+        const float px = curve.nodes[(size_t) i].x * w;
+        const float py = (1.0f - curve.nodes[(size_t) i].y) * h;
+        const float d = pos.toFloat().getDistanceFrom({ px, py });
+        if (d < bestDist)
+        {
+            bestDist = d;
+            best = i;
+        }
+    }
+    return best;
+}
+
+float GrossLCDGraphComponent::snapPhase(float x, const juce::MouseEvent& e) const
+{
+    x = juce::jlimit(0.0f, 1.0f, x);
+    if (snapX > 0.0f && ! e.mods.isShiftDown())
+        x = juce::jlimit(0.0f, 1.0f, std::round(x / snapX) * snapX);
+    return x;
 }
 
 void GrossLCDGraphComponent::mouseDown(const juce::MouseEvent& event)
 {
-    bool isTime = (processor.getActiveViewLane() == SkellgateAudioProcessor::LaneTime);
-    auto& nodes = isTime ? processor.getTimeCurveNodes() : processor.getVolumeCurveNodes();
-    draggedNodeIndex = -1;
+    const bool isTime = (processor.getActiveViewLane() == SkellgateAudioProcessor::LaneTime);
+    const auto curve = processor.getCurve(isTime);
+    draggedNodeIndex = findNodeAt(curve, event.getPosition());
 
-    for (size_t i = 0; i < nodes.size(); ++i)
+    // right-click deletes a node
+    if (event.mods.isPopupMenu() && draggedNodeIndex >= 0)
     {
-        float px = nodes[i].x * static_cast<float>(getWidth());
-        float py = (1.0f - nodes[i].y) * static_cast<float>(getHeight());
-        if (event.getPosition().getDistanceFrom({static_cast<int>(px), static_cast<int>(py)}) < 12)
-        {
-            draggedNodeIndex = static_cast<int>(i);
-            break;
-        }
+        processor.removeNode(isTime, draggedNodeIndex);
+        draggedNodeIndex = -1;
+        repaint();
     }
 }
 
 void GrossLCDGraphComponent::mouseDrag(const juce::MouseEvent& event)
 {
-    if (draggedNodeIndex != -1)
-    {
-        bool isTime = (processor.getActiveViewLane() == SkellgateAudioProcessor::LaneTime);
-        float normalizedY = 1.0f - (static_cast<float>(event.getPosition().y) / static_cast<float>(getHeight()));
-        processor.updateNodePosition(isTime, draggedNodeIndex, normalizedY);
-        repaint();
-    }
+    if (draggedNodeIndex < 0)
+        return;
+
+    const bool isTime = (processor.getActiveViewLane() == SkellgateAudioProcessor::LaneTime);
+    const float nx = snapPhase(static_cast<float>(event.getPosition().x) / static_cast<float>(getWidth()), event);
+    const float ny = 1.0f - (static_cast<float>(event.getPosition().y) / static_cast<float>(getHeight()));
+    processor.moveNode(isTime, draggedNodeIndex, nx, ny);
+    repaint();
 }
 
+void GrossLCDGraphComponent::mouseUp(const juce::MouseEvent&)
+{
+    draggedNodeIndex = -1;
+}
+
+void GrossLCDGraphComponent::mouseDoubleClick(const juce::MouseEvent& event)
+{
+    const bool isTime = (processor.getActiveViewLane() == SkellgateAudioProcessor::LaneTime);
+    const auto curve = processor.getCurve(isTime);
+    const int hit = findNodeAt(curve, event.getPosition());
+
+    if (hit >= 0)
+    {
+        processor.removeNode(isTime, hit);
+    }
+    else
+    {
+        const float nx = snapPhase(static_cast<float>(event.getPosition().x) / static_cast<float>(getWidth()), event);
+        const float ny = 1.0f - (static_cast<float>(event.getPosition().y) / static_cast<float>(getHeight()));
+        processor.addNode(isTime, nx, ny);
+    }
+    draggedNodeIndex = -1;
+    repaint();
+}
+
+//==============================================================================
 SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p), lcdGraph(p),
-      snap1_16("1/16"), snap1_12("1/12"), snap1_8("1/8"), snap1_6("1/6"), snap1_4("1/4"), snap1_3("1/3")
+      snap1_16("1/16"), snap1_12("1/12"), snap1_8("1/8"), snap1_6("1/6"), snap1_4("1/4"), snap1_3("1/3"),
+      viewTimeBtn("T"), viewVolBtn("V")
 {
     setLookAndFeel(&grossLookAndFeel);
     addAndMakeVisible(lcdGraph);
@@ -124,6 +193,8 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
     setupRotary(volMixSlider);
 
     holdButton.setButtonText("HOLD");
+    holdButton.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
+    holdButton.setColour(juce::ToggleButton::tickColourId, juce::Colours::lime);
     addAndMakeVisible(holdButton);
 
     // Setup Bottom Knobs
@@ -166,18 +237,51 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
     auto setupToolBtn = [this](juce::TextButton& btn) {
         btn.setColour(juce::TextButton::buttonColourId, juce::Colour::fromRGB(25, 30, 35));
         btn.setColour(juce::TextButton::textColourOffId, juce::Colours::grey);
+        btn.addListener(this);
         addAndMakeVisible(btn);
     };
-    setupToolBtn(snap1_16); setupToolBtn(snap1_12); setupToolBtn(snap1_8);
-    setupToolBtn(snap1_6);  setupToolBtn(snap1_4);  setupToolBtn(snap1_3);
+    for (auto* b : snapButtons)
+        setupToolBtn(*b);
+    setupToolBtn(viewTimeBtn);
+    setupToolBtn(viewVolBtn);
 
     updateSlotMatrixUI();
     setSize (1000, 650);
+    startTimerHz(20);
 }
 
 SkellgateAudioProcessorEditor::~SkellgateAudioProcessorEditor()
 {
+    stopTimer();
     setLookAndFeel(nullptr);
+}
+
+void SkellgateAudioProcessorEditor::setSnapIndex(int newIndex)
+{
+    // clicking the active snap button again turns snapping off
+    snapIndex = (newIndex == snapIndex) ? -1 : newIndex;
+
+    // button labels are fractions of a beat, the pattern is 2 beats long
+    static const float kBeatDivisions[6] = { 16.0f, 12.0f, 8.0f, 6.0f, 4.0f, 3.0f };
+    lcdGraph.setSnap(snapIndex < 0 ? 0.0f : 1.0f / (kBeatDivisions[snapIndex] * (float) SkellgateAudioProcessor::kPatternBeats));
+
+    for (int i = 0; i < 6; ++i)
+    {
+        const bool on = (i == snapIndex);
+        snapButtons[i]->setColour(juce::TextButton::buttonColourId, on ? juce::Colour::fromRGB(60, 80, 95) : juce::Colour::fromRGB(25, 30, 35));
+        snapButtons[i]->setColour(juce::TextButton::textColourOffId, on ? juce::Colours::white : juce::Colours::grey);
+    }
+}
+
+void SkellgateAudioProcessorEditor::timerCallback()
+{
+    const int t = audioProcessor.getCurrentTimePreset();
+    const int v = audioProcessor.getCurrentVolumePreset();
+    const int lane = static_cast<int>(audioProcessor.getActiveViewLane());
+
+    // follows presets that were switched by MIDI notes
+    if (t != shownTimePreset || v != shownVolPreset || lane != shownLane)
+        updateSlotMatrixUI();
 }
 
 void SkellgateAudioProcessorEditor::buttonClicked (juce::Button* button)
@@ -186,8 +290,7 @@ void SkellgateAudioProcessorEditor::buttonClicked (juce::Button* button)
     {
         if (button == timePads[i].get())
         {
-            audioProcessor.setActiveViewLane(SkellgateAudioProcessor::LaneTime);
-            audioProcessor.setTimePreset(static_cast<int>(i));
+            audioProcessor.setTimePreset(static_cast<int>(i));   // also switches the view to the time lane
             updateSlotMatrixUI();
             return;
         }
@@ -196,17 +299,34 @@ void SkellgateAudioProcessorEditor::buttonClicked (juce::Button* button)
     {
         if (button == volPads[i].get())
         {
-            audioProcessor.setActiveViewLane(SkellgateAudioProcessor::LaneVolume);
             audioProcessor.setVolumePreset(static_cast<int>(i));
             updateSlotMatrixUI();
             return;
         }
     }
+    for (int i = 0; i < 6; ++i)
+    {
+        if (button == snapButtons[i])
+        {
+            setSnapIndex(i);
+            return;
+        }
+    }
+    if (button == &viewTimeBtn)
+    {
+        audioProcessor.setActiveViewLane(SkellgateAudioProcessor::LaneTime);
+        updateSlotMatrixUI();
+    }
+    else if (button == &viewVolBtn)
+    {
+        audioProcessor.setActiveViewLane(SkellgateAudioProcessor::LaneVolume);
+        updateSlotMatrixUI();
+    }
 }
 
 void SkellgateAudioProcessorEditor::updateSlotMatrixUI()
 {
-    int timeIdx = audioProcessor.getCurrentTimePreset();
+    const int timeIdx = audioProcessor.getCurrentTimePreset();
     for (size_t i = 0; i < timePads.size(); ++i)
     {
         if (static_cast<int>(i) == timeIdx)
@@ -215,7 +335,7 @@ void SkellgateAudioProcessorEditor::updateSlotMatrixUI()
             timePads[i]->setColour(juce::TextButton::buttonColourId, juce::Colour::fromRGB(22, 28, 25));
     }
 
-    int volIdx = audioProcessor.getCurrentVolumePreset();
+    const int volIdx = audioProcessor.getCurrentVolumePreset();
     for (size_t i = 0; i < volPads.size(); ++i)
     {
         if (static_cast<int>(i) == volIdx)
@@ -223,7 +343,17 @@ void SkellgateAudioProcessorEditor::updateSlotMatrixUI()
         else
             volPads[i]->setColour(juce::TextButton::buttonColourId, juce::Colour::fromRGB(28, 24, 20));
     }
+
+    const bool isTime = (audioProcessor.getActiveViewLane() == SkellgateAudioProcessor::LaneTime);
+    viewTimeBtn.setColour(juce::TextButton::buttonColourId, isTime ? juce::Colours::lime.darker(0.5f) : juce::Colour::fromRGB(25, 30, 35));
+    viewVolBtn.setColour(juce::TextButton::buttonColourId, ! isTime ? juce::Colours::orange.darker(0.5f) : juce::Colour::fromRGB(25, 30, 35));
+
+    shownTimePreset = timeIdx;
+    shownVolPreset = volIdx;
+    shownLane = static_cast<int>(audioProcessor.getActiveViewLane());
+
     lcdGraph.repaint();
+    repaint();   // status bar text
 }
 
 void SkellgateAudioProcessorEditor::paint (juce::Graphics& g)
@@ -241,6 +371,7 @@ void SkellgateAudioProcessorEditor::paint (juce::Graphics& g)
     g.drawText("time", 75, 20, 80, 25, juce::Justification::left);
 
     // Volume Label
+    g.setColour(juce::Colours::orange);
     g.drawText("volume", 75, getHeight() - 45, 80, 25, juce::Justification::left);
 
     // Knob Titles (ATT, REL, TNS)
@@ -253,15 +384,19 @@ void SkellgateAudioProcessorEditor::paint (juce::Graphics& g)
     // Active Preset Title in Status Bar at Bottom
     g.setColour(juce::Colour::fromRGB(20, 26, 30));
     g.fillRect(360, getHeight() - 35, getWidth() - 370, 25);
-    g.setColour(juce::Colours::lime);
+
+    const bool isTime = (audioProcessor.getActiveViewLane() == SkellgateAudioProcessor::LaneTime);
+    g.setColour(isTime ? juce::Colours::lime : juce::Colours::orange);
     g.setFont(13.0f);
 
-    bool isTime = (audioProcessor.getActiveViewLane() == SkellgateAudioProcessor::LaneTime);
-    juce::String activeTitle = isTime 
+    const juce::String activeTitle = isTime
         ? "Time: " + juce::String(SkellgateAudioProcessor::getTimePresetName(audioProcessor.getCurrentTimePreset()))
         : "Volume: " + juce::String(SkellgateAudioProcessor::getVolumePresetName(audioProcessor.getCurrentVolumePreset()));
-    
+
     g.drawText(activeTitle, 370, getHeight() - 35, 300, 25, juce::Justification::left);
+
+    g.setColour(juce::Colours::grey);
+    g.drawText("double-click: add/remove node   shift: no snap", 640, getHeight() - 35, getWidth() - 660, 25, juce::Justification::right);
 }
 
 void SkellgateAudioProcessorEditor::resized()
@@ -271,24 +406,24 @@ void SkellgateAudioProcessorEditor::resized()
     holdButton.setBounds(140, 55, 75, 25);
 
     // Dual 36-Pad Grid (9 rows x 4 cols each)
-    int gridX = 20;
-    int gridY = 90;
-    int padW = 70;
-    int padH = 22;
+    const int gridX = 20;
+    const int gridY = 90;
+    const int padW = 70;
+    const int padH = 22;
 
     for (int i = 0; i < 36; ++i)
     {
-        int row = i / 4;
-        int col = i % 4;
-        timePads[i]->setBounds(gridX + col * padW, gridY + row * padH, padW - 2, padH - 2);
+        const int row = i / 4;
+        const int col = i % 4;
+        timePads[(size_t) i]->setBounds(gridX + col * padW, gridY + row * padH, padW - 2, padH - 2);
     }
 
-    int volGridY = gridY + (9 * padH) + 10;
+    const int volGridY = gridY + (9 * padH) + 10;
     for (int i = 0; i < 36; ++i)
     {
-        int row = i / 4;
-        int col = i % 4;
-        volPads[i]->setBounds(gridX + col * padW, volGridY + row * padH, padW - 2, padH - 2);
+        const int row = i / 4;
+        const int col = i % 4;
+        volPads[(size_t) i]->setBounds(gridX + col * padW, volGridY + row * padH, padW - 2, padH - 2);
     }
 
     // Bottom Knobs
@@ -298,14 +433,12 @@ void SkellgateAudioProcessorEditor::resized()
     volMixSlider.setBounds(20, getHeight() - 55, 45, 45);
 
     // Vertical Toolbar
-    int toolX = 325;
-    int toolY = 20;
-    snap1_16.setBounds(toolX, toolY, 30, 20);
-    snap1_12.setBounds(toolX, toolY + 22, 30, 20);
-    snap1_8.setBounds(toolX, toolY + 44, 30, 20);
-    snap1_6.setBounds(toolX, toolY + 66, 30, 20);
-    snap1_4.setBounds(toolX, toolY + 88, 30, 20);
-    snap1_3.setBounds(toolX, toolY + 110, 30, 20);
+    const int toolX = 325;
+    const int toolY = 20;
+    for (int i = 0; i < 6; ++i)
+        snapButtons[i]->setBounds(toolX, toolY + i * 22, 30, 20);
+    viewTimeBtn.setBounds(toolX, toolY + 150, 30, 20);
+    viewVolBtn.setBounds(toolX, toolY + 172, 30, 20);
 
     // Right LCD Screen Graph Area
     lcdGraph.setBounds(360, 15, getWidth() - 375, getHeight() - 60);

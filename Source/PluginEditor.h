@@ -43,6 +43,9 @@ public:
     }
 };
 
+/** The LCD envelope editor.
+    drag a node to move it, double-click empty space to add a node,
+    double-click (or right-click) a node to delete it, hold Shift to bypass snapping. */
 class GrossLCDGraphComponent : public juce::Component, public juce::Timer
 {
 public:
@@ -51,15 +54,25 @@ public:
     void paint(juce::Graphics& g) override;
     void mouseDown(const juce::MouseEvent& event) override;
     void mouseDrag(const juce::MouseEvent& event) override;
+    void mouseUp(const juce::MouseEvent& event) override;
+    void mouseDoubleClick(const juce::MouseEvent& event) override;
     void timerCallback() override;
 
+    /** Grid size as a fraction of the 2-beat pattern, or 0 for no snapping. */
+    void setSnap (float patternFraction) { snapX = patternFraction; repaint(); }
+
 private:
+    int findNodeAt (const SkellgateAudioProcessor::Curve& curve, juce::Point<int> pos) const;
+    float snapPhase (float x, const juce::MouseEvent& e) const;
+
     SkellgateAudioProcessor& processor;
     int draggedNodeIndex = -1;
+    float snapX = 0.0f;
 };
 
 class SkellgateAudioProcessorEditor : public juce::AudioProcessorEditor,
-                                      public juce::Button::Listener
+                                      public juce::Button::Listener,
+                                      private juce::Timer
 {
 public:
     SkellgateAudioProcessorEditor (SkellgateAudioProcessor&);
@@ -71,6 +84,9 @@ public:
     void updateSlotMatrixUI();
 
 private:
+    void timerCallback() override;
+    void setSnapIndex (int newIndex);
+
     SkellgateAudioProcessor& audioProcessor;
     GrossLookAndFeel grossLookAndFeel;
 
@@ -90,8 +106,13 @@ private:
     std::vector<std::unique_ptr<juce::TextButton>> timePads;
     std::vector<std::unique_ptr<juce::TextButton>> volPads;
 
-    // Vertical Toolbar Buttons
+    // Vertical Toolbar Buttons: snap grids (in fractions of a beat) and lane view switch
     juce::TextButton snap1_16, snap1_12, snap1_8, snap1_6, snap1_4, snap1_3;
+    juce::TextButton viewTimeBtn, viewVolBtn;
+    juce::TextButton* snapButtons[6] = { &snap1_16, &snap1_12, &snap1_8, &snap1_6, &snap1_4, &snap1_3 };
+    int snapIndex = -1;
+
+    int shownTimePreset = -1, shownVolPreset = -1, shownLane = -1;
 
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;

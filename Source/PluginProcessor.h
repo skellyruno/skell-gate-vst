@@ -1,11 +1,35 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
-#include <vector>
+#include <array>
+#include <atomic>
 
+/**
+    Skellgate - a time / volume envelope effect in the style of FL Studio's Gross Beat.
+
+    A "pattern" is 2 beats long and locked to the host transport. Two envelope curves run
+    over the pattern:
+      * TIME   : y is the read position (0..1 of the pattern) inside the audio recorded
+                 during the pattern. y == phase is normal playback, flat is a freeze,
+                 a falling line is reverse, a repeated saw is a stutter.
+      * VOLUME : y is the gain (0..1). Gates, tremolos, fades, sidechain-style ducks...
+*/
 class SkellgateAudioProcessor : public juce::AudioProcessor
 {
 public:
+    static constexpr int kMaxNodes   = 128;
+    static constexpr int kNumPresets = 36;
+    static constexpr double kPatternBeats = 2.0;
+
+    struct Node  { float x = 0.0f; float y = 0.0f; };
+    struct Curve
+    {
+        std::array<Node, kMaxNodes> nodes {};
+        int count = 0;
+    };
+
+    enum ActiveLane { LaneTime = 0, LaneVolume = 1 };
+
     SkellgateAudioProcessor();
     ~SkellgateAudioProcessor() override;
 
@@ -34,42 +58,62 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState apvts;
-    
-    void setTimePreset(int index);
-    void setVolumePreset(int index);
-    int getCurrentTimePreset() const { return currentTimePreset; }
-    int getCurrentVolumePreset() const { return currentVolumePreset; }
-    float getCurrentPhase() const { return currentPhase; }
 
-    struct Node { float x; float y; };
-    std::vector<Node>& getTimeCurveNodes() { return timeCurveNodes; }
-    std::vector<Node>& getVolumeCurveNodes() { return volumeCurveNodes; }
-    void updateNodePosition(bool isTimeLane, int index, float newY);
+    // ---- Presets (safe to call from the message thread or from processBlock) ----
+    void setTimePreset (int index);
+    void setVolumePreset (int index);
+    int getCurrentTimePreset() const   { return currentTimePreset.load(); }
+    int getCurrentVolumePreset() const { return currentVolumePreset.load(); }
+    float getCurrentPhase() const      { return currentPhase.load(); }
 
-    enum ActiveLane { LaneTime, LaneVolume };
-    ActiveLane activeViewLane = LaneTime;
-    void setActiveViewLane(ActiveLane lane) { activeViewLane = lane; }
-    ActiveLane getActiveViewLane() const { return activeViewLane; }
+    // ---- Curve access for the editor (message thread) ----
+    Curve getCurve (bool isTimeLane) const;
+    void  moveNode (bool isTimeLane, int index, float x, float y);
+    int   addNode (bool isTimeLane, float x, float y);   // returns new index or -1
+    void  removeNode (bool isTimeLane, int index);
 
-    static const char* getTimePresetName(int index);
-    static const char* getVolumePresetName(int index);
+    void setActiveViewLane (ActiveLane lane) { activeLane.store (static_cast<int> (lane)); }
+    ActiveLane getActiveViewLane() const     { return static_cast<ActiveLane> (activeLane.load()); }
+
+    static const char* getTimePresetName (int index);
+    static const char* getVolumePresetName (int index);
 
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    std::vector<float> delayBuffer;
-    int bufferSize = 0;
+    static float evaluateCurve (const Curve& curve, float phase, float tensionExp);
+
+    // Shared (editor-owned) curves, protected by curveLock
+    mutable juce::SpinLock curveLock;
+    Curve timeCurve, volCurve;
+    std::atomic<int> curveVersion { 0 };
+
+    // Audio-thread copies
+    Curve audioTimeCurve, audioVolCurve;
+    int audioVersion = -1;
+
+    // Cached parameter pointers
+    std::atomic<float>* timeMixParam = nullptr;
+    std::atomic<float>* volMixParam  = nullptr;
+    std::atomic<float>* attParam     = nullptr;
+    std::atomic<float>* relParam     = nullptr;
+    std::atomic<float>* tnsParam     = nullptr;
+    std::atomic<float>* scratchParam = nullptr;
+    std::atomic<float>* holdParam    = nullptr;
+
+    // DSP state
+    juce::AudioBuffer<float> delayBuffer;
+    int bufferLength = 0;
     int writeHead = 0;
     double currentSampleRate = 44100.0;
-    float currentPhase = 0.0f;
+    double freeRunPpq = 0.0;
+    float heldPhase = 0.0f;
+    float gainState = 1.0f;
 
-    int currentTimePreset = 0;
-    int currentVolumePreset = 0;
-
-    std::vector<Node> timeCurveNodes;
-    std::vector<Node> volumeCurveNodes;
-
-    float evaluateCurve(const std::vector<Node>& nodes, float phase);
+    std::atomic<float> currentPhase { 0.0f };
+    std::atomic<int> currentTimePreset { 0 };
+    std::atomic<int> currentVolumePreset { 0 };
+    std::atomic<int> activeLane { LaneTime };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SkellgateAudioProcessor)
 };

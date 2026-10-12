@@ -1,6 +1,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include <cmath>
+#include <cstring>
+#include <random>
 
 static const char* kTimeNames[36] = {
     "Empty", "Basic 1", "Basic 2", "Basic 3",
@@ -26,16 +28,407 @@ static const char* kVolNames[36] = {
     "Fade In", "Fade Out", "Fade Out In", "Mute"
 };
 
-const char* SkellgateAudioProcessor::getTimePresetName(int index) { return kTimeNames[juce::jlimit(0, 35, index)]; }
-const char* SkellgateAudioProcessor::getVolumePresetName(int index) { return kVolNames[juce::jlimit(0, 35, index)]; }
+const char* SkellgateAudioProcessor::getTimePresetName (int index)   { return kTimeNames[juce::jlimit (0, 35, index)]; }
+const char* SkellgateAudioProcessor::getVolumePresetName (int index) { return kVolNames[juce::jlimit (0, 35, index)]; }
 
+//==============================================================================
+// Preset generation (allocation free, so it can run on the audio thread too)
+//==============================================================================
+namespace
+{
+using Curve = SkellgateAudioProcessor::Curve;
+constexpr float kEps = 1.0e-4f;
+
+struct Builder
+{
+    Curve& c;
+
+    Builder (Curve& curve, float y0) : c (curve)
+    {
+        c.count = 0;
+        add (0.0f, y0);
+    }
+
+    float lastX() const { return c.nodes[(size_t) c.count - 1].x; }
+    float lastY() const { return c.nodes[(size_t) c.count - 1].y; }
+
+    void add (float x, float y)
+    {
+        if (c.count >= SkellgateAudioProcessor::kMaxNodes)
+            return;
+        c.nodes[(size_t) c.count++] = { juce::jlimit (0.0f, 1.0f, x), juce::jlimit (0.0f, 1.0f, y) };
+    }
+
+    // Instant change of value at x (hold the old value up to x, then jump)
+    void jump (float x, float y)
+    {
+        const float ly = lastY();
+        const float lx = lastX();
+        if (std::abs (ly - y) < 1.0e-6f)
+            return;
+        if (x > lx + kEps)
+            add (x, ly);
+        else
+            x = lx;
+        add (x + kEps, y);
+    }
+
+    void finish()
+    {
+        if (lastX() >= 1.0f)
+            return;
+        if (c.count < SkellgateAudioProcessor::kMaxNodes)
+            add (1.0f, lastY());
+        else
+            c.nodes[(size_t) c.count - 1].x = 1.0f;
+    }
+};
+
+void buildTime (int idx, Curve& c)
+{
+    // y = n repeats of the first 1/n of the pattern (classic stutter)
+    auto repeat = [&] (int n)
+    {
+        Builder b (c, 0.0f);
+        for (int i = 0; i < n; ++i)
+        {
+            const float s = (float) i / (float) n;
+            const float e = (float) (i + 1) / (float) n;
+            b.jump (s, 0.0f);
+            b.add (e, 1.0f / (float) n);
+        }
+        b.finish();
+    };
+
+    // y = n full-range saws (n x speed playback)
+    auto fast = [&] (int n)
+    {
+        Builder b (c, 0.0f);
+        for (int i = 0; i < n; ++i)
+        {
+            b.jump ((float) i / (float) n, 0.0f);
+            b.add ((float) (i + 1) / (float) n, 1.0f);
+        }
+        b.finish();
+    };
+
+    // each of n slices played backwards
+    auto reverse = [&] (int n)
+    {
+        Builder b (c, 1.0f / (float) n);
+        for (int i = 0; i < n; ++i)
+        {
+            const float s = (float) i / (float) n;
+            const float e = (float) (i + 1) / (float) n;
+            b.jump (s, e);
+            b.add (e, s);
+        }
+        b.finish();
+    };
+
+    auto stairs = [&] (int n)
+    {
+        Builder b (c, 0.0f);
+        for (int i = 1; i < n; ++i)
+            b.jump ((float) i / (float) n, (float) i / (float) n);
+        b.finish();
+    };
+
+    switch (idx)
+    {
+        case 0:  { Builder b (c, 0.0f); b.add (1.0f, 1.0f); break; }              // Empty: y = phase, passthrough
+
+        // ---- Basic ----
+        case 1:  { Builder b (c, 0.0f); b.add (1.0f, 0.5f); break; }              // half speed
+        case 2:  { Builder b (c, 0.0f); b.add (1.0f, 0.25f); break; }             // quarter speed
+        case 3:  repeat (2);  break;
+        case 4:  repeat (4);  break;
+        case 5:  repeat (8);  break;
+        case 6:  repeat (16); break;
+        case 7:  repeat (3);  break;
+        case 8:  repeat (6);  break;
+        case 9:  reverse (1); break;
+        case 10: reverse (2); break;
+        case 11: reverse (4); break;
+
+        // ---- Complex ----
+        case 12: fast (2);   break;
+        case 13: fast (3);   break;
+        case 14: fast (4);   break;
+        case 15:                                                                   // slowing down (y = phase^2)
+        {
+            Builder b (c, 0.0f);
+            for (int i = 1; i <= 8; ++i) { const float p = (float) i / 8.0f; b.add (p, p * p); }
+            break;
+        }
+        case 16:                                                                   // speeding up (y = sqrt(phase))
+        {
+            Builder b (c, 0.0f);
+            for (int i = 1; i <= 8; ++i) { const float p = (float) i / 8.0f; b.add (p, std::sqrt (p)); }
+            break;
+        }
+        case 17: { Builder b (c, 0.0f); b.add (0.5f, 1.0f); b.add (1.0f, 0.0f); break; }                                   // scratch
+        case 18: { Builder b (c, 0.0f); b.add (0.25f, 1.0f); b.add (0.5f, 0.0f); b.add (0.75f, 1.0f); b.add (1.0f, 0.0f); break; }
+        case 19: stairs (4); break;
+        case 20: stairs (8); break;
+        case 21: { Builder b (c, 0.0f); b.add (0.25f, 0.25f); b.add (0.5f, 0.0f); b.add (0.75f, 0.25f); b.add (1.0f, 0.0f); break; } // ping-pong
+        case 22: { Builder b (c, 0.0f); b.add (0.5f, 0.5f); b.add (1.0f, 0.5f); break; }                                   // play then freeze
+        case 23:                                                                   // tape stop (speed ramps 1 -> 0)
+        {
+            Builder b (c, 0.0f);
+            for (int i = 1; i <= 8; ++i) { const float p = (float) i / 8.0f; b.add (p, p - 0.5f * p * p); }
+            break;
+        }
+
+        // ---- Chaos: deterministic pseudo-random patterns ----
+        default:
+        {
+            const int k = idx - 24;                       // 0..11
+            std::mt19937 rng (1000u + (unsigned) k);
+            std::uniform_real_distribution<float> dist (0.0f, 1.0f);
+            const int n = (k % 3 == 0) ? 8 : (k % 3 == 1) ? 16 : 12;
+            const bool ramp = (k % 2 == 1);
+
+            Builder b (c, dist (rng));
+            for (int i = 1; i < n; ++i)
+            {
+                const float x = (float) i / (float) n;
+                const float y = dist (rng);
+                if (ramp) b.add (x, y); else b.jump (x, y);
+            }
+            b.finish();
+            break;
+        }
+    }
+}
+
+struct Pulse { float s, e, lvl; };
+
+void buildVolume (int idx, Curve& c)
+{
+    // n pulses per pattern, each "on" for duty/n of its slot
+    auto gate = [&] (int n, float duty, const float* levels, int numLevels, float swing)
+    {
+        Builder b (c, levels != nullptr ? levels[0] : 1.0f);
+        for (int i = 0; i < n; ++i)
+        {
+            const float lvl = levels != nullptr ? levels[i % numLevels] : 1.0f;
+            const float s = (float) i / (float) n + ((i % 2 == 1) ? swing / (float) n : 0.0f);
+            b.jump (s, lvl);
+            b.jump (s + duty / (float) n, 0.0f);
+        }
+        b.finish();
+    };
+
+    // 16-step on/off patterns
+    auto steps = [&] (const char* pat, float onFrac)
+    {
+        const int n = (int) std::strlen (pat);
+        Builder b (c, pat[0] == '1' ? 1.0f : 0.0f);
+        for (int i = 0; i < n; ++i)
+        {
+            const float s = (float) i / (float) n;
+            if (pat[i] == '1')
+            {
+                b.jump (s, 1.0f);
+                b.jump (s + onFrac / (float) n, 0.0f);
+            }
+            else
+                b.jump (s, 0.0f);
+        }
+        b.finish();
+    };
+
+    auto saw = [&] (int n)
+    {
+        Builder b (c, 1.0f);
+        for (int i = 0; i < n; ++i)
+        {
+            b.jump ((float) i / (float) n, 1.0f);
+            b.add ((float) (i + 1) / (float) n, 0.0f);
+        }
+        b.finish();
+    };
+
+    auto tremolo = [&] (int cycles, float lo)
+    {
+        Builder b (c, 1.0f);
+        for (int k = 1; k <= 2 * cycles; ++k)
+            b.add ((float) k / (float) (2 * cycles), (k % 2 == 1) ? lo : 1.0f);
+        b.finish();
+    };
+
+    // pulses that get shorter and shorter (or the mirror image of that)
+    auto accelerating = [&] (bool mirrored)
+    {
+        std::array<Pulse, 40> list {};
+        int num = 0;
+        float s = 0.0f, p = 0.25f;
+        while (s < 0.98f && num < (int) list.size())
+        {
+            list[(size_t) num++] = { s, s + p * 0.5f, 1.0f };
+            s += p;
+            p *= 0.75f;
+        }
+
+        Builder b (c, 0.0f);
+        for (int i = 0; i < num; ++i)
+        {
+            const Pulse& q = mirrored ? list[(size_t) (num - 1 - i)] : list[(size_t) i];
+            const float s0 = mirrored ? 1.0f - q.e : q.s;
+            const float e0 = mirrored ? 1.0f - q.s : q.e;
+            b.jump (s0, q.lvl);
+            b.jump (e0, 0.0f);
+        }
+        b.finish();
+    };
+
+    static const float kDynamic[4]  = { 1.0f, 0.5f, 0.8f, 0.4f };
+    static const float kGateOut[8]  = { 1.0f, 0.85f, 0.7f, 0.55f, 0.4f, 0.3f, 0.2f, 0.1f };
+    static const float kGateIn[8]   = { 0.1f, 0.2f, 0.3f, 0.4f, 0.55f, 0.7f, 0.85f, 1.0f };
+
+    switch (idx)
+    {
+        case 0:  { Builder b (c, 1.0f); b.finish(); break; }                       // Empty = full volume
+        case 1:  gate (1,  0.5f, nullptr, 0, 0.0f); break;
+        case 2:  gate (2,  0.5f, nullptr, 0, 0.0f); break;
+        case 3:  gate (4,  0.5f, nullptr, 0, 0.0f); break;
+        case 4:  gate (6,  0.5f, nullptr, 0, 0.0f); break;
+        case 5:  gate (8,  0.5f, nullptr, 0, 0.0f); break;
+        case 6:  gate (12, 0.5f, nullptr, 0, 0.0f); break;
+        case 7:  gate (16, 0.5f, nullptr, 0, 0.0f); break;
+
+        case 8:  steps ("1110111011101110", 0.7f); break;
+        case 9:  steps ("1101101011011010", 0.7f); break;
+        case 10: steps ("1011011010110110", 0.7f); break;
+        case 11: steps ("1001100110011001", 0.7f); break;
+
+        case 12: saw (2); break;
+        case 13: saw (4); break;
+        case 14: { Builder b (c, 1.0f); b.jump (0.125f, 0.0f); b.finish(); break; }                 // 1st Step
+        case 15: { Builder b (c, 1.0f); b.add (0.125f, 0.0f); b.finish(); break; }                  // 1st Step Fade
+        case 16: gate (2, 0.25f, nullptr, 0, 0.0f); break;                                          // 2 Step Gate
+
+        case 17:                                                                                    // Off Beat
+        {
+            Builder b (c, 0.0f);
+            for (int i = 0; i < 2; ++i)
+            {
+                const float s = (float) i * 0.5f;
+                b.jump (s + 0.25f, 1.0f);
+                b.jump (s + 0.499f, 0.0f);
+            }
+            b.finish();
+            break;
+        }
+
+        case 18: gate (8, 0.5f, kDynamic, 4, 0.0f); break;
+        case 19: gate (8, 0.4f, nullptr, 0, 0.3f);  break;
+        case 20: gate (8, 0.5f, kGateOut, 8, 0.0f); break;
+        case 21: gate (8, 0.5f, kGateIn, 8, 0.0f);  break;
+        case 22: accelerating (false); break;
+        case 23: accelerating (true);  break;
+
+        case 24: { Builder b (c, 1.0f); b.add (0.75f, 1.0f); b.add (1.0f, 0.0f); break; }           // End Fade
+        case 25:                                                                                    // End Gate
+        {
+            Builder b (c, 1.0f);
+            for (int i = 0; i < 8; ++i)
+                b.jump (0.75f + (float) i * 0.03125f, (i % 2 == 0) ? 1.0f : 0.0f);
+            b.finish();
+            break;
+        }
+
+        case 26: tremolo (2, 0.15f);  break;
+        case 27: tremolo (8, 0.15f);  break;
+
+        case 28:                                                                                    // Sidechain pump
+        {
+            Builder b (c, 0.0f);
+            for (int i = 0; i < 2; ++i)
+            {
+                const float s = (float) i * 0.5f;
+                b.jump (s, 0.0f);
+                b.add (s + 0.1f, 1.0f);
+            }
+            b.finish();
+            break;
+        }
+
+        case 29:                                                                                    // Drum Loop
+        {
+            static const int hits[6] = { 0, 3, 6, 8, 11, 14 };
+            Builder b (c, 1.0f);
+            for (int k = 0; k < 6; ++k)
+            {
+                b.jump ((float) hits[k] / 16.0f, 1.0f);
+                b.add (k + 1 < 6 ? (float) hits[k + 1] / 16.0f : 1.0f, 0.1f);
+            }
+            break;
+        }
+
+        case 30: gate (12, 0.5f, nullptr, 0, 0.0f); break;                                          // Copter
+        case 31: tremolo (40, 0.0f); break;                                                         // AM
+
+        case 32: { Builder b (c, 0.0f); b.add (1.0f, 1.0f); break; }                                // Fade In
+        case 33: { Builder b (c, 1.0f); b.add (1.0f, 0.0f); break; }                                // Fade Out
+        case 34: { Builder b (c, 1.0f); b.add (0.5f, 0.0f); b.add (1.0f, 1.0f); break; }            // Fade Out In
+        default: { Builder b (c, 0.0f); b.finish(); break; }                                        // Mute
+    }
+}
+
+juce::String curveToString (const Curve& c)
+{
+    juce::String s;
+    for (int i = 0; i < c.count; ++i)
+    {
+        if (i > 0) s << ";";
+        s << juce::String (c.nodes[(size_t) i].x, 6) << "," << juce::String (c.nodes[(size_t) i].y, 6);
+    }
+    return s;
+}
+
+bool stringToCurve (const juce::String& str, Curve& c)
+{
+    juce::StringArray pairs;
+    pairs.addTokens (str, ";", "");
+    pairs.removeEmptyStrings();
+    if (pairs.size() < 2 || pairs.size() > SkellgateAudioProcessor::kMaxNodes)
+        return false;
+
+    c.count = 0;
+    float lastX = 0.0f;
+    for (auto& p : pairs)
+    {
+        juce::StringArray xy;
+        xy.addTokens (p, ",", "");
+        if (xy.size() != 2) return false;
+        const float x = juce::jlimit (lastX, 1.0f, xy[0].getFloatValue());
+        const float y = juce::jlimit (0.0f, 1.0f, xy[1].getFloatValue());
+        c.nodes[(size_t) c.count++] = { x, y };
+        lastX = x;
+    }
+    return true;
+}
+} // namespace
+
+//==============================================================================
 SkellgateAudioProcessor::SkellgateAudioProcessor()
      : AudioProcessor (BusesProperties().withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
                                         .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
-       apvts(*this, nullptr, "Parameters", createParameterLayout())
+       apvts (*this, nullptr, "Parameters", createParameterLayout())
 {
-    setTimePreset(0);
-    setVolumePreset(0);
+    timeMixParam = apvts.getRawParameterValue ("timeMix");
+    volMixParam  = apvts.getRawParameterValue ("volMix");
+    attParam     = apvts.getRawParameterValue ("att");
+    relParam     = apvts.getRawParameterValue ("rel");
+    tnsParam     = apvts.getRawParameterValue ("tns");
+    scratchParam = apvts.getRawParameterValue ("scratch");
+    holdParam    = apvts.getRawParameterValue ("hold");
+
+    setTimePreset (0);
+    setVolumePreset (0);
+    setActiveViewLane (LaneTime);
 }
 
 SkellgateAudioProcessor::~SkellgateAudioProcessor() {}
@@ -44,198 +437,298 @@ juce::AudioProcessorValueTreeState::ParameterLayout SkellgateAudioProcessor::cre
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("timeMix", "Time Mix", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 100.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("volMix", "Volume Mix", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 100.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("att", "Attack", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 10.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("rel", "Release", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 10.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("tns", "Tension", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 50.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("scratch", "Scratch", juce::NormalisableRange<float>(-1.0f, 1.0f, 0.01f), 0.0f));
-    params.push_back(std::make_unique<juce::AudioParameterBool>("hold", "Hold", false));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "timeMix", 1 }, "Time Mix",   juce::NormalisableRange<float> (0.0f, 100.0f, 0.1f), 100.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "volMix", 1 },  "Volume Mix", juce::NormalisableRange<float> (0.0f, 100.0f, 0.1f), 100.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "att", 1 },     "Attack",     juce::NormalisableRange<float> (0.0f, 100.0f, 0.1f), 10.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "rel", 1 },     "Release",    juce::NormalisableRange<float> (0.0f, 100.0f, 0.1f), 10.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "tns", 1 },     "Tension",    juce::NormalisableRange<float> (0.0f, 100.0f, 0.1f), 50.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "scratch", 1 }, "Phase Offset", juce::NormalisableRange<float> (-1.0f, 1.0f, 0.01f), 0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterBool>  (juce::ParameterID { "hold", 1 },    "Hold", false));
 
     return { params.begin(), params.end() };
 }
 
-void SkellgateAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void SkellgateAudioProcessor::prepareToPlay (double sampleRate, int)
 {
-    juce::ignoreUnused(samplesPerBlock);
     currentSampleRate = sampleRate;
-    bufferSize = static_cast<int>(sampleRate * 4.0); // 2-bar rolling buffer
-    delayBuffer.resize(bufferSize, 0.0f);
+    bufferLength = static_cast<int> (sampleRate * 10.0);   // plenty for a 2-beat pattern at >= 30 BPM (4 s)
+    delayBuffer.setSize (2, bufferLength);
+    delayBuffer.clear();
     writeHead = 0;
-    currentPhase = 0.0f;
+    freeRunPpq = 0.0;
+    heldPhase = 0.0f;
+    gainState = 1.0f;
+    audioVersion = -1;
+    currentPhase.store (0.0f);
 }
 
 void SkellgateAudioProcessor::releaseResources() {}
 
 bool SkellgateAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
-    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
-     && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+    const auto out = layouts.getMainOutputChannelSet();
+    if (out != juce::AudioChannelSet::mono() && out != juce::AudioChannelSet::stereo())
         return false;
-    return true;
+    return layouts.getMainInputChannelSet() == out;
 }
 
-void SkellgateAudioProcessor::setTimePreset(int index)
+//==============================================================================
+void SkellgateAudioProcessor::setTimePreset (int index)
 {
-    currentTimePreset = juce::jlimit(0, 35, index);
-    timeCurveNodes.clear();
-
-    switch (currentTimePreset)
+    index = juce::jlimit (0, kNumPresets - 1, index);
+    Curve c;
+    buildTime (index, c);
     {
-        case 0: timeCurveNodes = { {0.0f, 0.0f}, {1.0f, 0.0f} }; break; // Empty Pass
-        case 1: timeCurveNodes = { {0.0f, 0.0f}, {0.5f, 0.5f}, {1.0f, 1.0f} }; break; // Basic 1 (1/2 Speed)
-        case 2: timeCurveNodes = { {0.0f, 0.0f}, {0.25f, 0.25f}, {0.5f, 0.5f}, {0.75f, 0.75f}, {1.0f, 1.0f} }; break; // Basic 2
-        case 3: timeCurveNodes = { {0.0f, 0.0f}, {0.125f, 0.5f}, {0.25f, 0.0f}, {0.375f, 0.5f}, {0.5f, 0.0f}, {0.75f, 0.5f}, {1.0f, 0.0f} }; break; // Basic 3 (1/8 Stutter)
-        case 7: timeCurveNodes = { {0.0f, 0.0f}, {0.125f, 0.125f}, {0.25f, 0.0f}, {0.375f, 0.375f}, {0.5f, 0.0f}, {0.625f, 0.625f}, {0.75f, 0.0f}, {0.875f, 0.875f}, {1.0f, 0.0f} }; break; // Basic 7
-        default:
-            timeCurveNodes = { {0.0f, 0.0f}, {0.25f, 0.6f}, {0.5f, 0.1f}, {0.75f, 0.8f}, {1.0f, 0.0f} }; break;
+        const juce::SpinLock::ScopedLockType sl (curveLock);
+        timeCurve = c;
     }
+    currentTimePreset.store (index);
+    setActiveViewLane (LaneTime);
+    ++curveVersion;
 }
 
-void SkellgateAudioProcessor::setVolumePreset(int index)
+void SkellgateAudioProcessor::setVolumePreset (int index)
 {
-    currentVolumePreset = juce::jlimit(0, 35, index);
-    volumeCurveNodes.clear();
-
-    switch (currentVolumePreset)
+    index = juce::jlimit (0, kNumPresets - 1, index);
+    Curve c;
+    buildVolume (index, c);
     {
-        case 0: volumeCurveNodes = { {0.0f, 1.0f}, {1.0f, 1.0f} }; break; // Empty (Full Vol)
-        case 1: volumeCurveNodes = { {0.0f, 1.0f}, {0.9f, 1.0f}, {0.9001f, 0.0f}, {1.0f, 0.0f} }; break; // 2 Beat Gate
-        case 2: volumeCurveNodes = { {0.0f, 1.0f}, {0.45f, 1.0f}, {0.5f, 0.0f}, {1.0f, 0.0f} }; break; // 1 Beat Gate
-        case 3: volumeCurveNodes = { {0.0f, 1.0f}, {0.22f, 1.0f}, {0.25f, 0.0f}, {0.47f, 1.0f}, {0.5f, 0.0f}, {1.0f, 0.0f} }; break; // 1/2 Bt Gate
-        case 4: // 1/3 Bt Gate (Triplets)
-            for (int i = 0; i < 24; ++i) {
-                float x1 = i * (1.0f / 24.0f);
-                float yVal = (i % 2 == 0) ? 1.0f : 0.0f;
-                volumeCurveNodes.push_back({ x1, yVal });
-            }
-            break;
-        case 5: // 1/4 Bt Gate
-            for (int i = 0; i < 16; ++i) {
-                float x1 = i * (1.0f / 16.0f);
-                float yVal = (i % 2 == 0) ? 1.0f : 0.0f;
-                volumeCurveNodes.push_back({ x1, yVal });
-            }
-            break;
-        case 7: // 1/8 Bt Gate
-            for (int i = 0; i < 32; ++i) {
-                float x1 = i * (1.0f / 32.0f);
-                float yVal = (i % 2 == 0) ? 1.0f : 0.0f;
-                volumeCurveNodes.push_back({ x1, yVal });
-            }
-            break;
-        default:
-            volumeCurveNodes = { {0.0f, 1.0f}, {0.25f, 0.0f}, {0.5f, 1.0f}, {0.75f, 0.0f}, {1.0f, 1.0f} }; break;
+        const juce::SpinLock::ScopedLockType sl (curveLock);
+        volCurve = c;
     }
+    currentVolumePreset.store (index);
+    setActiveViewLane (LaneVolume);
+    ++curveVersion;
 }
 
-void SkellgateAudioProcessor::updateNodePosition(bool isTimeLane, int index, float newY)
+SkellgateAudioProcessor::Curve SkellgateAudioProcessor::getCurve (bool isTimeLane) const
 {
-    auto& nodes = isTimeLane ? timeCurveNodes : volumeCurveNodes;
-    if (index >= 0 && index < static_cast<int>(nodes.size()))
-    {
-        nodes[index].y = juce::jlimit(0.0f, 1.0f, newY);
-    }
+    const juce::SpinLock::ScopedLockType sl (curveLock);
+    return isTimeLane ? timeCurve : volCurve;
 }
 
-float SkellgateAudioProcessor::evaluateCurve(const std::vector<Node>& nodes, float phase)
+void SkellgateAudioProcessor::moveNode (bool isTimeLane, int index, float x, float y)
 {
-    if (nodes.empty()) return 0.0f;
-
-    int idx = 0;
-    for (size_t i = 0; i < nodes.size(); ++i)
     {
-        if (nodes[i].x <= phase)
-            idx = static_cast<int>(i);
+        const juce::SpinLock::ScopedLockType sl (curveLock);
+        Curve& c = isTimeLane ? timeCurve : volCurve;
+        if (index < 0 || index >= c.count)
+            return;
+
+        y = juce::jlimit (0.0f, 1.0f, y);
+        if (index == 0 || index == c.count - 1)
+            x = c.nodes[(size_t) index].x;              // end points stay at 0 and 1
+        else
+            x = juce::jlimit (c.nodes[(size_t) index - 1].x, c.nodes[(size_t) index + 1].x, x);
+
+        c.nodes[(size_t) index] = { x, y };
     }
+    ++curveVersion;
+}
 
-    int nextIdx = (idx + 1) % nodes.size();
-    float x1 = nodes[idx].x;
-    float y1 = nodes[idx].y;
-    float x2 = nodes[nextIdx].x;
-    float y2 = nodes[nextIdx].y;
+int SkellgateAudioProcessor::addNode (bool isTimeLane, float x, float y)
+{
+    int result = -1;
+    {
+        const juce::SpinLock::ScopedLockType sl (curveLock);
+        Curve& c = isTimeLane ? timeCurve : volCurve;
+        if (c.count >= kMaxNodes)
+            return -1;
 
-    if (x2 < x1) x2 += 1.0f;
-    float p = phase;
-    if (p < x1) p += 1.0f;
+        x = juce::jlimit (0.0f, 1.0f, x);
+        y = juce::jlimit (0.0f, 1.0f, y);
 
-    float factor = (x2 == x1) ? 0.0f : (p - x1) / (x2 - x1);
-    return y1 + factor * (y2 - y1);
+        int pos = 1;
+        while (pos < c.count - 1 && c.nodes[(size_t) pos].x <= x)   // never past the end point at x = 1
+            ++pos;
+
+        for (int i = c.count; i > pos; --i)
+            c.nodes[(size_t) i] = c.nodes[(size_t) i - 1];
+
+        c.nodes[(size_t) pos] = { x, y };
+        ++c.count;
+        result = pos;
+    }
+    ++curveVersion;
+    return result;
+}
+
+void SkellgateAudioProcessor::removeNode (bool isTimeLane, int index)
+{
+    {
+        const juce::SpinLock::ScopedLockType sl (curveLock);
+        Curve& c = isTimeLane ? timeCurve : volCurve;
+        if (c.count <= 2 || index <= 0 || index >= c.count - 1)
+            return;
+
+        for (int i = index; i < c.count - 1; ++i)
+            c.nodes[(size_t) i] = c.nodes[(size_t) i + 1];
+        --c.count;
+    }
+    ++curveVersion;
+}
+
+//==============================================================================
+float SkellgateAudioProcessor::evaluateCurve (const Curve& c, float phase, float tensionExp)
+{
+    if (c.count == 0)
+        return 0.0f;
+
+    for (int i = 0; i < c.count - 1; ++i)
+    {
+        const Node& a = c.nodes[(size_t) i];
+        const Node& b = c.nodes[(size_t) i + 1];
+
+        if (phase < b.x)
+        {
+            const float w = b.x - a.x;
+            if (w <= 1.0e-6f)
+                return b.y;
+
+            float f = juce::jlimit (0.0f, 1.0f, (phase - a.x) / w);
+            if (tensionExp != 1.0f)
+                f = std::pow (f, tensionExp);
+            return a.y + f * (b.y - a.y);
+        }
+    }
+    return c.nodes[(size_t) c.count - 1].y;
 }
 
 void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
 
-    // Gross Beat MIDI Slot Switching Rules (C1-B3 = Vol, C4+ = Time)
+    const int numSamples = buffer.getNumSamples();
+    const int numIn  = getTotalNumInputChannels();
+    const int numOut = getTotalNumOutputChannels();
+
+    for (int ch = numIn; ch < numOut; ++ch)
+        buffer.clear (ch, 0, numSamples);
+
+    if (bufferLength == 0)
+        return;
+
+    // MIDI preset switching: C1-B3 (24..59) = volume slot, C4+ (60..95) = time slot
     for (const auto metadata : midiMessages)
     {
-        auto msg = metadata.getMessage();
+        const auto msg = metadata.getMessage();
         if (msg.isNoteOn())
         {
-            int note = msg.getNoteNumber();
-            if (note >= 24 && note < 60) setVolumePreset(note - 24);
-            else if (note >= 60) setTimePreset(note - 60);
+            const int note = msg.getNoteNumber();
+            if (note >= 24 && note < 60)       setVolumePreset (note - 24);
+            else if (note >= 60 && note < 96)  setTimePreset (note - 60);
         }
     }
 
-    auto totalNumInputChannels  = getTotalNumInputChannels();
-    auto totalNumOutputChannels = getTotalNumOutputChannels();
+    // Pull in any curve edits
+    {
+        const int v = curveVersion.load();
+        if (v != audioVersion)
+        {
+            const juce::SpinLock::ScopedLockType sl (curveLock);
+            audioTimeCurve = timeCurve;
+            audioVolCurve  = volCurve;
+            audioVersion = v;
+        }
+    }
 
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear (i, 0, buffer.getNumSamples());
+    // Parameters
+    const float tMix  = timeMixParam->load() * 0.01f;
+    const float vMix  = volMixParam->load()  * 0.01f;
+    const float scratch = scratchParam->load();
+    const bool  hold  = holdParam->load() > 0.5f;
+    const float tensionExp = std::pow (4.0f, (50.0f - tnsParam->load()) / 50.0f);   // 50 = linear
 
-    float tMix = *apvts.getRawParameterValue("timeMix") / 100.0f;
-    float vMix = *apvts.getRawParameterValue("volMix") / 100.0f;
-    float scratch = *apvts.getRawParameterValue("scratch");
-    bool isHold = *apvts.getRawParameterValue("hold");
+    auto smoothingCoef = [this] (float amount)
+    {
+        const float ms = 50.0f * (amount * 0.01f) * (amount * 0.01f);
+        if (ms < 0.01f)
+            return 0.0f;
+        return std::exp (-1.0f / (ms * 0.001f * static_cast<float> (currentSampleRate)));
+    };
+    const float attCoef = smoothingCoef (attParam->load());
+    const float relCoef = smoothingCoef (relParam->load());
 
-    double loopDurationSecs = 2.0; // Standard 2-bar Gross Beat duration
-    auto* channelData = buffer.getWritePointer (0);
-    int numSamples = buffer.getNumSamples();
+    // Transport
+    double bpm = 120.0;
+    double ppq = freeRunPpq;
+    if (auto* playHead = getPlayHead())
+    {
+        if (auto pos = playHead->getPosition())
+        {
+            if (auto b = pos->getBpm())
+                bpm = *b;
+            if (pos->getIsPlaying())
+                if (auto p = pos->getPpqPosition())
+                    ppq = *p;
+        }
+    }
+    bpm = juce::jlimit (30.0, 300.0, bpm);
+
+    const double ppqPerSample = bpm / 60.0 / currentSampleRate;
+    const float patternSamples = static_cast<float> ((60.0 / bpm) * kPatternBeats * currentSampleRate);
+
+    const int numCh = juce::jmin (numIn, numOut, 2);
+    float* data[2] = { nullptr, nullptr };
+    float* delay[2] = { nullptr, nullptr };
+    for (int ch = 0; ch < numCh; ++ch)
+    {
+        data[ch]  = buffer.getWritePointer (ch);
+        delay[ch] = delayBuffer.getWritePointer (ch);
+    }
+
+    float phase = heldPhase;
 
     for (int i = 0; i < numSamples; ++i)
     {
-        float inSample = channelData[i];
-        delayBuffer[writeHead] = inSample;
-
-        if (!isHold)
+        if (! hold)
         {
-            double phaseDouble = std::fmod((static_cast<double>(writeHead) / (currentSampleRate * loopDurationSecs)) + static_cast<double>(scratch), 1.0);
-            if (phaseDouble < 0.0) phaseDouble += 1.0;
-            currentPhase = static_cast<float>(phaseDouble);
+            double ph = std::fmod ((ppq + i * ppqPerSample) / kPatternBeats + static_cast<double> (scratch), 1.0);
+            if (ph < 0.0) ph += 1.0;
+            phase = juce::jmin (static_cast<float> (ph), 0.99999f);
+            heldPhase = phase;
+        }
+        else
+            phase = heldPhase;
+
+        // --- time lane: read position inside the pattern ---
+        const float timeY = evaluateCurve (audioTimeCurve, phase, tensionExp);
+        float delaySamples = (phase - timeY) * patternSamples;
+        if (delaySamples < 0.0f)
+            delaySamples += patternSamples;                  // "future" positions come from the previous pass
+        delaySamples = juce::jlimit (0.0f, static_cast<float> (bufferLength - 2), delaySamples);
+
+        double readPos = static_cast<double> (writeHead) - static_cast<double> (delaySamples);
+        if (readPos < 0.0) readPos += bufferLength;
+        const int r1 = juce::jmin (static_cast<int> (readPos), bufferLength - 1);
+        const int r2 = (r1 + 1) % bufferLength;
+        const float frac = static_cast<float> (readPos - r1);
+
+        // --- volume lane ---
+        const float volY = evaluateCurve (audioVolCurve, phase, tensionExp);
+        const float targetGain = (1.0f - vMix) + volY * vMix;
+        const float coef = targetGain > gainState ? attCoef : relCoef;
+        gainState = targetGain + coef * (gainState - targetGain);
+
+        for (int ch = 0; ch < numCh; ++ch)
+        {
+            const float dry = data[ch][i];
+            delay[ch][writeHead] = dry;
+
+            const float warped = delay[ch][r1] + frac * (delay[ch][r2] - delay[ch][r1]);
+            const float timeOut = dry * (1.0f - tMix) + warped * tMix;
+            data[ch][i] = timeOut * gainState;
         }
 
-        // Time Warp Processing
-        float timeVal = evaluateCurve(timeCurveNodes, currentPhase);
-        float timeOffsetSamples = timeVal * static_cast<float>(currentSampleRate * 2.0);
-
-        double exactReadPos = static_cast<double>(writeHead) - static_cast<double>(timeOffsetSamples);
-        while (exactReadPos < 0) exactReadPos += bufferSize;
-        while (exactReadPos >= bufferSize) exactReadPos -= bufferSize;
-
-        int r1 = static_cast<int>(exactReadPos);
-        int r2 = (r1 + 1) % bufferSize;
-        float frac = static_cast<float>(exactReadPos - r1);
-
-        float timeSample = delayBuffer[r1] + frac * (delayBuffer[r2] - delayBuffer[r1]);
-        float wetTimeSample = inSample * (1.0f - tMix) + timeSample * tMix;
-
-        // Volume Envelope Gate Processing
-        float volVal = evaluateCurve(volumeCurveNodes, currentPhase);
-        float finalSample = wetTimeSample * ((1.0f - vMix) + volVal * vMix);
-
-        channelData[i] = finalSample;
-        writeHead = (writeHead + 1) % bufferSize;
+        if (++writeHead >= bufferLength)
+            writeHead = 0;
     }
 
-    if (totalNumInputChannels > 1)
-    {
-        auto* rightData = buffer.getWritePointer(1);
-        juce::FloatVectorOperations::copy(rightData, channelData, numSamples);
-    }
+    currentPhase.store (phase);
+    freeRunPpq = ppq + numSamples * ppqPerSample;
 }
 
+//==============================================================================
 juce::AudioProcessorEditor* SkellgateAudioProcessor::createEditor()
 {
     return new SkellgateAudioProcessorEditor (*this);
@@ -244,15 +737,39 @@ juce::AudioProcessorEditor* SkellgateAudioProcessor::createEditor()
 void SkellgateAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto state = apvts.copyState();
-    std::unique_ptr<juce::XmlElement> xml (state.createXml());
-    copyXmlToBinary (*xml, destData);
+    state.setProperty ("timePreset", currentTimePreset.load(), nullptr);
+    state.setProperty ("volPreset",  currentVolumePreset.load(), nullptr);
+    {
+        const juce::SpinLock::ScopedLockType sl (curveLock);
+        state.setProperty ("timeCurve", curveToString (timeCurve), nullptr);
+        state.setProperty ("volCurve",  curveToString (volCurve), nullptr);
+    }
+
+    if (auto xml = state.createXml())
+        copyXmlToBinary (*xml, destData);
 }
 
 void SkellgateAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState (getXmlFromBinary (data, sizeInBytes));
-    if (xmlState != nullptr && xmlState->hasTagName (apvts.state.getType()))
-        apvts.replaceState (juce::ValueTree::fromXml (*xmlState));
+    if (xmlState == nullptr || ! xmlState->hasTagName (apvts.state.getType()))
+        return;
+
+    const auto tree = juce::ValueTree::fromXml (*xmlState);
+    apvts.replaceState (tree);
+
+    currentTimePreset.store (juce::jlimit (0, kNumPresets - 1, (int) tree.getProperty ("timePreset", 0)));
+    currentVolumePreset.store (juce::jlimit (0, kNumPresets - 1, (int) tree.getProperty ("volPreset", 0)));
+
+    {
+        const juce::SpinLock::ScopedLockType sl (curveLock);
+        Curve c;
+        if (stringToCurve (tree.getProperty ("timeCurve").toString(), c))
+            timeCurve = c;
+        if (stringToCurve (tree.getProperty ("volCurve").toString(), c))
+            volCurve = c;
+    }
+    ++curveVersion;
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
