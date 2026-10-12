@@ -2,7 +2,6 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <vector>
-#include <deque>
 
 class SkellgateAudioProcessor : public juce::AudioProcessor
 {
@@ -41,7 +40,6 @@ public:
     int getCurrentTimePreset() const { return currentTimePreset; }
     int getCurrentVolumePreset() const { return currentVolumePreset; }
     float getCurrentPhase() const { return currentPhase; }
-    float getCurrentAudioLevel() const { return currentAudioLevel; }
 
     struct Node { float x; float y; };
     std::vector<Node>& getTimeCurveNodes() { return timeCurveNodes; }
@@ -53,6 +51,9 @@ public:
     void setActiveViewLane(ActiveLane lane) { activeViewLane = lane; }
     ActiveLane getActiveViewLane() const { return activeViewLane; }
 
+    static const char* getTimePresetName(int index);
+    static const char* getVolumePresetName(int index);
+
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
@@ -61,7 +62,6 @@ private:
     int writeHead = 0;
     double currentSampleRate = 44100.0;
     float currentPhase = 0.0f;
-    float currentAudioLevel = 0.0f;
 
     int currentTimePreset = 0;
     int currentVolumePreset = 0;
@@ -69,8 +69,7 @@ private:
     std::vector<Node> timeCurveNodes;
     std::vector<Node> volumeCurveNodes;
 
-    float evaluateSmoothCurve(const std::vector<Node>& nodes, float phase);
-    float applySaturation(float sample, float drive);
+    float evaluateCurve(const std::vector<Node>& nodes, float phase);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SkellgateAudioProcessor)
 };
