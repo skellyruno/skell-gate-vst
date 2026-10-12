@@ -36,7 +36,6 @@ public:
             g.strokePath (valueArc, juce::PathStrokeType (4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         }
 
-        // Cyberpunk Neon Glow Aura
         g.setColour(juce::Colours::lime.withAlpha(0.3f));
         g.drawEllipse(center.x - radius, center.y - radius, radius * 2.0f, radius * 2.0f, 2.0f);
 
@@ -86,7 +85,7 @@ private:
     juce::TextButton timeLaneButton;
     juce::TextButton volumeLaneButton;
 
-    // 32-Slot Matrix Banks (Time & Volume)
+    // Full 36-Slot Matrix Banks (Time[cite: 3] & Volume[cite: 3])
     std::vector<std::unique_ptr<juce::TextButton>> timeSlotButtons;
     std::vector<std::unique_ptr<juce::TextButton>> volumeSlotButtons;
 
@@ -95,11 +94,14 @@ private:
     juce::Slider lengthSlider;
     juce::Slider timeSlider;
     juce::Slider mixSlider;
+    juce::Slider scratchSlider;
     juce::Slider pitchSlider;
     juce::Slider saturationSlider;
 
     juce::ToggleButton bypassButton;
     juce::ToggleButton reverseButton;
+    juce::ToggleButton hqButton;
+    juce::ToggleButton clickReductionButton;
 
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
@@ -109,10 +111,13 @@ private:
     std::unique_ptr<SliderAttachment> lengthAttachment;
     std::unique_ptr<SliderAttachment> timeAttachment;
     std::unique_ptr<SliderAttachment> mixAttachment;
+    std::unique_ptr<SliderAttachment> scratchAttachment;
     std::unique_ptr<SliderAttachment> pitchAttachment;
     std::unique_ptr<SliderAttachment> saturationAttachment;
     std::unique_ptr<ButtonAttachment> bypassAttachment;
     std::unique_ptr<ButtonAttachment> reverseAttachment;
+    std::unique_ptr<ButtonAttachment> hqAttachment;
+    std::unique_ptr<ButtonAttachment> clickReductionAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SkellgateAudioProcessorEditor)
 };
