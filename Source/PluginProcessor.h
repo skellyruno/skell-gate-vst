@@ -53,8 +53,6 @@ public:
     void setActiveViewLane(ActiveLane lane) { activeViewLane = lane; }
     ActiveLane getActiveViewLane() const { return activeViewLane; }
 
-    std::vector<float> getScopeHistory() const;
-
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
@@ -70,9 +68,6 @@ private:
 
     std::vector<Node> timeCurveNodes;
     std::vector<Node> volumeCurveNodes;
-
-    std::deque<float> scopeBuffer;
-    std::mutex scopeMutex;
 
     float evaluateSmoothCurve(const std::vector<Node>& nodes, float phase);
     float applySaturation(float sample, float drive);
