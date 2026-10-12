@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <vector>
+#include <deque>
 
 class SkellgateAudioProcessor : public juce::AudioProcessor
 {
@@ -20,7 +21,7 @@ public:
 
     const juce::String getName() const override { return JucePlugin_Name; }
 
-    bool acceptsMidi() const override { return false; }
+    bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
 
@@ -52,6 +53,8 @@ public:
     void setActiveViewLane(ActiveLane lane) { activeViewLane = lane; }
     ActiveLane getActiveViewLane() const { return activeViewLane; }
 
+    std::vector<float> getScopeHistory() const;
+
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
@@ -68,7 +71,11 @@ private:
     std::vector<Node> timeCurveNodes;
     std::vector<Node> volumeCurveNodes;
 
-    float evaluateCurve(const std::vector<Node>& nodes, float phase);
+    std::deque<float> scopeBuffer;
+    std::mutex scopeMutex;
+
+    float evaluateSmoothCurve(const std::vector<Node>& nodes, float phase);
+    float applySaturation(float sample, float drive);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SkellgateAudioProcessor)
 };
