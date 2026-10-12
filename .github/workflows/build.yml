@@ -13,24 +13,24 @@ jobs:
         os: [windows-latest]
 
     steps:
-    - name: Checkout repository recursively
+    - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
 
     - name: Configure CMake
-      run: >
-        cmake -B build
-        -DCMAKE_BUILD_TYPE=Release
-        -DCSOUND_BUILD_STATIC=ON
+      run: cmake -B build
 
     - name: Build Plugin Target
-      run: cmake --build build --config Release
+      run: cmake --build build --config Release --parallel
 
     # Package build outputs as downloadable artifacts
     - name: Upload Windows VST3 Artifact
-      if: runner.os == 'Windows'
       uses: actions/upload-artifact@v4
       with:
         name: Skellgate-Windows-VST3
         path: build/Skellgate_artefacts/Release/VST3/
+
+    - name: Upload Standalone Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Skellgate-Windows-Standalone
+        path: build/Skellgate_artefacts/Release/Standalone/
