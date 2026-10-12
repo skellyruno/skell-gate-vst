@@ -19,7 +19,6 @@ void DualGraphComponent::timerCallback()
 
 void DualGraphComponent::paint(juce::Graphics& g)
 {
-    // Cyberpunk Dark Glass Background
     g.fillAll(juce::Colour::fromRGB(10, 10, 10));
 
     float audioLevel = processor.getCurrentAudioLevel();
@@ -27,7 +26,7 @@ void DualGraphComponent::paint(juce::Graphics& g)
     g.setColour(juce::Colours::lime.withAlpha(glowAlpha));
     g.drawRect(getLocalBounds(), 3);
 
-    // Live Reactive Oscilloscope / Waveform Backdrop
+    // Live Oscilloscope Waveform Backdrop
     g.setColour(juce::Colours::lime.withAlpha(0.12f));
     juce::Path scopePath;
     scopePath.startNewSubPath(0.0f, static_cast<float>(getHeight() / 2));
@@ -38,7 +37,7 @@ void DualGraphComponent::paint(juce::Graphics& g)
     }
     g.strokePath(scopePath, juce::PathStrokeType(1.5f));
 
-    // Neon Grid Lines
+    // Neon Grid
     g.setColour(juce::Colours::darkgrey.withAlpha(0.3f));
     for (int i = 1; i < 4; ++i)
     {
@@ -63,15 +62,12 @@ void DualGraphComponent::paint(juce::Graphics& g)
             curvePath.lineTo(nodes[i].x * static_cast<float>(getWidth()), (1.0f - nodes[i].y) * static_cast<float>(getHeight()));
         }
 
-        // Glowing Outer Path
         g.setColour(juce::Colours::lime.withAlpha(0.35f + 0.15f * std::sin(animPulse)));
         g.strokePath(curvePath, juce::PathStrokeType(7.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-        // Crisp Neon Core Path
         g.setColour(juce::Colours::lime);
         g.strokePath(curvePath, juce::PathStrokeType(2.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-        // Draggable Breakpoint Nodes
         for (size_t i = 0; i < nodes.size(); ++i)
         {
             float px = nodes[i].x * static_cast<float>(getWidth());
@@ -83,7 +79,6 @@ void DualGraphComponent::paint(juce::Graphics& g)
         }
     }
 
-    // Playhead Cursor
     float phase = processor.getCurrentPhase();
     float cursorX = phase * static_cast<float>(getWidth());
     g.setColour(juce::Colours::white.withAlpha(0.95f));
@@ -128,20 +123,20 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
     setLookAndFeel(&skellLookAndFeel);
     addAndMakeVisible(dualGraph);
 
-    timeLaneButton.setButtonText("TIME LANE (32 Slots)");
+    timeLaneButton.setButtonText("TIME LANE (36 Slots)");[cite: 3]
     timeLaneButton.addListener(this);
     timeLaneButton.setColour(juce::TextButton::buttonColourId, juce::Colours::lime);
     timeLaneButton.setColour(juce::TextButton::textColourOffId, juce::Colours::black);
     addAndMakeVisible(timeLaneButton);
 
-    volumeLaneButton.setButtonText("VOLUME LANE (32 Slots)");
+    volumeLaneButton.setButtonText("VOLUME LANE (36 Slots)");[cite: 3]
     volumeLaneButton.addListener(this);
     volumeLaneButton.setColour(juce::TextButton::buttonColourId, juce::Colour::fromRGB(24, 24, 24));
     volumeLaneButton.setColour(juce::TextButton::textColourOffId, juce::Colours::lightgrey);
     addAndMakeVisible(volumeLaneButton);
 
-    // 32 Time Slots Matrix (4 rows x 8 cols)
-    for (int i = 0; i < 32; ++i)
+    // Full 36 Time Slots (6 rows x 6 cols)[cite: 3]
+    for (int i = 0; i < 36; ++i)
     {
         auto btn = std::make_unique<juce::TextButton>();
         btn->setButtonText("T" + juce::String(i + 1));
@@ -152,8 +147,8 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
         timeSlotButtons.push_back(std::move(btn));
     }
 
-    // 32 Volume Slots Matrix (4 rows x 8 cols)
-    for (int i = 0; i < 32; ++i)
+    // Full 36 Volume Slots (6 rows x 6 cols)[cite: 3]
+    for (int i = 0; i < 36; ++i)
     {
         auto btn = std::make_unique<juce::TextButton>();
         btn->setButtonText("V" + juce::String(i + 1));
@@ -168,7 +163,7 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
 
     auto setupSlider = [this](juce::Slider& slider) {
         slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 55, 16);
+        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 16);
         addAndMakeVisible(slider);
     };
 
@@ -177,6 +172,7 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
     setupSlider(lengthSlider);
     setupSlider(timeSlider);
     setupSlider(mixSlider);
+    setupSlider(scratchSlider);
     setupSlider(pitchSlider);
     setupSlider(saturationSlider);
 
@@ -185,6 +181,7 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
     lengthAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "length", lengthSlider);
     timeAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "time", timeSlider);
     mixAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "mix", mixSlider);
+    scratchAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "scratch", scratchSlider);
     pitchAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "pitch", pitchSlider);
     saturationAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "saturation", saturationSlider);
 
@@ -196,7 +193,15 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
     addAndMakeVisible(reverseButton);
     reverseAttachment = std::make_unique<ButtonAttachment>(audioProcessor.apvts, "reverse", reverseButton);
 
-    setSize (1050, 640);
+    hqButton.setButtonText("HQ");
+    addAndMakeVisible(hqButton);
+    hqAttachment = std::make_unique<ButtonAttachment>(audioProcessor.apvts, "hq", hqButton);
+
+    clickReductionButton.setButtonText("NO-CLICK");
+    addAndMakeVisible(clickReductionButton);
+    clickReductionAttachment = std::make_unique<ButtonAttachment>(audioProcessor.apvts, "clickReduction", clickReductionButton);
+
+    setSize (1100, 680);
 }
 
 SkellgateAudioProcessorEditor::~SkellgateAudioProcessorEditor()
@@ -282,7 +287,7 @@ void SkellgateAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setFont (11.0f);
     g.setColour (juce::Colours::grey);
-    g.drawText ("ULTIMATE 32-SLOT DUAL-LANE GLITCH ENGINE", 175, 22, 320, 20, juce::Justification::left);
+    g.drawText ("ULTIMATE 36-SLOT DUAL-LANE ENGINE", 175, 22, 300, 20, juce::Justification::left);[cite: 3]
 }
 
 void SkellgateAudioProcessorEditor::resized()
@@ -290,8 +295,10 @@ void SkellgateAudioProcessorEditor::resized()
     auto area = getLocalBounds().reduced(20);
     
     auto topArea = area.removeFromTop(40);
-    bypassButton.setBounds(topArea.removeFromRight(80));
+    clickReductionButton.setBounds(topArea.removeFromRight(95));
+    hqButton.setBounds(topArea.removeFromRight(50).reduced(0, 5));
     reverseButton.setBounds(topArea.removeFromRight(95).reduced(0, 5));
+    bypassButton.setBounds(topArea.removeFromRight(80));
 
     auto laneBar = area.removeFromTop(30);
     timeLaneButton.setBounds(laneBar.removeFromLeft(160));
@@ -300,19 +307,19 @@ void SkellgateAudioProcessorEditor::resized()
 
     area.removeFromTop(10);
 
-    // Main Body: Left = 32-Slot Matrices, Right = Interactive Dual Graph LCD with Oscilloscope
-    auto mainBody = area.removeFromTop(310);
+    // Main Body: Left = 36-Slot Matrix (6x6), Right = Interactive Dual Graph LCD[cite: 3]
+    auto mainBody = area.removeFromTop(320);
     
-    auto matrixArea = mainBody.removeFromLeft(300);
+    auto matrixArea = mainBody.removeFromLeft(340);
     
-    // Time Slots Matrix (Top Half: 4 rows x 8 cols)
-    auto timeMatrix = matrixArea.removeFromTop(150);
-    int tSlotW = timeMatrix.getWidth() / 8;
-    int tSlotH = timeMatrix.getHeight() / 4;
-    for (int i = 0; i < 32; ++i)
+    // Time Slots Matrix (Top Half: 6 rows x 6 cols)[cite: 3]
+    auto timeMatrix = matrixArea.removeFromTop(155);
+    int tSlotW = timeMatrix.getWidth() / 6;
+    int tSlotH = timeMatrix.getHeight() / 6;
+    for (int i = 0; i < 36; ++i)
     {
-        int row = i / 8;
-        int col = i % 8;
+        int row = i / 6;
+        int col = i % 6;
         timeSlotButtons[i]->setBounds(timeMatrix.getX() + col * tSlotW + 1,
                                       timeMatrix.getY() + row * tSlotH + 1,
                                       tSlotW - 2, tSlotH - 2);
@@ -320,17 +327,17 @@ void SkellgateAudioProcessorEditor::resized()
 
     matrixArea.removeFromTop(10);
 
-    // Volume Slots Matrix (Bottom Half: 4 rows x 8 cols)
+    // Volume Slots Matrix (Bottom Half: 6 rows x 6 cols)[cite: 3]
     auto volMatrix = matrixArea;
-    int vSlotW = volMatrix.getWidth() / 8;
-    int vSlotH = volMatrix.getHeight() / 4;
-    for (int i = 0; i < 32; ++i)
+    int vSlotW = volMatrix.getWidth() / 6;
+    int vSlotH = volMatrix.getHeight() / 6;
+    for (int i = 0; i < 36; ++i)
     {
-        int row = i / 8;
-        int col = i % 8;
+        int row = i / 6;
+        int col = i % 6;
         volumeSlotButtons[i]->setBounds(volMatrix.getX() + col * vSlotW + 1,
                                         volMatrix.getY() + row * vSlotH + 1,
-                                        vSlotW - 2, vSlotH - 2);
+                                        vSlotW - 2, tSlotH - 2);
     }
 
     mainBody.removeFromLeft(15);
@@ -338,13 +345,14 @@ void SkellgateAudioProcessorEditor::resized()
 
     area.removeFromTop(15);
 
-    // 7 Core Knobs Layout (Attack, Release, Length, Time, Mix, Pitch, Saturation)
-    auto knobWidth = area.getWidth() / 7;
-    attackSlider.setBounds(area.removeFromLeft(knobWidth).reduced(6));
-    releaseSlider.setBounds(area.removeFromLeft(knobWidth).reduced(6));
-    lengthSlider.setBounds(area.removeFromLeft(knobWidth).reduced(6));
-    timeSlider.setBounds(area.removeFromLeft(knobWidth).reduced(6));
-    mixSlider.setBounds(area.removeFromLeft(knobWidth).reduced(6));
-    pitchSlider.setBounds(area.removeFromLeft(knobWidth).reduced(6));
-    saturationSlider.setBounds(area.removeFromLeft(knobWidth).reduced(6));
+    // 8 Core Knobs Layout (Attack, Release, Length, Time, Mix, Scratch, Pitch, Saturation)
+    auto knobWidth = area.getWidth() / 8;
+    attackSlider.setBounds(area.removeFromLeft(knobWidth).reduced(5));
+    releaseSlider.setBounds(area.removeFromLeft(knobWidth).reduced(5));
+    lengthSlider.setBounds(area.removeFromLeft(knobWidth).reduced(5));
+    timeSlider.setBounds(area.removeFromLeft(knobWidth).reduced(5));
+    mixSlider.setBounds(area.removeFromLeft(knobWidth).reduced(5));
+    scratchSlider.setBounds(area.removeFromLeft(knobWidth).reduced(5));
+    pitchSlider.setBounds(area.removeFromLeft(knobWidth).reduced(5));
+    saturationSlider.setBounds(area.removeFromLeft(knobWidth).reduced(5));
 }
