@@ -123,19 +123,18 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
     setLookAndFeel(&skellLookAndFeel);
     addAndMakeVisible(dualGraph);
 
-    timeLaneButton.setButtonText("TIME LANE (36 Slots)");[cite: 3]
+    timeLaneButton.setButtonText("TIME LANE (36 Slots)");
     timeLaneButton.addListener(this);
     timeLaneButton.setColour(juce::TextButton::buttonColourId, juce::Colours::lime);
     timeLaneButton.setColour(juce::TextButton::textColourOffId, juce::Colours::black);
     addAndMakeVisible(timeLaneButton);
 
-    volumeLaneButton.setButtonText("VOLUME LANE (36 Slots)");[cite: 3]
+    volumeLaneButton.setButtonText("VOLUME LANE (36 Slots)");
     volumeLaneButton.addListener(this);
     volumeLaneButton.setColour(juce::TextButton::buttonColourId, juce::Colour::fromRGB(24, 24, 24));
     volumeLaneButton.setColour(juce::TextButton::textColourOffId, juce::Colours::lightgrey);
     addAndMakeVisible(volumeLaneButton);
 
-    // Full 36 Time Slots (6 rows x 6 cols)[cite: 3]
     for (int i = 0; i < 36; ++i)
     {
         auto btn = std::make_unique<juce::TextButton>();
@@ -147,7 +146,6 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
         timeSlotButtons.push_back(std::move(btn));
     }
 
-    // Full 36 Volume Slots (6 rows x 6 cols)[cite: 3]
     for (int i = 0; i < 36; ++i)
     {
         auto btn = std::make_unique<juce::TextButton>();
@@ -287,7 +285,7 @@ void SkellgateAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setFont (11.0f);
     g.setColour (juce::Colours::grey);
-    g.drawText ("ULTIMATE 36-SLOT DUAL-LANE ENGINE", 175, 22, 300, 20, juce::Justification::left);[cite: 3]
+    g.drawText ("ULTIMATE 36-SLOT DUAL-LANE ENGINE", 175, 22, 300, 20, juce::Justification::left);
 }
 
 void SkellgateAudioProcessorEditor::resized()
@@ -307,12 +305,10 @@ void SkellgateAudioProcessorEditor::resized()
 
     area.removeFromTop(10);
 
-    // Main Body: Left = 36-Slot Matrix (6x6), Right = Interactive Dual Graph LCD[cite: 3]
     auto mainBody = area.removeFromTop(320);
     
     auto matrixArea = mainBody.removeFromLeft(340);
     
-    // Time Slots Matrix (Top Half: 6 rows x 6 cols)[cite: 3]
     auto timeMatrix = matrixArea.removeFromTop(155);
     int tSlotW = timeMatrix.getWidth() / 6;
     int tSlotH = timeMatrix.getHeight() / 6;
@@ -327,7 +323,6 @@ void SkellgateAudioProcessorEditor::resized()
 
     matrixArea.removeFromTop(10);
 
-    // Volume Slots Matrix (Bottom Half: 6 rows x 6 cols)[cite: 3]
     auto volMatrix = matrixArea;
     int vSlotW = volMatrix.getWidth() / 6;
     int vSlotH = volMatrix.getHeight() / 6;
@@ -345,7 +340,6 @@ void SkellgateAudioProcessorEditor::resized()
 
     area.removeFromTop(15);
 
-    // 8 Core Knobs Layout (Attack, Release, Length, Time, Mix, Scratch, Pitch, Saturation)
     auto knobWidth = area.getWidth() / 8;
     attackSlider.setBounds(area.removeFromLeft(knobWidth).reduced(5));
     releaseSlider.setBounds(area.removeFromLeft(knobWidth).reduced(5));
