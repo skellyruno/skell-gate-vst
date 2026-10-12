@@ -4,55 +4,50 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
 
-class SkellgateLookAndFeel : public juce::LookAndFeel_V4
+class GrossLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
-    SkellgateLookAndFeel()
+    GrossLookAndFeel()
     {
         setColour(juce::Slider::rotarySliderFillColourId, juce::Colours::lime);
         setColour(juce::Slider::thumbColourId, juce::Colours::black);
-        setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colours::darkgrey);
+        setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colour::fromRGB(40, 50, 40));
     }
 
     void drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height,
                            float sliderPos, const float rotaryStartAngle,
                            const float rotaryEndAngle, juce::Slider&) override
     {
-        auto bounds = juce::Rectangle<int> (x, y, width, height).toFloat().reduced (6);
+        auto bounds = juce::Rectangle<int> (x, y, width, height).toFloat().reduced (2);
         auto radius = juce::jmin (bounds.getWidth(), bounds.getHeight()) / 2.0f;
         auto center = bounds.getCentre();
         auto angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
 
-        juce::Path bgArc;
-        bgArc.addCentredArc (center.x, center.y, radius, radius, 0.0f, rotaryStartAngle, rotaryEndAngle, true);
-        g.setColour (juce::Colours::darkgrey.darker(0.6f));
-        g.strokePath (bgArc, juce::PathStrokeType (4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        // Knob Dark Metal Body
+        g.setColour (juce::Colour::fromRGB(25, 30, 25));
+        g.fillEllipse (bounds);
+        g.setColour (juce::Colours::lime.withAlpha(0.8f));
+        g.drawEllipse (bounds, 2.0f);
 
-        if (sliderPos > 0.0f)
-        {
-            juce::Path valueArc;
-            valueArc.addCentredArc (center.x, center.y, radius, radius, 0.0f, rotaryStartAngle, angle, true);
-            g.setColour (juce::Colours::lime);
-            g.strokePath (valueArc, juce::PathStrokeType (4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        }
-
-        g.setColour(juce::Colours::lime.withAlpha(0.3f));
-        g.drawEllipse(center.x - radius, center.y - radius, radius * 2.0f, radius * 2.0f, 2.0f);
-
-        auto thumbWidth = 8.0f;
-        auto innerRadius = radius - 10.0f;
-        juce::Point<float> thumbPoint (center.x + innerRadius * std::sin (angle),
-                                       center.y - innerRadius * std::cos (angle));
+        // Value Arc
+        juce::Path valueArc;
+        valueArc.addCentredArc (center.x, center.y, radius - 4.0f, radius - 4.0f, 0.0f, rotaryStartAngle, angle, true);
         g.setColour (juce::Colours::lime);
-        g.fillEllipse (juce::Rectangle<float> (thumbWidth, thumbWidth).withCentre (thumbPoint));
+        g.strokePath (valueArc, juce::PathStrokeType (3.0f));
+
+        // Indicator Line
+        juce::Point<float> thumbPoint (center.x + (radius - 8.0f) * std::sin (angle),
+                                       center.y - (radius - 8.0f) * std::cos (angle));
+        g.setColour (juce::Colours::lime);
+        g.drawLine (center.x, center.y, thumbPoint.x, thumbPoint.y, 2.5f);
     }
 };
 
-class DualGraphComponent : public juce::Component, public juce::Timer
+class GrossLCDGraphComponent : public juce::Component, public juce::Timer
 {
 public:
-    DualGraphComponent(SkellgateAudioProcessor& p);
-    ~DualGraphComponent() override;
+    GrossLCDGraphComponent(SkellgateAudioProcessor& p);
+    ~GrossLCDGraphComponent() override;
     void paint(juce::Graphics& g) override;
     void mouseDown(const juce::MouseEvent& event) override;
     void mouseDrag(const juce::MouseEvent& event) override;
@@ -61,7 +56,6 @@ public:
 private:
     SkellgateAudioProcessor& processor;
     int draggedNodeIndex = -1;
-    float animPulse = 0.0f;
 };
 
 class SkellgateAudioProcessorEditor : public juce::AudioProcessorEditor,
@@ -78,46 +72,36 @@ public:
 
 private:
     SkellgateAudioProcessor& audioProcessor;
-    SkellgateLookAndFeel skellLookAndFeel;
+    GrossLookAndFeel grossLookAndFeel;
 
-    DualGraphComponent dualGraph;
+    GrossLCDGraphComponent lcdGraph;
 
-    juce::TextButton timeLaneButton;
-    juce::TextButton volumeLaneButton;
+    // Header Controls
+    juce::Slider timeMixSlider;
+    juce::Slider volMixSlider;
+    juce::ToggleButton holdButton;
 
-    // Full 36-Slot Matrix Banks (Time[cite: 3] & Volume[cite: 3])
-    std::vector<std::unique_ptr<juce::TextButton>> timeSlotButtons;
-    std::vector<std::unique_ptr<juce::TextButton>> volumeSlotButtons;
+    // Bottom Knobs
+    juce::Slider attSlider;
+    juce::Slider relSlider;
+    juce::Slider tnsSlider;
 
-    juce::Slider attackSlider;
-    juce::Slider releaseSlider;
-    juce::Slider lengthSlider;
-    juce::Slider timeSlider;
-    juce::Slider mixSlider;
-    juce::Slider scratchSlider;
-    juce::Slider pitchSlider;
-    juce::Slider saturationSlider;
+    // 36 Time Pads (Green Grid) + 36 Volume Pads (Orange Grid)
+    std::vector<std::unique_ptr<juce::TextButton>> timePads;
+    std::vector<std::unique_ptr<juce::TextButton>> volPads;
 
-    juce::ToggleButton bypassButton;
-    juce::ToggleButton reverseButton;
-    juce::ToggleButton hqButton;
-    juce::ToggleButton clickReductionButton;
+    // Vertical Toolbar Buttons
+    juce::TextButton snap1_16, snap1_12, snap1_8, snap1_6, snap1_4, snap1_3;
 
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
 
-    std::unique_ptr<SliderAttachment> attackAttachment;
-    std::unique_ptr<SliderAttachment> releaseAttachment;
-    std::unique_ptr<SliderAttachment> lengthAttachment;
-    std::unique_ptr<SliderAttachment> timeAttachment;
-    std::unique_ptr<SliderAttachment> mixAttachment;
-    std::unique_ptr<SliderAttachment> scratchAttachment;
-    std::unique_ptr<SliderAttachment> pitchAttachment;
-    std::unique_ptr<SliderAttachment> saturationAttachment;
-    std::unique_ptr<ButtonAttachment> bypassAttachment;
-    std::unique_ptr<ButtonAttachment> reverseAttachment;
-    std::unique_ptr<ButtonAttachment> hqAttachment;
-    std::unique_ptr<ButtonAttachment> clickReductionAttachment;
+    std::unique_ptr<SliderAttachment> timeMixAttachment;
+    std::unique_ptr<SliderAttachment> volMixAttachment;
+    std::unique_ptr<SliderAttachment> attAttachment;
+    std::unique_ptr<SliderAttachment> relAttachment;
+    std::unique_ptr<SliderAttachment> tnsAttachment;
+    std::unique_ptr<ButtonAttachment> holdAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SkellgateAudioProcessorEditor)
 };
