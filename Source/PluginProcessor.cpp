@@ -2,6 +2,33 @@
 #include "PluginEditor.h"
 #include <cmath>
 
+static const char* kTimeNames[36] = {
+    "Empty", "Basic 1", "Basic 2", "Basic 3",
+    "Basic 4", "Basic 5", "Basic 6", "Basic 7",
+    "Basic 8", "Basic 9", "Basic 10", "Basic 11",
+    "Complex 1", "Complex 2", "Complex 3", "Complex 4",
+    "Complex 5", "Complex 6", "Complex 7", "Complex 8",
+    "Complex 9", "Complex 10", "Complex 11", "Complex 12",
+    "Chaos 1", "Chaos 2", "Chaos 3", "Chaos 4",
+    "Chaos 5", "Chaos 6", "Chaos 7", "Chaos 8",
+    "Chaos 9", "Chaos 10", "Chaos 11", "Chaos 12"
+};
+
+static const char* kVolNames[36] = {
+    "Empty", "2 Beat Gate", "1 Beat Gate", "1/2 Bt Gate",
+    "1/3 Bt Gate", "1/4 Bt Gate", "1/6 Bt Gate", "1/8 Bt Gate",
+    "Trance Gt 1", "Trance Gt 2", "Trance Gt 3", "Trance Gt 4",
+    "Saw Gate 1", "Saw Gate 2", "1st Step", "1st Stp Fade",
+    "2 Step Gate", "Off Beat", "1/4 Dynamic", "1/4 Swing",
+    "1/4 Gate Out", "1/4 Gate In", "Spd Up Gate", "Slw Dn Gate",
+    "End Fade", "End Gate", "Tremelo Slw", "Tremelo Fst",
+    "Sidechain", "Drum Loop", "Copter", "AM",
+    "Fade In", "Fade Out", "Fade Out In", "Mute"
+};
+
+const char* SkellgateAudioProcessor::getTimePresetName(int index) { return kTimeNames[juce::jlimit(0, 35, index)]; }
+const char* SkellgateAudioProcessor::getVolumePresetName(int index) { return kVolNames[juce::jlimit(0, 35, index)]; }
+
 SkellgateAudioProcessor::SkellgateAudioProcessor()
      : AudioProcessor (BusesProperties().withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
                                         .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
@@ -17,18 +44,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout SkellgateAudioProcessor::cre
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("attack", "Attack", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 5.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("release", "Release", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 5.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("length", "Length", juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 50.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("time", "Time", juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 50.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("mix", "Mix", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 100.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("timeMix", "Time Mix", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 100.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("volMix", "Volume Mix", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 100.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("att", "Attack", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 10.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("rel", "Release", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 10.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("tns", "Tension", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 50.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("scratch", "Scratch", juce::NormalisableRange<float>(-1.0f, 1.0f, 0.01f), 0.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("pitch", "Pitch", juce::NormalisableRange<float>(-24.0f, 24.0f, 1.0f), 0.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("saturation", "Saturation", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 15.0f));
-    params.push_back(std::make_unique<juce::AudioParameterBool>("bypass", "Bypass", false));
-    params.push_back(std::make_unique<juce::AudioParameterBool>("reverse", "Reverse", false));
-    params.push_back(std::make_unique<juce::AudioParameterBool>("hq", "HQ Resampling", true));
-    params.push_back(std::make_unique<juce::AudioParameterBool>("clickReduction", "Click Reduction", true));
+    params.push_back(std::make_unique<juce::AudioParameterBool>("hold", "Hold", false));
 
     return { params.begin(), params.end() };
 }
@@ -37,11 +59,10 @@ void SkellgateAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
 {
     juce::ignoreUnused(samplesPerBlock);
     currentSampleRate = sampleRate;
-    bufferSize = static_cast<int>(sampleRate * 4.0); // 2-bar rolling buffer base
+    bufferSize = static_cast<int>(sampleRate * 4.0); // 2-bar rolling buffer
     delayBuffer.resize(bufferSize, 0.0f);
     writeHead = 0;
     currentPhase = 0.0f;
-    currentAudioLevel = 0.0f;
 }
 
 void SkellgateAudioProcessor::releaseResources() {}
@@ -59,20 +80,15 @@ void SkellgateAudioProcessor::setTimePreset(int index)
     currentTimePreset = juce::jlimit(0, 35, index);
     timeCurveNodes.clear();
 
-    switch (currentTimePreset % 12)
+    switch (currentTimePreset)
     {
-        case 0: timeCurveNodes = { {0.0f, 0.0f}, {1.0f, 0.0f} }; break; // Pass
-        case 1: timeCurveNodes = { {0.0f, 0.0f}, {0.125f, 0.5f}, {0.25f, 0.0f}, {0.375f, 0.5f}, {0.5f, 0.0f}, {0.75f, 0.5f}, {1.0f, 0.0f} }; break; // 1/8 Stutter[cite: 3]
-        case 2: timeCurveNodes = { {0.0f, 0.0f}, {0.4f, 0.4f}, {1.0f, 1.0f} }; break; // Tape Stop[cite: 3]
-        case 3: timeCurveNodes = { {0.0f, 0.0f}, {0.5f, 0.5f}, {1.0f, 1.0f} }; break; // Half-Time[cite: 3]
-        case 4: timeCurveNodes = { {0.0f, 1.0f}, {0.5f, 0.5f}, {1.0f, 0.0f} }; break; // Reverse Warp[cite: 3]
-        case 5: timeCurveNodes = { {0.0f, 0.0f}, {0.2f, 0.9f}, {0.4f, 0.1f}, {0.7f, 0.8f}, {1.0f, 0.0f} }; break; // Vinyl Scratch[cite: 3]
-        case 6: timeCurveNodes = { {0.0f, 0.0f}, {0.25f, 0.7f}, {0.3f, 0.1f}, {0.6f, 0.9f}, {1.0f, 0.0f} }; break; // Complex A[cite: 3]
-        case 7: timeCurveNodes = { {0.0f, 0.2f}, {0.4f, 0.8f}, {0.6f, 0.1f}, {1.0f, 0.5f} }; break; // Complex B[cite: 3]
-        case 8: timeCurveNodes = { {0.0f, 0.0f}, {0.1f, 0.9f}, {0.2f, 0.0f}, {0.3f, 0.9f}, {0.5f, 0.0f}, {1.0f, 0.0f} }; break; // Chaos[cite: 3]
-        case 9: timeCurveNodes = { {0.0f, 1.0f}, {1.0f, 0.0f} }; break; // Pitch Rise[cite: 3]
-        case 10: timeCurveNodes = { {0.0f, 0.0f}, {0.8f, 0.6f}, {1.0f, 1.0f} }; break; // Slow Down[cite: 3]
-        case 11: timeCurveNodes = { {0.0f, 0.1f}, {0.2f, 0.7f}, {0.4f, 0.3f}, {0.6f, 0.9f}, {1.0f, 0.5f} }; break; // Granular Scatter[cite: 3]
+        case 0: timeCurveNodes = { {0.0f, 0.0f}, {1.0f, 0.0f} }; break; // Empty Pass
+        case 1: timeCurveNodes = { {0.0f, 0.0f}, {0.5f, 0.5f}, {1.0f, 1.0f} }; break; // Basic 1 (1/2 Speed)
+        case 2: timeCurveNodes = { {0.0f, 0.0f}, {0.25f, 0.25f}, {0.5f, 0.5f}, {0.75f, 0.75f}, {1.0f, 1.0f} }; break; // Basic 2
+        case 3: timeCurveNodes = { {0.0f, 0.0f}, {0.125f, 0.5f}, {0.25f, 0.0f}, {0.375f, 0.5f}, {0.5f, 0.0f}, {0.75f, 0.5f}, {1.0f, 0.0f} }; break; // Basic 3 (1/8 Stutter)
+        case 7: timeCurveNodes = { {0.0f, 0.0f}, {0.125f, 0.125f}, {0.25f, 0.0f}, {0.375f, 0.375f}, {0.5f, 0.0f}, {0.625f, 0.625f}, {0.75f, 0.0f}, {0.875f, 0.875f}, {1.0f, 0.0f} }; break; // Basic 7
+        default:
+            timeCurveNodes = { {0.0f, 0.0f}, {0.25f, 0.6f}, {0.5f, 0.1f}, {0.75f, 0.8f}, {1.0f, 0.0f} }; break;
     }
 }
 
@@ -81,20 +97,35 @@ void SkellgateAudioProcessor::setVolumePreset(int index)
     currentVolumePreset = juce::jlimit(0, 35, index);
     volumeCurveNodes.clear();
 
-    switch (currentVolumePreset % 12)
+    switch (currentVolumePreset)
     {
-        case 0: volumeCurveNodes = { {0.0f, 1.0f}, {1.0f, 1.0f} }; break; // Full (Clean)[cite: 3]
-        case 1: volumeCurveNodes = { {0.0f, 1.0f}, {0.45f, 1.0f}, {0.5f, 0.0f}, {0.95f, 0.0f}, {1.0f, 1.0f} }; break; // 1/2 Beat Gate[cite: 3]
-        case 2: volumeCurveNodes = { {0.0f, 1.0f}, {0.2f, 0.0f}, {0.25f, 1.0f}, {0.5f, 0.0f}, {0.55f, 1.0f}, {1.0f, 1.0f} }; break; // 1/4 Beat Gate[cite: 3]
-        case 3: volumeCurveNodes = { {0.0f, 1.0f}, {0.1f, 0.0f}, {0.2f, 1.0f}, {0.3f, 0.0f}, {0.4f, 1.0f}, {0.5f, 0.0f}, {1.0f, 1.0f} }; break; // Trance Gater[cite: 3]
-        case 4: volumeCurveNodes = { {0.0f, 1.0f}, {0.5f, 0.0f}, {0.5001f, 1.0f}, {1.0f, 0.0f} }; break; // Saw Gate[cite: 3]
-        case 5: volumeCurveNodes = { {0.0f, 0.0f}, {0.25f, 1.0f}, {1.0f, 1.0f} }; break; // 1st Step Fade[cite: 3]
-        case 6: volumeCurveNodes = { {0.0f, 1.0f}, {1.0f, 0.0f} }; break; // Fade Out[cite: 3]
-        case 7: volumeCurveNodes = { {0.0f, 0.0f}, {1.0f, 1.0f} }; break; // Fade In[cite: 3]
-        case 8: volumeCurveNodes = { {0.0f, 1.0f}, {0.25f, 0.2f}, {0.5f, 1.0f}, {0.75f, 0.2f}, {1.0f, 1.0f} }; break; // Tremolo Slow[cite: 3]
-        case 9: volumeCurveNodes = { {0.0f, 1.0f}, {0.1f, 0.1f}, {0.2f, 1.0f}, {0.3f, 0.1f}, {0.5f, 1.0f}, {1.0f, 1.0f} }; break; // Tremolo Fast[cite: 3]
-        case 10: volumeCurveNodes = { {0.0f, 0.1f}, {0.15f, 1.0f}, {1.0f, 1.0f} }; break; // Sidechain Duck[cite: 3]
-        case 11: volumeCurveNodes = { {0.0f, 0.0f}, {1.0f, 0.0f} }; break; // Mute[cite: 3]
+        case 0: volumeCurveNodes = { {0.0f, 1.0f}, {1.0f, 1.0f} }; break; // Empty (Full Vol)
+        case 1: volumeCurveNodes = { {0.0f, 1.0f}, {0.9f, 1.0f}, {0.9001f, 0.0f}, {1.0f, 0.0f} }; break; // 2 Beat Gate
+        case 2: volumeCurveNodes = { {0.0f, 1.0f}, {0.45f, 1.0f}, {0.5f, 0.0f}, {1.0f, 0.0f} }; break; // 1 Beat Gate
+        case 3: volumeCurveNodes = { {0.0f, 1.0f}, {0.22f, 1.0f}, {0.25f, 0.0f}, {0.47f, 1.0f}, {0.5f, 0.0f}, {1.0f, 0.0f} }; break; // 1/2 Bt Gate
+        case 4: // 1/3 Bt Gate (Triplets)
+            for (int i = 0; i < 24; ++i) {
+                float x1 = i * (1.0f / 24.0f);
+                float yVal = (i % 2 == 0) ? 1.0f : 0.0f;
+                volumeCurveNodes.push_back({ x1, yVal });
+            }
+            break;
+        case 5: // 1/4 Bt Gate
+            for (int i = 0; i < 16; ++i) {
+                float x1 = i * (1.0f / 16.0f);
+                float yVal = (i % 2 == 0) ? 1.0f : 0.0f;
+                volumeCurveNodes.push_back({ x1, yVal });
+            }
+            break;
+        case 7: // 1/8 Bt Gate
+            for (int i = 0; i < 32; ++i) {
+                float x1 = i * (1.0f / 32.0f);
+                float yVal = (i % 2 == 0) ? 1.0f : 0.0f;
+                volumeCurveNodes.push_back({ x1, yVal });
+            }
+            break;
+        default:
+            volumeCurveNodes = { {0.0f, 1.0f}, {0.25f, 0.0f}, {0.5f, 1.0f}, {0.75f, 0.0f}, {1.0f, 1.0f} }; break;
     }
 }
 
@@ -107,7 +138,7 @@ void SkellgateAudioProcessor::updateNodePosition(bool isTimeLane, int index, flo
     }
 }
 
-float SkellgateAudioProcessor::evaluateSmoothCurve(const std::vector<Node>& nodes, float phase)
+float SkellgateAudioProcessor::evaluateCurve(const std::vector<Node>& nodes, float phase)
 {
     if (nodes.empty()) return 0.0f;
 
@@ -129,32 +160,22 @@ float SkellgateAudioProcessor::evaluateSmoothCurve(const std::vector<Node>& node
     if (p < x1) p += 1.0f;
 
     float factor = (x2 == x1) ? 0.0f : (p - x1) / (x2 - x1);
-    float smoothFactor = (1.0f - std::cos(factor * juce::MathConstants<float>::pi)) * 0.5f;
-    return y1 + smoothFactor * (y2 - y1);
-}
-
-float SkellgateAudioProcessor::applySaturation(float sample, float drive)
-{
-    if (drive <= 0.0f) return sample;
-    float gain = 1.0f + (drive / 10.0f);
-    return std::tanh(sample * gain) / std::tanh(gain);
+    return y1 + factor * (y2 - y1);
 }
 
 void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
 
-    // MIDI Note mapping matching Gross Beat specifications (C1+ for Volume, C4+ for Time)[cite: 3]
+    // Gross Beat MIDI Slot Switching Rules (C1-B3 = Vol, C4+ = Time)
     for (const auto metadata : midiMessages)
     {
         auto msg = metadata.getMessage();
         if (msg.isNoteOn())
         {
-            int noteNumber = msg.getNoteNumber();
-            if (noteNumber >= 24 && noteNumber < 60) // C1 to B3 -> Volume slots
-                setVolumePreset(noteNumber - 24);
-            else if (noteNumber >= 60) // C4+ -> Time slots[cite: 3]
-                setTimePreset(noteNumber - 60);
+            int note = msg.getNoteNumber();
+            if (note >= 24 && note < 60) setVolumePreset(note - 24);
+            else if (note >= 60) setTimePreset(note - 60);
         }
     }
 
@@ -164,69 +185,49 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    if (*apvts.getRawParameterValue("bypass"))
-        return;
+    float tMix = *apvts.getRawParameterValue("timeMix") / 100.0f;
+    float vMix = *apvts.getRawParameterValue("volMix") / 100.0f;
+    float scratch = *apvts.getRawParameterValue("scratch");
+    bool isHold = *apvts.getRawParameterValue("hold");
 
-    float mixParam = *apvts.getRawParameterValue("mix") / 100.0f;
-    float lengthParam = *apvts.getRawParameterValue("length");
-    float timeParam = *apvts.getRawParameterValue("time") / 50.0f;
-    float scratchParam = *apvts.getRawParameterValue("scratch");
-    float pitchParam = *apvts.getRawParameterValue("pitch");
-    float satParam = *apvts.getRawParameterValue("saturation");
-    bool clickReduction = *apvts.getRawParameterValue("clickReduction");
-
-    double loopDurationSecs = (0.25 + (lengthParam / 100.0) * 3.75);
-    double pitchRatio = std::pow(2.0, static_cast<double>(pitchParam) / 12.0);
-
+    double loopDurationSecs = 2.0; // Standard 2-bar Gross Beat duration
     auto* channelData = buffer.getWritePointer (0);
     int numSamples = buffer.getNumSamples();
-    float rmsSum = 0.0f;
 
     for (int i = 0; i < numSamples; ++i)
     {
         float inSample = channelData[i];
-        rmsSum += inSample * inSample;
         delayBuffer[writeHead] = inSample;
 
-        double phaseDouble = std::fmod((static_cast<double>(writeHead) / (currentSampleRate * loopDurationSecs)) * static_cast<double>(timeParam) + static_cast<double>(scratchParam), 1.0);
-        if (phaseDouble < 0.0) phaseDouble += 1.0;
-        currentPhase = static_cast<float>(phaseDouble);
+        if (!isHold)
+        {
+            double phaseDouble = std::fmod((static_cast<double>(writeHead) / (currentSampleRate * loopDurationSecs)) + static_cast<double>(scratch), 1.0);
+            if (phaseDouble < 0.0) phaseDouble += 1.0;
+            currentPhase = static_cast<float>(phaseDouble);
+        }
 
-        float timeVal = evaluateSmoothCurve(timeCurveNodes, currentPhase);
-        float maxOffsetSamples = static_cast<float>(currentSampleRate * 1.5);
-        float timeOffset = timeVal * maxOffsetSamples;
+        // Time Warp Processing
+        float timeVal = evaluateCurve(timeCurveNodes, currentPhase);
+        float timeOffsetSamples = timeVal * static_cast<float>(currentSampleRate * 2.0);
 
-        if (*apvts.getRawParameterValue("reverse"))
-            timeOffset = -timeOffset;
-
-        double exactReadPos = static_cast<double>(writeHead) - (static_cast<double>(timeOffset) * pitchRatio);
+        double exactReadPos = static_cast<double>(writeHead) - static_cast<double>(timeOffsetSamples);
         while (exactReadPos < 0) exactReadPos += bufferSize;
         while (exactReadPos >= bufferSize) exactReadPos -= bufferSize;
 
-        int readIndex1 = static_cast<int>(exactReadPos);
-        int readIndex2 = (readIndex1 + 1) % bufferSize;
-        float frac = static_cast<float>(exactReadPos - readIndex1);
+        int r1 = static_cast<int>(exactReadPos);
+        int r2 = (r1 + 1) % bufferSize;
+        float frac = static_cast<float>(exactReadPos - r1);
 
-        float sample1 = delayBuffer[readIndex1];
-        float sample2 = delayBuffer[readIndex2];
-        float timeSample = sample1 + frac * (sample2 - sample1);
+        float timeSample = delayBuffer[r1] + frac * (delayBuffer[r2] - delayBuffer[r1]);
+        float wetTimeSample = inSample * (1.0f - tMix) + timeSample * tMix;
 
-        float volVal = evaluateSmoothCurve(volumeCurveNodes, currentPhase);
-        
-        // Manual click reduction envelope smoothing at jump points[cite: 3]
-        if (clickReduction && std::abs(timeVal - 0.5f) > 0.45f)
-        {
-            volVal *= 0.85f;
-        }
+        // Volume Envelope Gate Processing
+        float volVal = evaluateCurve(volumeCurveNodes, currentPhase);
+        float finalSample = wetTimeSample * ((1.0f - vMix) + volVal * vMix);
 
-        float processedSample = applySaturation(timeSample * volVal, satParam);
-
-        channelData[i] = inSample * (1.0f - mixParam) + processedSample * mixParam;
-
+        channelData[i] = finalSample;
         writeHead = (writeHead + 1) % bufferSize;
     }
-
-    currentAudioLevel = std::sqrt(rmsSum / static_cast<float>(numSamples));
 
     if (totalNumInputChannels > 1)
     {
