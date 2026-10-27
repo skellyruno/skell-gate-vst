@@ -65,6 +65,8 @@ public:
     int getCurrentTimePreset() const   { return currentTimePreset.load(); }
     int getCurrentVolumePreset() const { return currentVolumePreset.load(); }
     float getCurrentPhase() const      { return currentPhase.load(); }
+    double getCurrentBpm() const       { return currentBpm.load(); }
+    float getTensionExponent() const;   // shared by the audio code and the editor drawing
 
     // ---- Curve access for the editor (message thread) ----
     Curve getCurve (bool isTimeLane) const;
@@ -110,6 +112,13 @@ private:
     float heldPhase = 0.0f;
     float gainState = 1.0f;
 
+    // Click-free time jumps: when the read position leaps, crossfade from the old position
+    int fadeLen = 96;
+    int fadeCount = 0;
+    float fadeOldDelay = 0.0f;
+    float prevDelay = 0.0f;
+
+    std::atomic<double> currentBpm { 120.0 };
     std::atomic<float> currentPhase { 0.0f };
     std::atomic<int> currentTimePreset { 0 };
     std::atomic<int> currentVolumePreset { 0 };

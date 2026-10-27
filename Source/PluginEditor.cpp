@@ -59,10 +59,29 @@ void GrossLCDGraphComponent::paint(juce::Graphics& g)
 
     if (curve.count > 1)
     {
+        // the TNS knob bends each segment, so draw what the audio engine actually follows
+        const float tension = processor.getTensionExponent();
+        const bool bent = std::abs(tension - 1.0f) > 1.0e-3f;
+
         juce::Path curvePath;
         curvePath.startNewSubPath(curve.nodes[0].x * w, (1.0f - curve.nodes[0].y) * h);
         for (int i = 1; i < curve.count; ++i)
-            curvePath.lineTo(curve.nodes[(size_t) i].x * w, (1.0f - curve.nodes[(size_t) i].y) * h);
+        {
+            const auto& a = curve.nodes[(size_t) i - 1];
+            const auto& b = curve.nodes[(size_t) i];
+            const float segW = (b.x - a.x) * w;
+
+            if (bent && segW > 6.0f)
+            {
+                for (int s = 1; s < 16; ++s)
+                {
+                    const float f = (float) s / 16.0f;
+                    curvePath.lineTo((a.x + f * (b.x - a.x)) * w,
+                                     (1.0f - (a.y + std::pow(f, tension) * (b.y - a.y))) * h);
+                }
+            }
+            curvePath.lineTo(b.x * w, (1.0f - b.y) * h);
+        }
 
         // fill under the curve
         juce::Path fillPath(curvePath);
@@ -191,6 +210,10 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
 
     setupRotary(timeMixSlider);
     setupRotary(volMixSlider);
+    setupRotary(offsetSlider);
+    timeMixSlider.setTooltip("Time mix (dry / warped)");
+    volMixSlider.setTooltip("Volume mix (dry / enveloped)");
+    offsetSlider.setTooltip("Pattern offset: shifts the whole pattern against the beat");
 
     holdButton.setButtonText("HOLD");
     holdButton.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
@@ -204,6 +227,7 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
 
     timeMixAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "timeMix", timeMixSlider);
     volMixAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "volMix", volMixSlider);
+    offsetAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "scratch", offsetSlider);
     attAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "att", attSlider);
     relAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "rel", relSlider);
     tnsAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "tns", tnsSlider);
@@ -246,6 +270,8 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
     setupToolBtn(viewVolBtn);
 
     updateSlotMatrixUI();
+    setResizeLimits (860, 650, 1600, 1000);
+    setResizable (true, true);
     setSize (1000, 650);
     startTimerHz(20);
 }
@@ -282,6 +308,13 @@ void SkellgateAudioProcessorEditor::timerCallback()
     // follows presets that were switched by MIDI notes
     if (t != shownTimePreset || v != shownVolPreset || lane != shownLane)
         updateSlotMatrixUI();
+
+    const double bpm = audioProcessor.getCurrentBpm();
+    if (std::abs(bpm - shownBpm) > 0.05)
+    {
+        shownBpm = bpm;
+        repaint(520, getHeight() - 35, 110, 25);
+    }
 }
 
 void SkellgateAudioProcessorEditor::buttonClicked (juce::Button* button)
@@ -395,14 +428,23 @@ void SkellgateAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.drawText(activeTitle, 370, getHeight() - 35, 300, 25, juce::Justification::left);
 
+    g.setColour(juce::Colours::lightgrey);
+    g.drawText(juce::String(audioProcessor.getCurrentBpm(), 1) + " BPM", 520, getHeight() - 35, 100, 25, juce::Justification::centredRight);
+
     g.setColour(juce::Colours::grey);
-    g.drawText("double-click: add/remove node   shift: no snap", 640, getHeight() - 35, getWidth() - 660, 25, juce::Justification::right);
+    g.setFont(11.0f);
+    g.drawText("double-click: add / remove node    shift: no snap", 640, getHeight() - 35, getWidth() - 660, 25, juce::Justification::right);
+
+    // OFFSET knob caption
+    g.setColour(juce::Colours::lightgrey);
+    g.drawText("OFFSET", 247, 62, 60, 12, juce::Justification::centred);
 }
 
 void SkellgateAudioProcessorEditor::resized()
 {
     // Header Controls
     timeMixSlider.setBounds(20, 15, 45, 45);
+    offsetSlider.setBounds(255, 15, 45, 45);
     holdButton.setBounds(140, 55, 75, 25);
 
     // Dual 36-Pad Grid (9 rows x 4 cols each)

@@ -89,12 +89,14 @@ private:
 
     SkellgateAudioProcessor& audioProcessor;
     GrossLookAndFeel grossLookAndFeel;
+    juce::TooltipWindow tooltipWindow { this, 600 };
 
     GrossLCDGraphComponent lcdGraph;
 
     // Header Controls
     juce::Slider timeMixSlider;
     juce::Slider volMixSlider;
+    juce::Slider offsetSlider;
     juce::ToggleButton holdButton;
 
     // Bottom Knobs
@@ -113,12 +115,14 @@ private:
     int snapIndex = -1;
 
     int shownTimePreset = -1, shownVolPreset = -1, shownLane = -1;
+    double shownBpm = -1.0;
 
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
 
     std::unique_ptr<SliderAttachment> timeMixAttachment;
     std::unique_ptr<SliderAttachment> volMixAttachment;
+    std::unique_ptr<SliderAttachment> offsetAttachment;
     std::unique_ptr<SliderAttachment> attAttachment;
     std::unique_ptr<SliderAttachment> relAttachment;
     std::unique_ptr<SliderAttachment> tnsAttachment;

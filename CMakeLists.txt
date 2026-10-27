@@ -1,9 +1,13 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(Skellgate VERSION 1.0.0)
+project(Skellgate VERSION 1.1.0)
 
-if(NOT WIN32)
-    message(FATAL_ERROR "Skellgate is configured to build exclusively for Windows.")
+option(SKELLGATE_BUILD_TESTS     "Build the headless DSP test executable (ctest)" OFF)
+option(SKELLGATE_ALLOW_NON_WINDOWS "Allow configuring on non-Windows platforms (untested)" OFF)
+
+if(NOT WIN32 AND NOT SKELLGATE_ALLOW_NON_WINDOWS)
+    message(FATAL_ERROR "Skellgate is configured to build exclusively for Windows. "
+                        "Pass -DSKELLGATE_ALLOW_NON_WINDOWS=ON to try anyway.")
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -30,6 +34,7 @@ juce_add_plugin(Skellgate
     NEEDS_MIDI_INPUT TRUE        # lets the host route MIDI notes to the effect to switch presets
     NEEDS_MIDI_OUTPUT FALSE
     VST3_CATEGORIES Fx
+    COPY_PLUGIN_AFTER_BUILD FALSE
 )
 
 target_sources(Skellgate
@@ -61,3 +66,34 @@ target_link_libraries(Skellgate
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags
 )
+
+# Headless DSP tests: cmake -B build -DSKELLGATE_BUILD_TESTS=ON && ctest --test-dir build -C Release
+if(SKELLGATE_BUILD_TESTS)
+    enable_testing()
+
+    juce_add_console_app(SkellgateTests PRODUCT_NAME "SkellgateTests")
+
+    target_sources(SkellgateTests
+        PRIVATE
+            Tests/DspTests.cpp
+            Source/PluginProcessor.cpp
+            Source/PluginEditor.cpp
+    )
+    target_include_directories(SkellgateTests PRIVATE Source)
+    target_compile_definitions(SkellgateTests
+        PRIVATE
+            JucePlugin_Name="Skellgate"
+            JUCE_WEB_BROWSER=0
+            JUCE_USE_CURL=0
+            JUCE_MODAL_LOOPS_PERMITTED=0
+    )
+    target_link_libraries(SkellgateTests
+        PRIVATE
+            juce::juce_audio_utils
+            juce::juce_gui_basics
+            juce::juce_audio_processors
+            juce::juce_recommended_config_flags
+    )
+
+    add_test(NAME dsp COMMAND SkellgateTests)
+endif()

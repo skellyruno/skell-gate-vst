@@ -95,7 +95,7 @@ void buildTime (int idx, Curve& c)
             const float s = (float) i / (float) n;
             const float e = (float) (i + 1) / (float) n;
             b.jump (s, 0.0f);
-            b.add (e, 1.0f / (float) n);
+            b.add (e, e - b.lastX());           // slope exactly 1 = normal speed, no drift
         }
         b.finish();
     };
@@ -121,7 +121,7 @@ void buildTime (int idx, Curve& c)
             const float s = (float) i / (float) n;
             const float e = (float) (i + 1) / (float) n;
             b.jump (s, e);
-            b.add (e, s);
+            b.add (e, b.lastX());                    // slope exactly -1 (reverse at normal speed)
         }
         b.finish();
     };
@@ -442,7 +442,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout SkellgateAudioProcessor::cre
     params.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "att", 1 },     "Attack",     juce::NormalisableRange<float> (0.0f, 100.0f, 0.1f), 10.0f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "rel", 1 },     "Release",    juce::NormalisableRange<float> (0.0f, 100.0f, 0.1f), 10.0f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "tns", 1 },     "Tension",    juce::NormalisableRange<float> (0.0f, 100.0f, 0.1f), 50.0f));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "scratch", 1 }, "Phase Offset", juce::NormalisableRange<float> (-1.0f, 1.0f, 0.01f), 0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "scratch", 1 }, "Offset", juce::NormalisableRange<float> (-1.0f, 1.0f, 0.01f), 0.0f));
     params.push_back (std::make_unique<juce::AudioParameterBool>  (juce::ParameterID { "hold", 1 },    "Hold", false));
 
     return { params.begin(), params.end() };
@@ -458,6 +458,10 @@ void SkellgateAudioProcessor::prepareToPlay (double sampleRate, int)
     freeRunPpq = 0.0;
     heldPhase = 0.0f;
     gainState = 1.0f;
+    fadeLen = juce::jmax (16, static_cast<int> (sampleRate * 0.002));   // 2 ms crossfade
+    fadeCount = 0;
+    fadeOldDelay = 0.0f;
+    prevDelay = 0.0f;
     audioVersion = -1;
     currentPhase.store (0.0f);
 }
@@ -499,6 +503,12 @@ void SkellgateAudioProcessor::setVolumePreset (int index)
     currentVolumePreset.store (index);
     setActiveViewLane (LaneVolume);
     ++curveVersion;
+}
+
+float SkellgateAudioProcessor::getTensionExponent() const
+{
+    // knob 50 = straight lines; lower = ease-in (slow start), higher = ease-out
+    return std::pow (4.0f, (50.0f - tnsParam->load()) / 50.0f);
 }
 
 SkellgateAudioProcessor::Curve SkellgateAudioProcessor::getCurve (bool isTimeLane) const
@@ -586,7 +596,7 @@ float SkellgateAudioProcessor::evaluateCurve (const Curve& c, float phase, float
                 return b.y;
 
             float f = juce::jlimit (0.0f, 1.0f, (phase - a.x) / w);
-            if (tensionExp != 1.0f)
+            if (std::abs (tensionExp - 1.0f) > 1.0e-4f)
                 f = std::pow (f, tensionExp);
             return a.y + f * (b.y - a.y);
         }
@@ -637,13 +647,13 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     const float vMix  = volMixParam->load()  * 0.01f;
     const float scratch = scratchParam->load();
     const bool  hold  = holdParam->load() > 0.5f;
-    const float tensionExp = std::pow (4.0f, (50.0f - tnsParam->load()) / 50.0f);   // 50 = linear
+    const float tensionExp = getTensionExponent();
 
+    // ATT / REL: 0.2 ms floor (so hard gates never click) up to ~50 ms
     auto smoothingCoef = [this] (float amount)
     {
-        const float ms = 50.0f * (amount * 0.01f) * (amount * 0.01f);
-        if (ms < 0.01f)
-            return 0.0f;
+        const float a  = amount * 0.01f;
+        const float ms = 0.2f + 50.0f * a * a;
         return std::exp (-1.0f / (ms * 0.001f * static_cast<float> (currentSampleRate)));
     };
     const float attCoef = smoothingCoef (attParam->load());
@@ -652,9 +662,9 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     // Transport
     double bpm = 120.0;
     double ppq = freeRunPpq;
-    if (auto* playHead = getPlayHead())
+    if (auto* transport = getPlayHead())
     {
-        if (auto pos = playHead->getPosition())
+        if (auto pos = transport->getPosition())
         {
             if (auto b = pos->getBpm())
                 bpm = *b;
@@ -664,6 +674,7 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
         }
     }
     bpm = juce::jlimit (30.0, 300.0, bpm);
+    currentBpm.store (bpm);
 
     const double ppqPerSample = bpm / 60.0 / currentSampleRate;
     const float patternSamples = static_cast<float> ((60.0 / bpm) * kPatternBeats * currentSampleRate);
@@ -698,11 +709,26 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
             delaySamples += patternSamples;                  // "future" positions come from the previous pass
         delaySamples = juce::jlimit (0.0f, static_cast<float> (bufferLength - 2), delaySamples);
 
-        double readPos = static_cast<double> (writeHead) - static_cast<double> (delaySamples);
-        if (readPos < 0.0) readPos += bufferLength;
-        const int r1 = juce::jmin (static_cast<int> (readPos), bufferLength - 1);
-        const int r2 = (r1 + 1) % bufferLength;
-        const float frac = static_cast<float> (readPos - r1);
+        // A normal curve moves the delay by (1 - slope) samples per sample, so only a jump
+        // (slope > ~64x) trips this. Crossfade from where we were reading so it doesn't click.
+        if (fadeCount == 0 && std::abs (delaySamples - prevDelay) > 64.0f)
+        {
+            fadeCount = fadeLen;
+            fadeOldDelay = prevDelay;
+        }
+        prevDelay = delaySamples;
+
+        const float fadeMix = fadeCount > 0 ? 1.0f - static_cast<float> (fadeCount) / static_cast<float> (fadeLen) : 1.0f;
+
+        auto readDelayed = [this, wh = writeHead] (const float* buf, float delaySmp)
+        {
+            double readPos = static_cast<double> (wh) - static_cast<double> (delaySmp);
+            if (readPos < 0.0) readPos += bufferLength;
+            const int r1 = juce::jmin (static_cast<int> (readPos), bufferLength - 1);
+            const int r2 = (r1 + 1) % bufferLength;
+            const float frac = static_cast<float> (readPos - r1);
+            return buf[r1] + frac * (buf[r2] - buf[r1]);
+        };
 
         // --- volume lane ---
         const float volY = evaluateCurve (audioVolCurve, phase, tensionExp);
@@ -715,10 +741,18 @@ void SkellgateAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
             const float dry = data[ch][i];
             delay[ch][writeHead] = dry;
 
-            const float warped = delay[ch][r1] + frac * (delay[ch][r2] - delay[ch][r1]);
+            float warped = readDelayed (delay[ch], delaySamples);
+            if (fadeCount > 0)
+            {
+                const float old = readDelayed (delay[ch], fadeOldDelay);
+                warped = old + fadeMix * (warped - old);
+            }
             const float timeOut = dry * (1.0f - tMix) + warped * tMix;
             data[ch][i] = timeOut * gainState;
         }
+
+        if (fadeCount > 0)
+            --fadeCount;
 
         if (++writeHead >= bufferLength)
             writeHead = 0;
