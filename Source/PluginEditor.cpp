@@ -211,9 +211,6 @@ SkellgateAudioProcessorEditor::SkellgateAudioProcessorEditor (SkellgateAudioProc
     setupRotary(timeMixSlider);
     setupRotary(volMixSlider);
     setupRotary(offsetSlider);
-    timeMixSlider.setTooltip("Time mix (dry / warped)");
-    volMixSlider.setTooltip("Volume mix (dry / enveloped)");
-    offsetSlider.setTooltip("Pattern offset: shifts the whole pattern against the beat");
 
     holdButton.setButtonText("HOLD");
     holdButton.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
@@ -299,8 +296,28 @@ void SkellgateAudioProcessorEditor::setSnapIndex(int newIndex)
     }
 }
 
+void SkellgateAudioProcessorEditor::ensureSoftwareRenderer()
+{
+   #if JUCE_WINDOWS
+    if (auto* peer = getPeer())
+    {
+        if (peer == lastPeer)
+            return;
+
+        lastPeer = peer;
+        const int software = peer->getAvailableRenderingEngines().indexOf("Software Renderer");
+        if (software >= 0 && peer->getCurrentRenderingEngine() != software)
+            peer->setCurrentRenderingEngine(software);
+    }
+   #else
+    juce::ignoreUnused(lastPeer);
+   #endif
+}
+
 void SkellgateAudioProcessorEditor::timerCallback()
 {
+    ensureSoftwareRenderer();   // safety net in case the window was created after the hooks above
+
     const int t = audioProcessor.getCurrentTimePreset();
     const int v = audioProcessor.getCurrentVolumePreset();
     const int lane = static_cast<int>(audioProcessor.getActiveViewLane());

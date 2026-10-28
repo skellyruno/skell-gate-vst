@@ -85,11 +85,17 @@ public:
 
 private:
     void timerCallback() override;
+    void parentHierarchyChanged() override { ensureSoftwareRenderer(); }
+    void visibilityChanged() override      { ensureSoftwareRenderer(); }
     void setSnapIndex (int newIndex);
+
+    /** JUCE 8 draws Windows plugin windows with Direct2D by default, which gives blank or
+        crashing editors in some hosts (FL Studio among them). Use the software renderer. */
+    void ensureSoftwareRenderer();
+    juce::ComponentPeer* lastPeer = nullptr;
 
     SkellgateAudioProcessor& audioProcessor;
     GrossLookAndFeel grossLookAndFeel;
-    juce::TooltipWindow tooltipWindow { this, 600 };
 
     GrossLCDGraphComponent lcdGraph;
 

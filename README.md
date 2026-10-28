@@ -66,6 +66,12 @@ ctest --test-dir build -C Release --output-on-failure
 
 `.github/workflows/build.yml` builds, runs the tests, runs pluginval on the VST3 (advisory) and uploads zips. Push a tag like `v1.1.0` to attach the zips to a GitHub release.
 
+## Troubleshooting
+
+- **Installing:** copy the whole `Skellgate.vst3` folder (not just the file inside it) to `C:\Program Files\Common Files\VST3`, then rescan plugins in your host.
+- **Window blank or host crashes when the editor opens:** JUCE 8 draws Windows plugin windows with Direct2D by default, which some hosts handle badly. Skellgate switches its editor to JUCE's software renderer (see `ensureSoftwareRenderer()` in `Source/PluginEditor.cpp`). If a host still has trouble, tell me the host name and version and the exact symptom.
+- **Standalone:** `Skellgate-Standalone-Windows.zip` runs without a host; use it to separate plugin problems from host problems.
+
 ## Licensing
 
 Skellgate links JUCE, which is dual-licensed (AGPLv3 or a commercial licence). Distributing the plugin as closed source needs a JUCE commercial licence.

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(Skellgate VERSION 1.1.0)
+project(Skellgate VERSION 1.1.1)
 
 option(SKELLGATE_BUILD_TESTS     "Build the headless DSP test executable (ctest)" OFF)
 option(SKELLGATE_ALLOW_NON_WINDOWS "Allow configuring on non-Windows platforms (untested)" OFF)
