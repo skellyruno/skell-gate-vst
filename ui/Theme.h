@@ -21,11 +21,11 @@ inline void roundTile(juce::Graphics& g, juce::Rectangle<float> r, float corner 
     g.setColour(colour(tile)); g.fillRoundedRectangle(r, corner);
     g.setColour(colour(border)); g.drawRoundedRectangle(r.reduced(.5f), corner, 1.f);
 }
-constexpr juce::Rectangle<int> top{0, 0, width, 52};
-constexpr juce::Rectangle<int> loops{9, 63, 940, 62};
-constexpr juce::Rectangle<int> wave{219, 158, 520, 239};
-constexpr juce::Rectangle<int> gate{219, 403, 520, 82};
-constexpr juce::Rectangle<int> modes{210, 491, 541, 48};
-constexpr juce::Rectangle<int> presets{218, 541, 521, 28};
-constexpr juce::Rectangle<int> band{243, 575, 451, 75};
+inline const juce::Rectangle<int> top{0, 0, width, 52};
+inline const juce::Rectangle<int> loops{9, 63, 940, 62};
+inline const juce::Rectangle<int> wave{219, 158, 520, 239};
+inline const juce::Rectangle<int> gate{219, 403, 520, 82};
+inline const juce::Rectangle<int> modes{210, 491, 541, 48};
+inline const juce::Rectangle<int> presets{218, 541, 521, 28};
+inline const juce::Rectangle<int> band{243, 575, 451, 75};
 }

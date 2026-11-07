@@ -1,7 +1,7 @@
 #pragma once
 #include "Theme.h"
 class SkellGlitchAudioProcessor;
-class WaveDisplay : public juce::Component, private juce::Timer {
+class WaveDisplay : public juce::Component, public juce::SettableTooltipClient, private juce::Timer {
 public:
     explicit WaveDisplay(SkellGlitchAudioProcessor&);
     void paint(juce::Graphics&) override;

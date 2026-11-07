@@ -158,8 +158,8 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     background = std::make_unique<Backplate>();
     canvas.addAndMakeVisible(*background);
     background->setBounds(0, 0, 958, 676);
-    for (auto* c : {static_cast<juce::Component*>(&top), &loops, &waveform, &gate, &modes, &presets,
-                    &band, &fadeIn, &fadeOut, &smooth, &mix}) canvas.addAndMakeVisible(*c);
+    for (juce::Component* c : std::array<juce::Component*, 11>{&top, &loops, &waveform, &gate, &modes, &presets,
+                                                         &band, &fadeIn, &fadeOut, &smooth, &mix}) canvas.addAndMakeVisible(*c);
     top.setBounds(skell::theme::top);
     loops.setBounds(skell::theme::loops);
     waveform.setBounds(skell::theme::wave);
