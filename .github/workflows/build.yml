@@ -58,6 +58,9 @@ jobs:
       - name: Compile VST3 + Standalone
         shell: bash
         run: cmake --build build --config Release --target SkellGlitch_VST3 SkellGlitch_Standalone --parallel 3
+      - name: Compile Windows DSP test executable
+        shell: bash
+        run: cmake --build build --config Release --target skell_dsp_tests --parallel 2
       - name: Test DSP
         shell: bash
         run: ctest --test-dir build -C Release --output-on-failure
