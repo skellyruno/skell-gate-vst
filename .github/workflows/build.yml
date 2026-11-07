@@ -1,36 +1,71 @@
-name: Build VST3 Plugin
+name: Build Skell-Glitch VST3
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  build:
-    name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest]
-
+  source-and-dsp:
+    name: Restore source and run DSP regression
+    runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Import Skell-Glitch source into this existing repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          if compgen -G '.import/chunk_*.txt' > /dev/null; then
+            cat .import/chunk_*.txt | base64 --decode > /tmp/skell-glitch-source.tar.xz
+            xz -t /tmp/skell-glitch-source.tar.xz
+            rm -rf Source Tests
+            tar -xJf /tmp/skell-glitch-source.tar.xz --strip-components=1 --exclude='skell-glitch-vst/.github/workflows/build.yml'
+            rm -rf .import
+            git add -A
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Replace old Skellgate sources with Skell-Glitch JUCE project'
+            git push origin HEAD:main
+          fi
+      - name: Configure pure C++ DSP regression
+        run: cmake -S . -B build-dsp -DCMAKE_BUILD_TYPE=Release -DSKELL_DSP_ONLY=ON
+      - name: Compile tests
+        run: cmake --build build-dsp --parallel 2
+      - name: Execute tests
+        run: ctest --test-dir build-dsp --output-on-failure
 
-    - name: Configure CMake
-      run: cmake -B build
-
-    - name: Build Plugin Target
-      run: cmake --build build --config Release --parallel
-
-    # Package build outputs as downloadable artifacts
-    - name: Upload Windows VST3 Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: Skellgate-Windows-VST3
-        path: build/Skellgate_artefacts/Release/VST3/
-
-    - name: Upload Standalone Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: Skellgate-Windows-Standalone
-        path: build/Skellgate_artefacts/Release/Standalone/
+  windows-vst3:
+    name: Skell-Glitch Windows VST3 + Standalone
+    needs: source-and-dsp
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/checkout@v4
+        with:
+          repository: juce-framework/JUCE
+          ref: 8.0.10
+          path: JUCE
+      - name: Configure JUCE
+        shell: bash
+        run: cmake -S . -B build -DJUCE_DIR="$GITHUB_WORKSPACE/JUCE"
+      - name: Compile VST3 + Standalone
+        shell: bash
+        run: cmake --build build --config Release --target SkellGlitch_VST3 SkellGlitch_Standalone --parallel 3
+      - name: Test DSP
+        shell: bash
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Upload Windows plugin builds
+        uses: actions/upload-artifact@v4
+        with:
+          name: Skell-Glitch-Windows-VST3-Standalone
+          if-no-files-found: error
+          path: |
+            build/SkellGlitch_artefacts/Release/VST3/**
+            build/SkellGlitch_artefacts/Release/Standalone/**
