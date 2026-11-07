@@ -1,7 +1,7 @@
 #pragma once
 #include "Theme.h"
 class SkellGlitchAudioProcessor;
-class GateGrid : public juce::Component, private juce::Timer {
+class GateGrid : public juce::Component, public juce::SettableTooltipClient, private juce::Timer {
 public:
     explicit GateGrid(SkellGlitchAudioProcessor&);
     void paint(juce::Graphics&) override;
