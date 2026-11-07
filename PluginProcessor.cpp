@@ -131,7 +131,10 @@ void SkellGlitchAudioProcessor::handleAsyncUpdate() {
 }
 void SkellGlitchAudioProcessor::publishWaveform() {
     const int count = capture.length();
-    if (count <= 0) return;
+    if (count <= 0) {
+        for (auto& bin : waveform) bin.store(0.f, std::memory_order_relaxed);
+        return;
+    }
     for (size_t bin = 0; bin < waveform.size(); ++bin) {
         float peak = 0.f;
         for (int k = 0; k < 8; ++k) {
@@ -203,6 +206,7 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     bypassSmoothed.setTargetValue(raw(apvts, "power") >= .5f ? 1.f : 0.f);
     lowSmoothed.setTargetValue(raw(apvts, "bandLow"));
     highSmoothed.setTargetValue(raw(apvts, "bandHigh"));
+    for (auto& shaper : shapers) shaper.setTimes(attack, release);
     constexpr double stepQuarters[] = {1.0, .5, .25, .125, 1.0 / 3.0, 1.0 / 6.0};
     const double gateCycleQuarter = stepQuarters[std::clamp(rate, 0, 5)] * steps;
     for (int step = 0; step < 32; ++step) {
@@ -217,6 +221,11 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
         if (!midiIt.getNextEvent(nextMidi, midiOffset)) midiOffset = std::numeric_limits<int>::max();
     };
     advanceMidi();
+    // Gate probability is stable within a step: hash once per step transition,
+    // not for every incoming sample and channel.
+    int previousGateStep = -1;
+    int64_t previousGateCycle = INT64_MIN;
+    float cachedGateTarget = 1.f;
     for (int i = 0; i < samples; ++i) {
         while (midiOffset <= i) {
             if (source == skell::dsp::TriggerRouter::MIDI && nextMidi.isNoteOn()) {
@@ -244,12 +253,19 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
         displayStep.store(step, std::memory_order_relaxed);
         displayPhase.store(static_cast<float>(position.phase), std::memory_order_relaxed);
         if (source == skell::dsp::TriggerRouter::Sidechain && hasSidechain)
-            triggers.processSidechain(sidechain.getSample(0, i));
+            triggers.processSidechain(hasSidechain && sidechain.getNumChannels() > 1
+                ? .5f * (std::abs(sidechain.getSample(0, i)) + std::abs(sidechain.getSample(1, i)))
+                : sidechain.getSample(0, i));
         const bool eventOn = source == skell::dsp::TriggerRouter::Auto || triggers.active() || freeze;
-        float gateTarget = eventOn ? sequencer.target(step, gateCycleIndex, seed, closedGain) : 1.f;
+        if (step != previousGateStep || gateCycleIndex != previousGateCycle) {
+            cachedGateTarget = sequencer.target(step, gateCycleIndex, seed, closedGain);
+            previousGateStep = step;
+            previousGateCycle = gateCycleIndex;
+        }
+        float gateTarget = eventOn ? cachedGateTarget : 1.f;
         if (source == skell::dsp::TriggerRouter::MIDI && eventOn)
             gateTarget = closedGain + (gateTarget - closedGain) * triggers.velocity();
-        const bool stepReverse = sequencer.isReverseStep(step);
+        const bool stepReverse = sequencer.isReverseStep(step) && cachedGateTarget > closedGain;
         const bool needsReverse = eventOn && (mode != 1 || stepReverse ||
             chaosEvent == skell::dsp::GlitchRandomizer::Flip ||
             chaosEvent == skell::dsp::GlitchRandomizer::Stutter ||
@@ -265,8 +281,7 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
             dry[ch] = buffer.getSample(ch, i);
             splitter.process(ch, dry[ch], inside[ch], outside[ch]);
             if (invert) std::swap(inside[ch], outside[ch]);
-            shaped[ch] = shapers[static_cast<size_t>(ch)].next(gateTarget,
-                            attack, release, curve);
+            shaped[ch] = shapers[static_cast<size_t>(ch)].next(gateTarget, curve);
         }
         const auto activeSliceSamples = std::max(16.0, clock.getSamplesPerSlice());
         const float phaseEnv = skell::dsp::Crossfader::boundaryEnvelope(position.phase, activeSliceSamples,

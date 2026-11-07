@@ -1,5 +1,16 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.1.0 refinement
+- Cached per-block gate envelope coefficients and per-step probability decisions to reduce audio-thread work.
+- Reset capture indices without clearing large preallocated audio buffers during transport jumps.
+- Clear stale waveform peaks when no completed slice is available; honor probability-disabled reverse steps.
+- Stereo sidechain envelope triggering; JUCE main bus DSP remains lock-free in steady-state.
+- Improved neon band rail/handles, hover feedback, Shift fine frequency adjustment, and idle repaint suppression.
+- Cyan probability meters on gate steps and Shift + drag probability painting.
+- Added cached-envelope equivalence and transport-reset regression tests.
+
+This revision is validated by dependency-free tests locally; native host/plugin validation is tracked by GitHub Actions.
+
 A new, original **JUCE 8 C++** audio-effect source project for tempo-locked reverse slices, step gating, or both. Builds as **VST3** and **Standalone** on Windows/macOS when JUCE and a matching native compiler are available.
 
 > **Verification:** The dependency-free DSP regression tests compile and pass on Linux (GCC 14). The complete JUCE plugin and user interface have **not** been compiled, executed or pluginval-tested in this delivery, because JUCE and network download are not available in the execution environment. Treat this as a substantial source implementation that still requires real host/GUI verification, not a release-ready binary.

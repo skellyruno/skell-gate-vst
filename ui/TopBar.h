@@ -6,7 +6,7 @@ public:
     explicit TopBar(SkellGlitchAudioProcessor&);
     void paint(juce::Graphics&) override;
     void resized() override;
-    void setJitterOffset(int v) { jitterOffset = v; repaint(); }
+    void setJitterOffset(int v) { if (v != jitterOffset) { jitterOffset = v; repaint(); } }
     juce::TextButton sync{"SYNC ON"}, power{"⏻"}, settings{"⚙"};
 private:
     SkellGlitchAudioProcessor& processor;

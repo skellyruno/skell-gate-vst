@@ -19,7 +19,9 @@ public:
         finishedLength = 0;
     }
     void clear() {
-        for (auto& b : data) std::fill(b.begin(), b.end(), 0.0f);
+        // Transport seeks must never zero megabytes of ring memory on the audio thread.
+        // No old samples can be observed: readFinished() requires a completed slice,
+        // and the first new completed slice only spans freshly written samples.
         writeIndex = 0; segmentStart = 0; finishedStart = 0; finishedLength = 0;
     }
     void onBoundary() {

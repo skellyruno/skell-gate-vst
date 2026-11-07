@@ -13,6 +13,7 @@ GateGrid::GateGrid(SkellGlitchAudioProcessor& p) : processor(p),
     pattern.setTextWhenNothingSelected("PATTERNS");
     pattern.onChange = [this] { if (pattern.getSelectedId() > 0) loadPattern(pattern.getSelectedId() - 1); };
     addAndMakeVisible(pattern);
+    setTooltip("Click to cycle steps. Drag to paint. Drag probability strip or hold Shift to edit chance.");
     startTimerHz(60);
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
 }
@@ -40,8 +41,12 @@ void GateGrid::paint(juce::Graphics& g) {
             g.setColour(skell::theme::colour(skell::theme::bone));
             g.drawRoundedRectangle(x, 0.f, w, 41.f, 4.f, 1.25f);
         }
-        g.setColour(skell::theme::colour(skell::theme::gray).withAlpha(.30f + probability * .007f));
-        g.fillEllipse(x + w * .5f - 2.f, 44.f, 4.f, 4.f);
+        g.setColour(skell::theme::colour(skell::theme::border));
+        g.fillRoundedRectangle(x, 44.f, w, 3.f, 1.5f);
+        if (probability > 0.f) {
+            g.setColour(skell::theme::colour(skell::theme::cyan).withAlpha(.35f + probability * .004f));
+            g.fillRoundedRectangle(x, 44.f, w * probability * .01f, 3.f, 1.5f);
+        }
     }
 }
 void GateGrid::setStep(int index, int value) {
@@ -60,7 +65,7 @@ void GateGrid::edit(const juce::MouseEvent& e) {
     edited = idx;
     if (probabilityMode) {
         const auto key = "step" + juce::String(idx + 1) + "_prob";
-        const float probability = std::clamp((50.f - e.position.y) / 15.f * 100.f, 0.f, 100.f);
+        const float probability = std::clamp((52.f - e.position.y) / 13.f * 100.f, 0.f, 100.f);
         if (auto* p = processor.apvts.getParameter(key)) {
             p->beginChangeGesture();
             p->setValueNotifyingHost(p->convertTo0to1(probability));
@@ -71,7 +76,7 @@ void GateGrid::edit(const juce::MouseEvent& e) {
 void GateGrid::mouseDown(const juce::MouseEvent& e) {
     if (e.position.y >= 52) return;
     edited = -1;
-    probabilityMode = e.position.y > 39;
+    probabilityMode = e.position.y > 39 || e.mods.isShiftDown();
     const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);
     const int idx = std::clamp(static_cast<int>(e.position.x / (getWidth() / static_cast<float>(steps))), 0, steps - 1);
     const auto key = "step" + juce::String(idx + 1) + (probabilityMode ? "_prob" : "_state");

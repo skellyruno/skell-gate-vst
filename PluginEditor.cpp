@@ -15,6 +15,10 @@ public:
         g.setColour(skell::theme::colour(skell::theme::border));
         g.drawLine(0.f, 55.f, 958.f, 55.f, 1.f);
         g.drawLine(0.f, 672.f, 958.f, 672.f, 1.f);
+        // Quiet section dividers preserve visual hierarchy without noisy glows.
+        g.setColour(skell::theme::colour(skell::theme::border).withAlpha(.65f));
+        g.drawLine(186.f, 139.f, 772.f, 139.f, 1.f);
+        g.drawLine(186.f, 569.f, 772.f, 569.f, 1.f);
         g.setColour(skell::theme::colour(skell::theme::gray));
         g.setFont(skell::theme::regular(12));
         g.drawText("FADE IN", 50, 346, 120, 24, juce::Justification::centred);
@@ -23,7 +27,7 @@ public:
         g.drawText("SMOOTH", 50, 648, 120, 18, juce::Justification::centred);
         g.drawText("MIX", 783, 648, 120, 18, juce::Justification::centred);
         g.setFont(skell::theme::mono(11));
-        g.drawText("v1.0.0", 892, 657, 62, 15, juce::Justification::centredRight);
+        g.drawText("v1.1.0", 892, 657, 62, 15, juce::Justification::centredRight);
     }
 };
 

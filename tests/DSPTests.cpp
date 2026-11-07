@@ -55,6 +55,12 @@ static void sliceTest() {
     check(beginning > ending, "reverse failed");
     check(std::isfinite(reverse.sample(b, 0, .45, 1, 0, -7, 48000)), "pitch shifter non-finite");
     check(std::isfinite(reverse.sample(b, 0, .45, 3, 0, 9, 48000)), "stutter non-finite");
+    b.clear();
+    check(b.length() == 0 && b.readFinished(0, 200) == 0.f, "seek exposed stale audio");
+    b.onBoundary();
+    for (int i = 0; i < 128; ++i) b.write(0.f, 0.f);
+    b.onBoundary();
+    check(b.length() == 128 && b.readFinished(0, 45) == 0.f, "seek reset leaked previous slice");
 }
 static void gateTest() {
     GateSequencer g;
@@ -70,6 +76,17 @@ static void gateTest() {
     check(one > 0 && one < 1, "gate smoothing invalid");
     for (int i = 0; i < 5000; ++i) shape.next(1, 10, 10, 1);
     check(shape.next(1, 10, 10, 1) > .99f, "gate not opening");
+    GateShaper cached, reference;
+    cached.prepare(48000); reference.prepare(48000);
+    cached.reset(0.f); reference.reset(0.f);
+    cached.setTimes(8.f, 25.f);
+    for (int i = 0; i < 24000; ++i) {
+        const float target = ((i / 1500) % 2) == 0 ? 1.f : 0.f;
+        const int curve = i % 3;
+        const float optimized = cached.next(target, curve);
+        const float legacy = reference.next(target, 8.f, 25.f, curve);
+        approx(optimized, legacy, 1e-7, "cached envelope differs from reference");
+    }
 }
 static void bandTest() {
     BandSplitter band; band.prepare(48000);
