@@ -1,0 +1,9 @@
+/build/
+/build-dsp/
+/build-tests/
+/.vs/
+/.idea/
+.DS_Store
+*.user
+*.suo
+*.log
