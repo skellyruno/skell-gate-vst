@@ -221,3 +221,7 @@ void SkellGlitchAudioProcessorEditor::timerCallback() {
         top.setJitterOffset(processor.titleJitter.load() ? (current & 1U ? 2 : -2) : 0);
     } else top.setJitterOffset(0);
 }
+
+juce::AudioProcessorEditor* SkellGlitchAudioProcessor::createEditor() {
+    return new SkellGlitchAudioProcessorEditor(*this);
+}
