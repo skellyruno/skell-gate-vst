@@ -11,6 +11,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 using namespace skell::dsp;
@@ -27,6 +28,14 @@ static void clockTest() {
     approx(c.getSamplesPerSlice(), 8000, .0001, "triplet length");
     c.setHost(120, 4, 4, 0, false, false, 1, 10);
     approx(c.getSamplesPerSlice(), 480, .01, "free length");
+    const double invalid = std::numeric_limits<double>::quiet_NaN();
+    c.setHost(invalid, 4, 4, invalid, true, true, 5, invalid);
+    approx(c.getBpm(), 120., 1e-12, "invalid BPM did not fall back");
+    approx(c.getSamplesPerSlice(), 96000., 1e-7, "invalid transport changed slice length");
+    check(std::isfinite(c.tick(0).phase), "invalid PPQ caused non-finite phase");
+    c.prepare(invalid);
+    c.setHost(120., 4, 4, 0., true, true, 5, 500.);
+    approx(c.getSamplesPerSlice(), 96000., 1e-7, "invalid sample rate fallback");
     // Blocks of 64, 512, 4096 should generate the same host-locked gate indices.
     std::vector<int64_t> ref;
     for (int blockSize : {64, 512, 4096}) {
@@ -154,7 +163,14 @@ static void deterministicTest() {
         const auto gains = Crossfader::equalPowerGains(t);
         const float combined = .6f * gains.dry + .2f * gains.wet;
         approx(combined, Crossfader::equalPower(.6f, .2f, t), 1e-7, "shared stereo mix coefficients changed gain");
+        const auto unity = Crossfader::unityGains(t);
+        approx(unity.dry + unity.wet, 1., 1e-6, "unity crossfade changes correlated audio");
+        const float input = .95f;
+        approx(input * unity.dry + input * unity.wet, input, 1e-6,
+               "unity mix clips correlated 0.95-amplitude input");
     }
+    const auto nanMix = Crossfader::unityGains(std::numeric_limits<float>::quiet_NaN());
+    check(nanMix.dry == 1.f && nanMix.wet == 0.f, "non-finite mix has no safe fallback");
     approx(Crossfader::spliceHold(.7f, -.3f, 0.f), .7f, 1e-7, "splice discontinuity at start");
     approx(Crossfader::spliceHold(.7f, -.3f, 1.f), -.3f, 1e-7, "splice discontinuity at end");
     for (int i = 0; i <= 100; ++i) {

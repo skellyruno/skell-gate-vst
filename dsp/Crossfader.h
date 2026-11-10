@@ -16,6 +16,13 @@ struct Crossfader {
         const auto gains = equalPowerGains(fraction);
         return dry * gains.dry + wet * gains.wet;
     }
+    // A 50/50 equal-power mix adds ~3 dB when wet and dry are identical.
+    // Constant-gain mixing preserves unity for correlated audio and is safer
+    // for band-selective effects with large dry/wet overlap.
+    static Gains unityGains(float fraction) {
+        const float t = std::clamp(std::isfinite(fraction) ? fraction : 0.f, 0.f, 1.f);
+        return {1.f - t, t};
+    }
     // At a slice boundary, crossfade the last wet output sample into the
     // incoming slice; unlike a fade-to-zero this preserves perceived weight.
     // The end points are exact and the Hann easing has zero slope there.

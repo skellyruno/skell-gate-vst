@@ -2,7 +2,6 @@
 #include "PluginEditor.h"
 #include <cmath>
 #include <limits>
-#include <iterator>
 
 namespace {
 using P = juce::AudioProcessorValueTreeState;
@@ -101,7 +100,7 @@ bool SkellGlitchAudioProcessor::isBusesLayoutSupported(const BusesLayout& layout
 }
 
 void SkellGlitchAudioProcessor::prepareToPlay(double sr, int) {
-    currentSampleRate = std::max(1.0, sr);
+    currentSampleRate = std::isfinite(sr) && sr > 0.0 ? sr : 48000.0;
     clock.prepare(currentSampleRate);
     const int maximum = static_cast<int>(std::ceil(currentSampleRate * maxHoldSeconds));
     capture.prepare(getMainBusNumInputChannels(), maximum);
@@ -225,28 +224,28 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
         sequencer.setStep(step, static_cast<int>(statePointers[static_cast<size_t>(step)]->load()),
                           probabilityPointers[static_cast<size_t>(step)]->load());
     }
-    // MIDI events are enumerated once and acted on at their exact sample offsets.
-    juce::MidiBuffer::Iterator midiIt(midi);
-    juce::MidiMessage nextMidi;
-    int midiOffset = -1;
-    const auto advanceMidi = [&] {
-        if (!midiIt.getNextEvent(nextMidi, midiOffset)) midiOffset = std::numeric_limits<int>::max();
-    };
-    advanceMidi();
+    // JUCE 8 range iterator: no deprecated MidiBuffer::Iterator, and
+    // note-on timing remains exact at its sample position within the block.
+    auto midiIt = midi.begin();
+    const auto midiEnd = midi.end();
     // Gate probability is stable within a step: hash once per step transition,
     // not for every incoming sample and channel.
     int previousGateStep = -1;
     int64_t previousGateCycle = INT64_MIN;
     float cachedGateTarget = 1.f;
     for (int i = 0; i < samples; ++i) {
-        while (midiOffset <= i) {
-            if (source == skell::dsp::TriggerRouter::MIDI && nextMidi.isNoteOn()) {
-                triggers.trigger(nextMidi.getFloatVelocity(), nextMidi.getNoteNumber());
-                loopIndex = std::clamp(nextMidi.getNoteNumber() - 36, 0, 8);
-                clock.setHost(tempo, numerator, denominator, ppq, hostValid && playing, sync,
-                              loopIndex, raw(apvts, "loopMs"));
+        while (midiIt != midiEnd && (*midiIt).samplePosition <= i) {
+            const auto event = *midiIt;
+            ++midiIt;
+            if (source == skell::dsp::TriggerRouter::MIDI) {
+                const auto message = event.getMessage();
+                if (message.isNoteOn()) {
+                    triggers.trigger(message.getFloatVelocity(), message.getNoteNumber());
+                    loopIndex = std::clamp(message.getNoteNumber() - 36, 0, 8);
+                    clock.setHost(tempo, numerator, denominator, ppq, hostValid && playing, sync,
+                                  loopIndex, raw(apvts, "loopMs"));
+                }
             }
-            advanceMidi();
         }
         if (source == skell::dsp::TriggerRouter::Manual && manual && i == 0) triggers.trigger();
         const auto position = clock.tick(i);
@@ -294,7 +293,9 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
         // Filter coefficients only update when a meaningful cutoff change occurs.
         if (i == 0 || (i % 32) == 0) splitter.setCuts(std::min(low, high), std::max(low, high));
         for (int ch = 0; ch < channels; ++ch) {
-            dry[ch] = buffer.getSample(ch, i);
+            const float incoming = buffer.getSample(ch, i);
+            // Guard IIR state against invalid upstream samples.
+            dry[ch] = std::isfinite(incoming) ? incoming : 0.f;
             splitter.process(ch, dry[ch], inside[ch], outside[ch]);
             if (invert) std::swap(inside[ch], outside[ch]);
             shaped[ch] = shapers[static_cast<size_t>(ch)].next(gateTarget, curve);
@@ -312,7 +313,7 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
         const int readPos = static_cast<int>((sampleCounter - latency + delayCapacity) % delayCapacity);
         const double phase = chaosEvent == skell::dsp::GlitchRandomizer::HalfTime ? position.phase * .5 : position.phase;
         // Compute the crossfade trigonometry once, then reuse for L/R.
-        const auto mixGains = skell::dsp::Crossfader::equalPowerGains(mixSmoothed.getCurrentValue());
+        const auto mixGains = skell::dsp::Crossfader::unityGains(mixSmoothed.getCurrentValue());
         const float bypassAmount = bypassSmoothed.getCurrentValue();
         for (int ch = 0; ch < channels; ++ch) {
              const float delayedDry = latency ? dryDelay[ch][static_cast<size_t>(readPos)] : dry[ch];

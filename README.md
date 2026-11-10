@@ -1,5 +1,15 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.4.0 — verified transport, gain, warning and idle-render fixes
+- Sanitize invalid BPM, PPQ, free-length and sample-rate values before computing clock divisions or integer slice positions; cache clock divisions once per host update rather than per sample.
+- Use constant-gain dry/wet interpolation so a correlated dry/wet 50% mix does not add ~3 dB. This is not a peak limiter: intentionally accented or hot wet audio can still exceed 0 dBFS.
+- Replace deprecated JUCE MIDI iterator with the JUCE 8 range iterator, retaining sample-accurate note-on offsets.
+- Migrate font creation to JUCE 8 FontOptions; keep visual geometry unchanged.
+- Ignore non-finite input samples before IIR filtering so corrupted upstream buffers cannot poison the filter state.
+- Skip idle waveform repaints when transport and relevant displayed state are unchanged.
+- Add regression assertions for invalid host transport values, non-finite controls, unity-preserving mix and preexisting block-size consistency.
+
+
 ## v1.3.0 — responsive controls and leaner real-time DSP
 - The compact 75%-scale default and all existing skins/controls remain intact. Factory/preset toolbar uses readable short labels (A+, A USE, B+, B USE, SAVE, OPEN), with functional hover tooltips and safe asynchronous file picker callbacks.
 - Gate steps now show hover outlines and beat-quarter indices; waveform/grid painting pauses when those components are hidden. Tooltip window is enabled in the editor.

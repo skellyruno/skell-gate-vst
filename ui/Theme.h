@@ -14,9 +14,9 @@ constexpr auto cyan = 0xff2fd9ff;
 constexpr auto bone = 0xffe8e6da;
 constexpr auto gray = 0xff8a9a90;
 inline juce::Colour colour(juce::uint32 rgba) { return juce::Colour(rgba); }
-inline juce::Font regular(float size) { return juce::Font("Arial", size, juce::Font::plain); }
-inline juce::Font display(float size) { return juce::Font("Arial", size, juce::Font::bold); }
-inline juce::Font mono(float size) { return juce::Font("Consolas", size, juce::Font::plain); }
+inline juce::Font regular(float size) { return juce::Font(juce::FontOptions("Arial", size, juce::Font::plain)); }
+inline juce::Font display(float size) { return juce::Font(juce::FontOptions("Arial", size, juce::Font::bold)); }
+inline juce::Font mono(float size) { return juce::Font(juce::FontOptions("Consolas", size, juce::Font::plain)); }
 inline void roundTile(juce::Graphics& g, juce::Rectangle<float> r, float corner = 9.f) {
     g.setColour(colour(tile)); g.fillRoundedRectangle(r, corner);
     g.setColour(colour(border)); g.drawRoundedRectangle(r.reduced(.5f), corner, 1.f);

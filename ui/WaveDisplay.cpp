@@ -1,10 +1,24 @@
 #include "WaveDisplay.h"
 #include "../PluginProcessor.h"
 #include <algorithm>
+#include <cmath>
 WaveDisplay::WaveDisplay(SkellGlitchAudioProcessor& p) : processor(p) {
     startTimerHz(30);
     setMouseCursor(juce::MouseCursor::CrosshairCursor);
     setTooltip("Waveform: drag to paint steps; Alt+click cycles the step state; scroll to zoom");
+}
+void WaveDisplay::timerCallback() {
+    if (!isShowing()) return;
+    const auto flip = processor.flipCounter.load(std::memory_order_relaxed);
+    const int reverse = processor.displayReverse.load(std::memory_order_relaxed);
+    const int step = processor.displayStep.load(std::memory_order_relaxed);
+    const float phase = processor.displayPhase.load(std::memory_order_relaxed);
+    const bool playing = processor.displayTransport.load(std::memory_order_relaxed) != 0;
+    if (flip != lastFlip || reverse != lastReverse || step != lastStep
+        || (playing && std::abs(phase - lastPhase) >= .002f)) {
+        lastFlip = flip; lastReverse = reverse; lastStep = step; lastPhase = phase;
+        repaint();
+    }
 }
 void WaveDisplay::paint(juce::Graphics& g) {
     auto r = getLocalBounds().toFloat().reduced(1);

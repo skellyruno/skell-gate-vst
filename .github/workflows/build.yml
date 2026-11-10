@@ -6,37 +6,19 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   source-and-dsp:
-    name: Restore source and run DSP regression
+    name: Linux DSP regression
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-          persist-credentials: true
-      - name: Import Skell-Glitch source into this existing repository
-        shell: bash
-        run: |
-          set -euo pipefail
-          if compgen -G '.import/chunk_*.txt' > /dev/null; then
-            cat .import/chunk_*.txt | base64 --decode > /tmp/skell-glitch-source.tar.xz
-            xz -t /tmp/skell-glitch-source.tar.xz
-            rm -rf Source Tests
-            tar -xJf /tmp/skell-glitch-source.tar.xz --strip-components=1 --exclude='skell-glitch-vst/.github/workflows/build.yml'
-            rm -rf .import
-            git add -A
-            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Replace old Skellgate sources with Skell-Glitch JUCE project'
-            git push origin HEAD:main
-          fi
-      - name: Configure pure C++ DSP regression
+      - name: Configure C++ DSP regression
         run: cmake -S . -B build-dsp -DCMAKE_BUILD_TYPE=Release -DSKELL_DSP_ONLY=ON
-      - name: Compile tests
+      - name: Compile DSP tests
         run: cmake --build build-dsp --parallel 2
-      - name: Execute tests
+      - name: Execute DSP tests
         run: ctest --test-dir build-dsp --output-on-failure
 
   windows-vst3:
@@ -45,8 +27,6 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: main
       - uses: actions/checkout@v4
         with:
           repository: juce-framework/JUCE
