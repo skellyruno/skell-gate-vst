@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(SkellGlitch VERSION 1.4.0 LANGUAGES CXX)
+project(SkellGlitch VERSION 1.4.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(SKELL_DSP_ONLY "Only build the dependency-free DSP tests" OFF)
@@ -66,3 +66,13 @@ target_link_libraries(SkellGlitch PRIVATE
 juce_add_binary_data(SkellGlitchAssets SOURCES assets/original_mark.svg)
 target_link_libraries(SkellGlitch PRIVATE SkellGlitchAssets)
 juce_generate_juce_header(SkellGlitch)
+
+# Build a real offscreen JUCE editor render test on the Windows runner.
+# Reuses the plugin's existing source/library; no additional runtime dependencies.
+option(SKELL_BUILD_UI_SMOKE "Build offscreen UI snapshot smoke test" OFF)
+if(SKELL_BUILD_UI_SMOKE)
+    juce_add_console_app(SkellGlitchUISmoke PRODUCT_NAME "Skell-Glitch UI Smoke")
+    target_sources(SkellGlitchUISmoke PRIVATE tests/UISmoke.cpp)
+    target_link_libraries(SkellGlitchUISmoke PRIVATE SkellGlitch juce::juce_audio_utils juce::juce_gui_extra)
+    target_compile_definitions(SkellGlitchUISmoke PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+endif()

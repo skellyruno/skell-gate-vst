@@ -53,6 +53,9 @@ public:
         if (curve == 2)
             factor = std::min(1.f, alpha * (1.f + 1.5f * std::abs(target - current)));
         current += (target - current) * factor;
+        // Snap inaudible residuals below -400 dB to zero/target to prevent
+        // floating-point subnormals during long gate tails.
+        if (std::abs(current - target) < 1.e-20f) current = target;
         return current;
     }
     float next(float target, float attackMs, float releaseMs, int curve) {

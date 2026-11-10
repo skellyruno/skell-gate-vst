@@ -34,16 +34,29 @@ jobs:
           path: JUCE
       - name: Configure JUCE
         shell: bash
-        run: cmake -S . -B build -DJUCE_DIR="$GITHUB_WORKSPACE/JUCE"
+        run: cmake -S . -B build -DJUCE_DIR="$GITHUB_WORKSPACE/JUCE" -DSKELL_BUILD_UI_SMOKE=ON
       - name: Compile VST3 + Standalone
         shell: bash
-        run: cmake --build build --config Release --target SkellGlitch_VST3 SkellGlitch_Standalone --parallel 3
+        run: cmake --build build --config Release --target SkellGlitch_VST3 SkellGlitch_Standalone SkellGlitchUISmoke --parallel 3
       - name: Compile Windows DSP test executable
         shell: bash
         run: cmake --build build --config Release --target skell_dsp_tests --parallel 2
       - name: Test DSP
         shell: bash
         run: ctest --test-dir build -C Release --output-on-failure
+      - name: Render and validate offscreen UI at four window sizes
+        shell: pwsh
+        run: |
+          $binary = Get-ChildItem build -Recurse -Filter SkellGlitchUISmoke.exe | Select-Object -First 1
+          if (-not $binary) { throw "UI smoke executable not found" }
+          & $binary.FullName
+          if ($LASTEXITCODE -ne 0) { throw "UI smoke validation failed (exit $LASTEXITCODE)" }
+      - name: Upload UI snapshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: Skell-Glitch-UI-Snapshots
+          if-no-files-found: error
+          path: build/ui-snapshots/**
       - name: Upload Windows plugin builds
         uses: actions/upload-artifact@v4
         with:

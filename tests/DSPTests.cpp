@@ -8,6 +8,7 @@
 #include "dsp/TriggerRouter.h"
 #include "dsp/GlitchRandomizer.h"
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
@@ -122,6 +123,13 @@ static void gateTest() {
     for (int n = 0; n < 19; ++n)
         check(linear.next(0.f, 0) > 0.f, "linear release ended too early");
     approx(linear.next(0.f, 0), 0.f, 1e-7, "linear release missed its endpoint");
+    GateShaper tail; tail.prepare(48000); tail.setTimes(1.f, 200.f);
+    tail.reset(1.f);
+    for (int i = 0; i < 350000; ++i) {
+        const float value = tail.next(0.f, 1);
+        check(std::isfinite(value) && std::fpclassify(value) != FP_SUBNORMAL,
+              "denormal exponential gate tail");
+    }
     GateShaper cached, reference;
     cached.prepare(48000); reference.prepare(48000);
     cached.reset(0.f); reference.reset(0.f);
@@ -212,6 +220,48 @@ static std::vector<float> renderForBlockSize(int blockSize) {
     }
     return result;
 }
+static void stressTest() {
+    // Use a real reverse/grain/gate/mix path with known stereo anti-phase input.
+    // The input stays below full scale, so unintended +3 dB mix gain would fail.
+    Reverser reverse;
+    SliceCapture capture;
+    capture.prepare(2, 48000);
+    capture.onBoundary();
+    constexpr int length = 12000;
+    for (int i = 0; i < length; ++i) {
+        const float x = .55f * std::sin(i * 6.283185307179586 / 97.0);
+        capture.write(x, -x);
+    }
+    capture.onBoundary();
+    GateShaper gates[2];
+    for (auto& g : gates) { g.prepare(48000); g.reset(1.f); g.setTimes(3.f, 15.f); }
+    const auto began = std::chrono::steady_clock::now();
+    double checksum = 0.0;
+    for (int mode = 0; mode < 4; ++mode) {
+        for (float pitch : {-12.f, 0.f, 7.f, 12.f}) {
+            const auto context = Reverser::makePitchContext(pitch, 48000);
+            for (int i = 0; i < 48000; ++i) {
+                const double phase = (i % length) / static_cast<double>(length);
+                const float target = (i / 512) % 2 ? 0.f : 1.f;
+                const auto gains = Crossfader::unityGains(.5f);
+                const float a = reverse.samplePrepared(capture, 0, phase, mode, i / length, context);
+                const float b = reverse.samplePrepared(capture, 1, phase, mode, i / length, context);
+                const float l = a * gates[0].next(target, 1) * gains.wet + .55f * gains.dry;
+                const float r = b * gates[1].next(target, 1) * gains.wet - .55f * gains.dry;
+                check(std::isfinite(l) && std::isfinite(r), "stress render produced NaN/Inf");
+                check(std::abs(l) <= 1.f && std::abs(r) <= 1.f,
+                      "stress render unexpectedly clipped below-unity input");
+                check(std::abs(l + r) < 1.e-5f, "reverse processing broke stereo anti-phase coherence");
+                checksum += l * .0000001;
+            }
+        }
+    }
+    const auto elapsed = std::chrono::duration<double>(
+        std::chrono::steady_clock::now() - began).count();
+    check(std::isfinite(checksum), "stress checksum was non-finite");
+    std::cout << "DSP_STRESS: 768000 stereo frames, "
+              << elapsed << " s, checksum=" << checksum << '\n';
+}
 static void offlineReproTest() {
     const auto reference = renderForBlockSize(512);
     for (const int block : {1, 64, 4096, 16384}) {
@@ -238,7 +288,7 @@ static void offlineReproTest() {
 }
 
 int main() {
-    try { clockTest(); sliceTest(); gateTest(); bandTest(); deterministicTest(); offlineReproTest(); }
+    try { clockTest(); sliceTest(); gateTest(); bandTest(); deterministicTest(); offlineReproTest(); stressTest(); }
     catch (const std::exception& ex) { std::cerr << "FAIL: " << ex.what() << '\n'; return EXIT_FAILURE; }
     std::cout << "PASS: TempoClock / SliceCapture / Reverser / GateSequencer / GateShaper / BandSplitter / Crossfader / TriggerRouter / seeded randomness\n";
     return EXIT_SUCCESS;

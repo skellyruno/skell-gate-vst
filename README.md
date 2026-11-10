@@ -1,5 +1,11 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.4.1 — UI render smoke test and extreme DSP regression
+- Added a JUCE offscreen screenshot harness to Windows CI: 50%, 75%, 100% and 125% canvas sizes are rendered and checked for a valid nonblank image; PNG snapshots are uploaded as an inspectable artifact.
+- Added deterministic reverse/grain/gate/mix stress checks for finite outputs, below-unity amplitude and stereo anti-phase consistency, plus a timing diagnostic; the synthetic test does not replace audio listening or host CPU profiling.
+- Gate exponential tails now zero inaudible residuals before they enter the denormal range.
+
+
 ## v1.4.0 — verified transport, gain, warning and idle-render fixes
 - Sanitize invalid BPM, PPQ, free-length and sample-rate values before computing clock divisions or integer slice positions; cache clock divisions once per host update rather than per sample.
 - Use constant-gain dry/wet interpolation so a correlated dry/wet 50% mix does not add ~3 dB. This is not a peak limiter: intentionally accented or hot wet audio can still exceed 0 dBFS.
