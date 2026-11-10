@@ -1,4 +1,5 @@
-#include <JuceHeader.h>
+#include <juce_audio_utils/juce_audio_utils.h>
+#include <juce_gui_extra/juce_gui_extra.h>
 #include <array>
 #include <iostream>
 #include <memory>
@@ -43,7 +44,7 @@ int main() {
             "Skell-Glitch-" + juce::String(width) + "x" + juce::String(height) + ".png");
         juce::FileOutputStream stream(output);
         if (stream.failedToOpen() || !png.writeImageToStream(frame, stream)) {
-            std::cerr << "Failed to write screenshot: " << output.getFullPathName() << "\n";
+            std::cerr << "Failed to write screenshot: " << output.getFullPathName().toStdString() << "\n";
             return 6;
         }
         std::cout << "UI_SMOKE: " << width << "x" << height
