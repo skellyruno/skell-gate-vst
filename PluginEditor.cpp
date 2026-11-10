@@ -17,17 +17,17 @@ public:
         g.drawLine(0.f, 672.f, 958.f, 672.f, 1.f);
         // Quiet section dividers preserve visual hierarchy without noisy glows.
         g.setColour(skell::theme::colour(skell::theme::border).withAlpha(.65f));
-        g.drawLine(186.f, 139.f, 772.f, 139.f, 1.f);
-        g.drawLine(186.f, 569.f, 772.f, 569.f, 1.f);
+        g.drawLine(186.f, 143.f, 772.f, 143.f, 1.f);
+        g.drawLine(215.f, 583.f, 744.f, 583.f, 1.f);
         g.setColour(skell::theme::colour(skell::theme::gray));
         g.setFont(skell::theme::regular(12));
         g.drawText("FADE IN", 50, 346, 120, 24, juce::Justification::centred);
         g.drawText("FADE OUT", 786, 346, 120, 24, juce::Justification::centred);
-        g.drawText("MODE", 426, 535, 105, 14, juce::Justification::centred);
+        g.drawText("MODE", 151, 505, 53, 19, juce::Justification::centredRight);
         g.drawText("SMOOTH", 50, 648, 120, 18, juce::Justification::centred);
         g.drawText("MIX", 783, 648, 120, 18, juce::Justification::centred);
         g.setFont(skell::theme::mono(11));
-        g.drawText("v1.1.0", 892, 657, 62, 15, juce::Justification::centredRight);
+        g.drawText("v1.2.0", 888, 655, 66, 16, juce::Justification::centredRight);
     }
 };
 
@@ -57,7 +57,7 @@ public:
         setAlwaysOnTop(true);
         setVisible(false);
         addAndMakeVisible(close);
-        close.setButtonText("✕"); close.onClick = [this] { setVisible(false); };
+        close.setButtonText("X"); close.onClick = [this] { setVisible(false); };
         for (auto param : {"chaos", "reversePitch", "gateAttack", "gateRelease", "gateDepth", "gateSwing", "loopMs", "gateSteps", "seed"}) {
             auto slider = std::make_unique<juce::Slider>();
             slider->setSliderStyle(juce::Slider::LinearHorizontal);
@@ -79,7 +79,7 @@ public:
             toggles.push_back(std::move(t));
         }
         addAndMakeVisible(trigger); addAndMakeVisible(freeze);
-        manualCopy.setButtonText("GATE → REVERSE");
+        manualCopy.setButtonText("GATE > REVERSE");
         manualCopy.setClickingTogglesState(true);
         manualCopy.setToggleState(p.gateFirst.load(), juce::dontSendNotification);
         manualCopy.onClick = [this] { processor.gateFirst.store(manualCopy.getToggleState()); };
@@ -89,7 +89,7 @@ public:
         jitter.setToggleState(p.titleJitter.load(), juce::dontSendNotification);
         jitter.onClick = [this] { processor.titleJitter.store(jitter.getToggleState()); };
         addAndMakeVisible(jitter);
-        size.addItemList({"Small · 75%", "Medium · 100%", "Large · 125%", "XL · 150%"}, 1);
+        size.addItemList({"XS - 50%", "S - 75%", "M - 100%", "L - 125%"}, 1);
         size.setSelectedId(p.getSavedSize() + 1, juce::dontSendNotification);
         size.onChange = [this] { if (size.getSelectedId() > 0) resizeEditor(size.getSelectedId() - 1); };
         addAndMakeVisible(size);
@@ -173,8 +173,8 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     band.setBounds(skell::theme::band);
     fadeIn.setBounds(43, 191, 130, 150);
     fadeOut.setBounds(783, 191, 130, 150);
-    smooth.setBounds(50, 544, 119, 103);
-    mix.setBounds(786, 544, 119, 103);
+    smooth.setBounds(50, 555, 119, 97);
+    mix.setBounds(786, 555, 119, 97);
     for (auto* slider : {&fadeIn, &fadeOut, &smooth, &mix}) slider->setDoubleClickReturnValue(true, slider == &smooth ? 30. : slider == &mix ? 100. : 0.);
     fadeIn.textFromValueFunction = [](double value) { return value < .5 ? "Inst" : juce::String(value, 0) + " ms"; };
     fadeOut.textFromValueFunction = fadeIn.textFromValueFunction;
@@ -193,7 +193,7 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     settings->setVisible(false);
     top.settings.onClick = [this] { settings->setVisible(!settings->isVisible()); settings->toFront(false); };
     setResizable(true, true);
-    setResizeLimits(719, 507, 1437, 1014);
+    setResizeLimits(479, 338, 1198, 845);
     getConstrainer()->setFixedAspectRatio(958.0 / 676.0);
     applyWindowSize(p.getSavedSize());
     startTimerHz(30);
@@ -204,7 +204,9 @@ SkellGlitchAudioProcessorEditor::~SkellGlitchAudioProcessorEditor() {
     // JUCE removes children automatically; this instance owns the widgets and settings.
 }
 void SkellGlitchAudioProcessorEditor::applyWindowSize(int index) {
-    constexpr float scales[] = {.75f, 1.f, 1.25f, 1.5f};
+    // 75% is precisely half the size of the old 150% screenshot.
+    // The 50% option is available for very compact DAW layouts.
+    constexpr float scales[] = {.5f, .75f, 1.f, 1.25f};
     uiScale = scales[static_cast<size_t>(std::clamp(index, 0, 3))];
     processor.setSavedSize(index);
     setSize(juce::roundToInt(958 * uiScale), juce::roundToInt(676 * uiScale));
@@ -217,8 +219,15 @@ void SkellGlitchAudioProcessorEditor::resized() {
 void SkellGlitchAudioProcessorEditor::paint(juce::Graphics& g) { g.fillAll(skell::theme::colour(skell::theme::background)); }
 void SkellGlitchAudioProcessorEditor::timerCallback() {
     const bool on = processor.apvts.getRawParameterValue("sync")->load() >= .5f;
-    top.sync.setButtonText(on ? "SYNC ON" : "SYNC OFF");
-    top.repaint();
+    const auto label = on ? juce::String("SYNC ON") : juce::String("SYNC OFF");
+    if (top.sync.getButtonText() != label) top.sync.setButtonText(label);
+    const auto latency = processor.displayLatency.load(std::memory_order_relaxed);
+    const auto sampleRate = processor.getSampleRate();
+    if (lastHeaderLatency != latency || lastHeaderSampleRate != sampleRate) {
+        lastHeaderLatency = latency;
+        lastHeaderSampleRate = sampleRate;
+        top.repaint();
+    }
     const auto current = processor.flipCounter.load(std::memory_order_relaxed);
     if (current != lastFlip) {
         lastFlip = current;

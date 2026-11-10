@@ -37,5 +37,7 @@ private:
     std::unique_ptr<SettingsPanel> settings;
     float uiScale = 1.f;
     uint64_t lastFlip = 0;
+    int lastHeaderLatency = -1;
+    double lastHeaderSampleRate = -1.0;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SkellGlitchAudioProcessorEditor)
 };

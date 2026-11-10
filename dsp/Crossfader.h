@@ -9,6 +9,14 @@ struct Crossfader {
         const float t = std::clamp(fraction, 0.f, 1.f);
         return dry * std::cos(t * halfPi) + wet * std::sin(t * halfPi);
     }
+    // At a slice boundary, crossfade the last wet output sample into the
+    // incoming slice; unlike a fade-to-zero this preserves perceived weight.
+    // The end points are exact and the Hann easing has zero slope there.
+    static float spliceHold(float outgoing, float incoming, float phase) {
+        const float t = std::clamp(phase, 0.f, 1.f);
+        const float eased = t * t * (3.f - 2.f * t);
+        return outgoing + (incoming - outgoing) * eased;
+    }
     static float raisedCosine(float x) {
         return .5f - .5f * std::cos(std::clamp(x, 0.f, 1.f) * 3.141592653589793f);
     }

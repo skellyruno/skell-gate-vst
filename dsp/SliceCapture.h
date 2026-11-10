@@ -12,7 +12,11 @@ public:
     void prepare(int numberOfChannels, int maxSliceSamples) {
         channels = std::clamp(numberOfChannels, 1, 2);
         capacity = std::max(8192, maxSliceSamples * 2 + 4096);
-        for (auto& b : data) b.assign(static_cast<size_t>(capacity), 0.0f);
+        // Do not reserve an unused right-channel ring for mono hosts.
+        for (int channel = 0; channel < 2; ++channel) {
+            if (channel < channels) data[static_cast<size_t>(channel)].assign(static_cast<size_t>(capacity), 0.0f);
+            else { data[static_cast<size_t>(channel)].clear(); data[static_cast<size_t>(channel)].shrink_to_fit(); }
+        }
         writeIndex = 0;
         segmentStart = 0;
         finishedStart = 0;
@@ -36,7 +40,7 @@ public:
         if (capacity == 0) return;
         const size_t idx = static_cast<size_t>(writeIndex % capacity);
         data[0][idx] = a;
-        data[1][idx] = b;
+        if (channels > 1) data[1][idx] = b;
         ++writeIndex;
     }
     int length() const { return finishedLength; }

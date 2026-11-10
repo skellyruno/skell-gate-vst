@@ -1,5 +1,14 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.2.0 — compact interface and smooth splice engine
+- Default editor 719×507 (75% design scale, half the 150% screenshot dimensions), with XS 50% (479×338), M 100%, and L 125%. Legacy session sizes open at the compact default.
+- Rebalanced waveform/gate/mode/preset/band rows; fixed raw floating point knob text and broken icon glyphs with vector power/settings icons plus ASCII shift labels.
+- Reduced redundant header/loop redraws; waveform/grid now refresh at 30 Hz; silent audio display shows WAITING FOR AUDIO.
+- SMOOTH now bridges reverse slice boundaries using the outgoing wet sample rather than fading to zero; FADE IN/OUT remain independently adjustable. Added regression tests.
+- Reduced capture/delay history from 64 to 32 seconds, halving worst-case RAM needs; mono hosts no longer reserve a right capture channel. Extremely slow long slices remain unsupported beyond 32 seconds.
+- Host QA still needed: clickless transient bounces, FL Studio rescan, high-sample-rate CPU, and minimum-window usability.
+
+
 ## v1.1.0 refinement
 - Cached per-block gate envelope coefficients and per-step probability decisions to reduce audio-thread work.
 - Reset capture indices without clearing large preallocated audio buffers during transport jumps.
@@ -17,7 +26,7 @@ A new, original **JUCE 8 C++** audio-effect source project for tempo-locked reve
 
 ## Layout
 
-The interface uses the user-provided HalfSpeed-style *layout proportions* as a reference only, with original **Skell-Glitch** branding, a vector-drawn clock symbol, bone-white lettering, necro-green (#39ff3a), magenta for reverse and cyan for gate states. Its design canvas is **958×676**. Preset window sizes are **S 75%, M 100%, L 125%, XL 150%**, with a fixed aspect ratio and a scaled JUCE canvas. The top bar shows sample rate and reported latency.
+The interface uses the user-provided HalfSpeed-style *layout proportions* as a reference only, with original **Skell-Glitch** branding, a vector-drawn clock symbol, bone-white lettering, necro-green (#39ff3a), magenta for reverse and cyan for gate states. Its design canvas is **958×676**. Preset window sizes are **XS 50%, S 75% (default), M 100%, L 125%**, with a fixed aspect ratio and a scaled JUCE canvas. The top bar shows sample rate and reported latency.
 
 Controls: sync, nine loop lengths, fade-in/out rings, waveform/playhead, 1–32 gate steps with per-step probability, pattern operations and pattern presets, Reverse/Gate/Both selectors, reverse style, gate rate, smooth, two-handle band limits, mix, power, factory presets, undo/redo, A/B snapshots and XML export/import. The **settings** drawer has trigger source, latency mode, chaos/seed, pitch, gate envelope controls, MIDI/manual triggering, freeze, delta listen, band inversion, gate order and window sizes.
 
@@ -43,7 +52,7 @@ The audio path uses only preallocated buffers during steady-state `processBlock`
 - **FFT spectral flux sidechain:** current trigger is an envelope-difference onset proxy, not true multi-bin spectral-flux analysis.
 - **MIDI learn and numeric popups:** right-click MIDI learn and direct numeric entry on the custom band slider are not built yet. Gate step painting changes parameters with complete per-step gestures; not a single batched gesture.
 - **DSP refinements:** Tape mode uses a shaped reverse read index instead of a calibrated physically modeled tape transport; granular pitch does not preserve formants; gate curves approximate linear/exponential/S-curve; the shaper currently uses short fade-to-silence envelopes at slice edges, not full adjacent-slice overlap. The band split reconstructs exactly without processing, but perfect *phase alignment of individually processed bands* has not been proven.
-- **Huge tempo divisions:** buffer allocation supports at most ~64 s of a completed slice. If 8 bars is longer than 64 s at exceptionally slow tempos, reverse capture will fall back while gating remains active. Buffer memory can be significant at high sample rates.
+- **Huge tempo divisions:** buffer allocation supports at most ~32 s of a completed slice. If 8 bars is longer than 32 s at exceptionally slow tempos, reverse capture will fall back while gating remains active. Buffer memory can be significant at high sample rates.
 - **Window behavior and VBlank:** background panels are image-buffered, wave and grid repaint using a 60 Hz timer (not a native VBlankAttachment). Custom resize transforms need manual HiDPI and mouse-interaction validation. Title jitters ±2 px when a slice flips if enabled.
 - **A/B and presets:** full project state and A/B XML snapshots serialize via JUCE state. Extra UI state (size, pattern name, order) is saved in a ValueTree; snapshot transitions are not themselves crossfaded.
 - **No hardware/host bounce validation:** the independent C++ tests are not a substitute for audio click-testing, low-level latency verification, or real VST3 regression.

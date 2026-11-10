@@ -2,8 +2,8 @@
 #include "../PluginProcessor.h"
 #include "../dsp/GlitchRandomizer.h"
 GateGrid::GateGrid(SkellGlitchAudioProcessor& p) : processor(p),
-    commands{juce::TextButton("RANDOM"), juce::TextButton("◀ SHIFT"),
-             juce::TextButton("SHIFT ▶"), juce::TextButton("INVERT"), juce::TextButton("CLEAR")} {
+    commands{juce::TextButton("RANDOM"), juce::TextButton("SHIFT <"),
+             juce::TextButton("SHIFT >"), juce::TextButton("INVERT"), juce::TextButton("CLEAR")} {
     for (int i = 0; i < 5; ++i) {
         addAndMakeVisible(commands[static_cast<size_t>(i)]);
         commands[static_cast<size_t>(i)].onClick = [this, i] { applyPattern(i); };
@@ -14,7 +14,7 @@ GateGrid::GateGrid(SkellGlitchAudioProcessor& p) : processor(p),
     pattern.onChange = [this] { if (pattern.getSelectedId() > 0) loadPattern(pattern.getSelectedId() - 1); };
     addAndMakeVisible(pattern);
     setTooltip("Click to cycle steps. Drag to paint. Drag probability strip or hold Shift to edit chance.");
-    startTimerHz(60);
+    startTimerHz(30);
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
 }
 void GateGrid::resized() {

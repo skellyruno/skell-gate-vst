@@ -80,6 +80,7 @@ private:
     int delayCapacity = 0;
     int64_t sampleCounter = 0;
     int64_t lastSlice = INT64_MIN;
+    std::array<float, 2> lastWet{}, heldWet{};
     skell::dsp::GlitchRandomizer::Event chaosEvent = skell::dsp::GlitchRandomizer::Normal;
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> mixSmoothed, bypassSmoothed;
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> lowSmoothed, highSmoothed;

@@ -7,7 +7,9 @@
 namespace {
 using P = juce::AudioProcessorValueTreeState;
 using APID = juce::ParameterID;
-constexpr int maxHoldSeconds = 64;
+// Bounded 32-second capture history halves the previous worst-case RAM footprint,
+// including both aligned dry and gate histories at 96/192 kHz.
+constexpr int maxHoldSeconds = 32;
 const juce::StringArray loopLabels {"1/16", "1/8T", "1/8", "1/4", "1/2", "1 Bar", "2 Bars", "4 Bars", "8 Bars"};
 float raw(const P& state, const char* name) { auto* value = state.getRawParameterValue(name); return value ? value->load() : 0.f; }
 void writeParam(P& state, const juce::String& id, float real) {
@@ -82,7 +84,8 @@ SkellGlitchAudioProcessor::SkellGlitchAudioProcessor()
         statePointers[static_cast<size_t>(i)] = apvts.getRawParameterValue(key + "_state");
         probabilityPointers[static_cast<size_t>(i)] = apvts.getRawParameterValue(key + "_prob");
     }
-    apvts.state.setProperty("windowSize", 1, nullptr);
+    apvts.state.setProperty("windowSize", 1, nullptr);  // 75%: half the size of old 150% screenshot
+    apvts.state.setProperty("uiScaleVersion", 2, nullptr);
     apvts.state.setProperty("presetName", "INIT", nullptr);
     apvts.state.setProperty("gateFirst", false, nullptr);
     apvts.state.setProperty("titleJitter", true, nullptr);
@@ -110,6 +113,8 @@ void SkellGlitchAudioProcessor::prepareToPlay(double sr, int) {
         for (auto& ch : *array) ch.assign(static_cast<size_t>(delayCapacity), 0.f);
     sampleCounter = 0;
     lastSlice = INT64_MIN;
+    lastWet.fill(0.f);
+    heldWet.fill(0.f);
     mixSmoothed.reset(currentSampleRate, .015);
     mixSmoothed.setCurrentAndTargetValue(raw(apvts, "mix") / 100.f);
     bypassSmoothed.reset(currentSampleRate, .010);
@@ -239,8 +244,12 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
         if (source == skell::dsp::TriggerRouter::Manual && manual && i == 0) triggers.trigger();
         const auto position = clock.tick(i);
         if (position.boundary) {
+            // Continue smoothly from the previous rendered wet sample rather
+            // than fading every new reverse slice down to absolute silence.
+            const bool timelineJump = lastSlice != INT64_MIN && position.sliceIndex != lastSlice + 1;
+            heldWet = timelineJump ? std::array<float, 2>{0.f, 0.f} : lastWet;
             if (!freeze) capture.onBoundary();
-            if (lastSlice != INT64_MIN && position.sliceIndex != lastSlice + 1 && !freeze) capture.clear();
+            if (timelineJump && !freeze) capture.clear();
             lastSlice = position.sliceIndex;
             publishWaveform();
             if (mode != 1) flipCounter.fetch_add(1, std::memory_order_relaxed);
@@ -284,14 +293,19 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
             shaped[ch] = shapers[static_cast<size_t>(ch)].next(gateTarget, curve);
         }
         const auto activeSliceSamples = std::max(16.0, clock.getSamplesPerSlice());
+        // User-specified fades still operate normally; SMOOTH now performs a
+        // real transition from the previous wet output at slice onset.
         const float phaseEnv = skell::dsp::Crossfader::boundaryEnvelope(position.phase, activeSliceSamples,
                       std::min(static_cast<double>(fadeIn), activeSliceSamples * .5),
-                      std::min(static_cast<double>(fadeOut), activeSliceSamples * .5), smoothingSamples);
+                      std::min(static_cast<double>(fadeOut), activeSliceSamples * .5), 0.0);
+        const double transitionSamples = std::min(static_cast<double>(smoothingSamples), activeSliceSamples * .5);
+        const double transitionPhase = transitionSamples > 0.0
+            ? position.phase * activeSliceSamples / transitionSamples : 1.0;
+        const int delayPos = static_cast<int>(sampleCounter % delayCapacity);
+        const int readPos = static_cast<int>((sampleCounter - latency + delayCapacity) % delayCapacity);
         const double phase = chaosEvent == skell::dsp::GlitchRandomizer::HalfTime ? position.phase * .5 : position.phase;
         for (int ch = 0; ch < channels; ++ch) {
-            const int delayPos = static_cast<int>(sampleCounter % delayCapacity);
-            const int readPos = static_cast<int>((sampleCounter - latency + delayCapacity) % delayCapacity);
-            const float delayedDry = latency ? dryDelay[ch][static_cast<size_t>(readPos)] : dry[ch];
+             const float delayedDry = latency ? dryDelay[ch][static_cast<size_t>(readPos)] : dry[ch];
             const float delayedOutside = latency ? outsideDelay[ch][static_cast<size_t>(readPos)] : outside[ch];
             dryDelay[ch][static_cast<size_t>(delayPos)] = dry[ch];
             outsideDelay[ch][static_cast<size_t>(delayPos)] = outside[ch];
@@ -309,6 +323,10 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
                 if (mode == 2 && !bothGateFirst) wet *= shaped[ch];
             } else if (mode != 1) wet = aligned ? delayedGate : liveGate;
             if (eventOn && chaosEvent == skell::dsp::GlitchRandomizer::Skip) wet = 0.f;
+            if (needsReverse && capture.length() > 0 && transitionPhase < 1.0)
+                wet = skell::dsp::Crossfader::spliceHold(heldWet[static_cast<size_t>(ch)],
+                                                        wet, static_cast<float>(transitionPhase));
+            lastWet[static_cast<size_t>(ch)] = wet;
             const float wetFull = delayedOutside + wet;
             const float actualMix = mixSmoothed.getCurrentValue();
             const float blended = skell::dsp::Crossfader::equalPower(delayedDry, wetFull, actualMix);
@@ -366,8 +384,16 @@ void SkellGlitchAudioProcessor::setStateInformation(const void* data, int bytes)
 }
 float SkellGlitchAudioProcessor::parameter(const char* name) const { return raw(apvts, name); }
 void SkellGlitchAudioProcessor::setParameter(const char* name, float value) { writeParam(apvts, name, value); }
-int SkellGlitchAudioProcessor::getSavedSize() const { return static_cast<int>(apvts.state.getProperty("windowSize", 1)); }
-void SkellGlitchAudioProcessor::setSavedSize(int v) { apvts.state.setProperty("windowSize", juce::jlimit(0, 3, v), nullptr); }
+int SkellGlitchAudioProcessor::getSavedSize() const {
+    // Older sessions stored a different size index mapping. Open those at the
+    // new compact 75% default instead of unexpectedly reopening at XL.
+    if (!apvts.state.hasProperty("uiScaleVersion")) return 1;
+    return juce::jlimit(0, 3, static_cast<int>(apvts.state.getProperty("windowSize", 1)));
+}
+void SkellGlitchAudioProcessor::setSavedSize(int v) {
+    apvts.state.setProperty("windowSize", juce::jlimit(0, 3, v), nullptr);
+    apvts.state.setProperty("uiScaleVersion", 2, nullptr);
+}
 juce::String SkellGlitchAudioProcessor::currentPresetName() const { return apvts.state.getProperty("presetName", "INIT").toString(); }
 void SkellGlitchAudioProcessor::setPresetName(const juce::String& name) { apvts.state.setProperty("presetName", name, nullptr); }
 void SkellGlitchAudioProcessor::setPattern(const std::array<int, 16>& pattern) {

@@ -2,7 +2,7 @@
 #include "../PluginProcessor.h"
 #include <algorithm>
 WaveDisplay::WaveDisplay(SkellGlitchAudioProcessor& p) : processor(p) {
-    startTimerHz(60);
+    startTimerHz(30);
     setMouseCursor(juce::MouseCursor::CrosshairCursor);
     setTooltip("Waveform: drag to paint steps; Alt+click cycles the step state; scroll to zoom");
 }
@@ -19,16 +19,23 @@ void WaveDisplay::paint(juce::Graphics& g) {
         const auto x = (getWidth() - 40.f) * beat / 8.f + 20.f;
         g.drawLine(x, 28.f, x, getHeight() - 22.f, .9f);
     }
+    bool hasWaveform = false;
     const int visible = std::max(1, static_cast<int>(160 / zoom));
     for (int bar = 0; bar < 160; ++bar) {
         const auto src = static_cast<size_t>(std::clamp(static_cast<int>(bar * visible / 160), 0, 159));
         const auto index = reverse ? 159 - src : src;
         const float amp = std::min(1.f, processor.waveform[static_cast<size_t>(index)].load(std::memory_order_relaxed) * 3.4f);
+        hasWaveform |= amp > .001f;
         const float x = 20.f + bar * (getWidth() - 40.f) / 160.f;
         const float height = std::max(1.5f, amp * (getHeight() - 67.f) * .5f);
         const bool played = reverse ? x >= playX : x <= playX;
         g.setColour(skell::theme::colour(played ? skell::theme::neon : skell::theme::dim).withAlpha(played ? .98f : .8f));
         g.fillRoundedRectangle(x, getHeight() * .50f - height, 2.f, height * 2.f, 1.f);
+    }
+    if (!hasWaveform) {
+        g.setColour(skell::theme::colour(skell::theme::gray).withAlpha(.65f));
+        g.setFont(skell::theme::regular(12));
+        g.drawText("WAITING FOR AUDIO", getLocalBounds().reduced(30), juce::Justification::centred);
     }
     if (mode != 0) {
         const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);

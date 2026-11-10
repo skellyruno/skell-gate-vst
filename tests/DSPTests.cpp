@@ -61,6 +61,12 @@ static void sliceTest() {
     for (int i = 0; i < 128; ++i) b.write(0.f, 0.f);
     b.onBoundary();
     check(b.length() == 128 && b.readFinished(0, 45) == 0.f, "seek reset leaked previous slice");
+    SliceCapture mono; mono.prepare(1, 2048); mono.onBoundary();
+    for (int i = 0; i < 512; ++i) mono.write(static_cast<float>(i) / 512.f, -2.f);
+    mono.onBoundary();
+    check(mono.length() == 512, "mono capture length incorrect");
+    approx(mono.readFinished(0, 100), mono.readFinished(1, 100), 1e-7,
+           "mono channel mapping returned invalid data");
 }
 static void gateTest() {
     GateSequencer g;
@@ -113,6 +119,12 @@ static void deterministicTest() {
         check(GlitchRandomizer::stepEnabled(123, i, 4, 80) == GlitchRandomizer::stepEnabled(123, i, 4, 80), "step mismatch");
     }
     check(std::isfinite(Crossfader::equalPower(.6f, .2f, .5f)), "crossfade nonfinite");
+    approx(Crossfader::spliceHold(.7f, -.3f, 0.f), .7f, 1e-7, "splice discontinuity at start");
+    approx(Crossfader::spliceHold(.7f, -.3f, 1.f), -.3f, 1e-7, "splice discontinuity at end");
+    for (int i = 0; i <= 100; ++i) {
+        const float a = Crossfader::spliceHold(.7f, -.3f, i / 100.f);
+        check(std::isfinite(a) && a >= -.301f && a <= .701f, "splice generated overshoot");
+    }
     TriggerRouter trigger; trigger.prepare(48000); trigger.trigger(.5f, 60);
     check(trigger.active() && trigger.note() == 60 && trigger.velocity() == .5f, "trigger fail");
 }

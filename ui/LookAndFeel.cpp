@@ -53,10 +53,18 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     const auto thumb = center.getPointOnCircumference(radius, angle);
     g.setColour(skell::theme::colour(skell::theme::pale)); g.fillEllipse(thumb.x - 5, thumb.y - 5, 10, 10);
     g.setColour(skell::theme::colour(skell::theme::bone));
-    g.setFont(skell::theme::display(slider.getWidth() > 100 ? 17.f : 15.f));
-    g.drawFittedText(slider.getTextFromValue(slider.getValue()),
-         juce::Rectangle<int>(static_cast<int>(center.x - radius + 11), static_cast<int>(center.y - 11),
-                        static_cast<int>(radius * 2 - 22), 22), juce::Justification::centred, 1);
+    // APVTS slider attachments may override JUCE's text conversion with
+    // floating-point representations like 30.000019. Format display values
+    // independently so the knob always shows a stable readable value.
+    const auto name = slider.getName();
+    const double value = slider.getValue();
+    const juce::String display = (name == "FADE IN" || name == "FADE OUT")
+        ? (value < 0.5 ? juce::String("Inst") : juce::String(juce::roundToInt(value)) + " ms")
+        : juce::String(juce::roundToInt(value)) + "%";
+    g.setFont(skell::theme::display(19.f));
+    g.drawFittedText(display,
+         juce::Rectangle<int>(static_cast<int>(center.x - radius + 12), static_cast<int>(center.y - 12),
+                        static_cast<int>(radius * 2 - 24), 24), juce::Justification::centred, 1);
 }
 void SkellLookAndFeel::drawComboBox(juce::Graphics& g, int w, int h, bool, int, int, int, int, juce::ComboBox&) {
     skell::theme::roundTile(g, juce::Rectangle<float>(0, 0, static_cast<float>(w), static_cast<float>(h)), 6);
