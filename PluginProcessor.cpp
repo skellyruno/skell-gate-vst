@@ -237,14 +237,17 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
         while (midiIt != midiEnd && (*midiIt).samplePosition <= i) {
             const auto event = *midiIt;
             ++midiIt;
-            if (source == skell::dsp::TriggerRouter::MIDI) {
-                const auto message = event.getMessage();
-                if (message.isNoteOn()) {
-                    triggers.trigger(message.getFloatVelocity(), message.getNoteNumber());
-                    loopIndex = std::clamp(message.getNoteNumber() - 36, 0, 8);
-                    clock.setHost(tempo, numerator, denominator, ppq, hostValid && playing, sync,
-                                  loopIndex, raw(apvts, "loopMs"));
-                }
+            // MIDI note-on is a three-byte channel message. Inspect the
+            // metadata directly to avoid constructing MidiMessage objects or
+            // copying variable-length SysEx data in the audio callback.
+            if (source == skell::dsp::TriggerRouter::MIDI && event.numBytes >= 3
+                && event.data != nullptr && (event.data[0] & 0xf0U) == 0x90U
+                && event.data[2] != 0) {
+                const int note = event.data[1] & 0x7f;
+                triggers.trigger(event.data[2] / 127.f, note);
+                loopIndex = std::clamp(note - 36, 0, 8);
+                clock.setHost(tempo, numerator, denominator, ppq, hostValid && playing, sync,
+                              loopIndex, raw(apvts, "loopMs"));
             }
         }
         if (source == skell::dsp::TriggerRouter::Manual && manual && i == 0) triggers.trigger();

@@ -1,6 +1,9 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <juce_gui_extra/juce_gui_extra.h>
 #include <array>
+#include <chrono>
+#include <cmath>
+#include <functional>
 #include <iostream>
 #include <memory>
 
@@ -50,6 +53,99 @@ int main() {
         std::cout << "UI_SMOKE: " << width << "x" << height
                   << " valid, neon samples=" << green << "\n";
     }
+    const auto findParameter = [&](const juce::String& name) -> juce::AudioProcessorParameter* {
+        for (auto* p : processor->getParameters())
+            if (p->getName(128) == name) return p;
+        return nullptr;
+    };
+    auto* power = findParameter("Power");
+    if (power == nullptr || power->getValue() >= .5f) {
+        std::cerr << "Expected bypassed initial power parameter\n";
+        return 7;
+    }
+    // Full JUCE processor signal-path smoke: real blocks, 2-channel sine,
+    // default bypass pass-through, then enabled reverse processing.
+    juce::AudioBuffer<float> audio(2, 512);
+    juce::MidiBuffer midi;
+    const auto began = std::chrono::steady_clock::now();
+    int64_t processed = 0;
+    bool heardReverse = false;
+    constexpr float amplitude = .4f;
+    for (int block = 0; block < 500; ++block) {
+        for (int sample = 0; sample < 512; ++sample) {
+            const double phase = (block * 512 + sample) * 6.283185307179586 * 220.0 / 48000.0;
+            const float left = amplitude * static_cast<float>(std::sin(phase));
+            audio.setSample(0, sample, left);
+            audio.setSample(1, sample, -left);
+        }
+        const bool enabled = block >= 210;
+        if (block == 210) power->setValueNotifyingHost(1.f);
+        processor->processBlock(audio, midi);
+        for (int sample = 0; sample < 512; ++sample) {
+            const double phase = (block * 512 + sample) * 6.283185307179586 * 220.0 / 48000.0;
+            const float original = amplitude * static_cast<float>(std::sin(phase));
+            const float left = audio.getSample(0, sample);
+            const float right = audio.getSample(1, sample);
+            if (!std::isfinite(left) || !std::isfinite(right)) {
+                std::cerr << "HOST_SMOKE: non-finite output\n";
+                return 8;
+            }
+            if (std::abs(left) > 1.f || std::abs(right) > 1.f) {
+                std::cerr << "HOST_SMOKE: clipping on below-unity sine\n";
+                return 9;
+            }
+            if (std::abs(left + right) > .001f) {
+                std::cerr << "HOST_SMOKE: stereo phase mismatch\n";
+                return 10;
+            }
+            if (!enabled && std::abs(left - original) > 1.e-5f) {
+                std::cerr << "HOST_SMOKE: bypass does not reproduce dry signal\n";
+                return 11;
+            }
+            if (enabled && block > 240 && std::abs(left - original) > .01f)
+                heardReverse = true;
+        }
+        processed += 512;
+    }
+    if (!heardReverse || processor->getLatencySamples() != 0) {
+        std::cerr << "HOST_SMOKE: reverse inactive or unexpected zero-mode latency\n";
+        return 12;
+    }
+    // The actual UI callbacks must write automatable host parameters.
+    std::function<juce::TextButton*(juce::Component&, const juce::String&)> findButton;
+    findButton = [&](juce::Component& root, const juce::String& text) -> juce::TextButton* {
+        if (auto* button = dynamic_cast<juce::TextButton*>(&root))
+            if (button->getButtonText() == text) return button;
+        for (int i = 0; i < root.getNumChildComponents(); ++i)
+            if (auto* found = findButton(*root.getChildComponent(i), text)) return found;
+        return nullptr;
+    };
+    auto* gateButton = findButton(*editor, "GATE");
+    auto* loopButton = findButton(*editor, "1/16");
+    auto* mode = findParameter("Mode");
+    auto* loop = findParameter("Loop length");
+    if (!gateButton || !loopButton || !mode || !loop
+        || !gateButton->onClick || !loopButton->onClick) {
+        std::cerr << "UI_CONTROL: missing gate or loop callback/parameter\n";
+        return 13;
+    }
+    gateButton->onClick();
+    loopButton->onClick();
+    if (std::abs(mode->getValue() - .5f) > .001f || loop->getValue() > .001f) {
+        std::cerr << "UI_CONTROL: mode or loop action did not automate\n";
+        return 14;
+    }
+    auto* triggerSource = findParameter("Trigger source");
+    if (!triggerSource) return 15;
+    triggerSource->setValueNotifyingHost(1.f / 3.f); // MIDI
+    midi.addEvent(juce::MidiMessage::noteOn(1, 36, static_cast<juce::uint8>(100)), 127);
+    processor->processBlock(audio, midi);
+    for (int i = 0; i < 512; ++i)
+        if (!std::isfinite(audio.getSample(0, i))) return 16;
+    const auto elapsed = std::chrono::duration<double>(
+        std::chrono::steady_clock::now() - began).count();
+    std::cout << "HOST_SMOKE: processed=" << processed
+              << " stereo frames, elapsed=" << elapsed << " s, latency=0, UI callbacks=passed\n";
     editor.reset();
     processor->releaseResources();
     processor.reset();

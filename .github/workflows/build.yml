@@ -19,7 +19,7 @@ jobs:
       - name: Compile DSP tests
         run: cmake --build build-dsp --parallel 2
       - name: Execute DSP tests
-        run: ctest --test-dir build-dsp --output-on-failure
+        run: ctest --test-dir build-dsp --output-on-failure --verbose
 
   windows-vst3:
     name: Skell-Glitch Windows VST3 + Standalone
@@ -43,7 +43,7 @@ jobs:
         run: cmake --build build --config Release --target skell_dsp_tests --parallel 2
       - name: Test DSP
         shell: bash
-        run: ctest --test-dir build -C Release --output-on-failure
+        run: ctest --test-dir build -C Release --output-on-failure --verbose
       - name: Render and validate offscreen UI at four window sizes
         shell: pwsh
         run: |

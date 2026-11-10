@@ -1,5 +1,12 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.4.2 — full processor and automatable UI smoke
+- Added a real JUCE AudioProcessor block test with a known anti-phase sine input: exact bypass pass-through, zero-latency mode, finite and below-unity outputs, active reverse processing, and phase-coherent stereo.
+- Offscreen UI smoke also invokes the actual gate/loop button callbacks and verifies that their automatable parameters change correctly.
+- MIDI note-ons now read fixed-size event bytes directly, avoiding MidiMessage object creation and potential variable-size copies in the audio callback.
+- CI prints detailed stress throughput diagnostics with verbose CTest output on Linux and Windows. The tests still do not replace pluginval/FL Studio host profiling or real audio listening.
+
+
 ## v1.4.1 — UI render smoke test and extreme DSP regression
 - Added a JUCE offscreen screenshot harness to Windows CI: 50%, 75%, 100% and 125% canvas sizes are rendered and checked for a valid nonblank image; PNG snapshots are uploaded as an inspectable artifact.
 - Added deterministic reverse/grain/gate/mix stress checks for finite outputs, below-unity amplitude and stereo anti-phase consistency, plus a timing diagnostic; the synthetic test does not replace audio listening or host CPU profiling.

@@ -27,7 +27,7 @@ public:
         g.drawText("SMOOTH", 50, 648, 120, 18, juce::Justification::centred);
         g.drawText("MIX", 783, 648, 120, 18, juce::Justification::centred);
         g.setFont(skell::theme::mono(11));
-        g.drawText("v1.4.1", 888, 655, 66, 16, juce::Justification::centredRight);
+        g.drawText("v1.4.2", 888, 655, 66, 16, juce::Justification::centredRight);
     }
 };
 
