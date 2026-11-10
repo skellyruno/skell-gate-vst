@@ -31,7 +31,9 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
 }
 
 TopBar::TopBar(SkellGlitchAudioProcessor& p) : processor(p) {
-    for (auto* b : {&sync, &power, &settings}) addAndMakeVisible(*b);
+    addAndMakeVisible(sync);
+    addAndMakeVisible(power);
+    addAndMakeVisible(settings);
     sync.setClickingTogglesState(false);
     power.setClickingTogglesState(false);
     settings.setTooltip("Engine settings and window sizes");
