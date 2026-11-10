@@ -12,6 +12,8 @@ ModeRow::ModeRow(SkellGlitchAudioProcessor& p) : processor(p),
     }
     reverseStyle.addItemList({"Classic", "Tape", "Ping-Pong", "Stutter"}, 1);
     gateRate.addItemList({"1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T"}, 1);
+    reverseStyle.setTooltip("Select the reverse tape, classic, ping-pong or stutter algorithm");
+    gateRate.setTooltip("Choose rhythmic gate step duration");
     addAndMakeVisible(reverseStyle); addAndMakeVisible(gateRate);
     reverseAttach = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(processor.apvts, "reverseStyle", reverseStyle);
     gateAttach = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(processor.apvts, "gateRate", gateRate);

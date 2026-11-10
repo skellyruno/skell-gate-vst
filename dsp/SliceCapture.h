@@ -50,9 +50,17 @@ public:
         const int64_t i = static_cast<int64_t>(std::floor(position));
         const float frac = static_cast<float>(position - static_cast<double>(i));
         const auto c = static_cast<size_t>(std::clamp(channel, 0, channels - 1));
-        const auto sample = [&](int64_t n) { return data[c][static_cast<size_t>((n % capacity + capacity) % capacity)]; };
-        // Four-point Hermite interpolation.
-        const float x0 = sample(i - 1), x1 = sample(i), x2 = sample(i + 1), x3 = sample(i + 2);
+        // A single modulo and short wrapped offsets replace four 64-bit
+        // modulo operations on every Hermite read (hot reverse-grain path).
+        int base = static_cast<int>(i % capacity);
+        if (base < 0) base += capacity;
+        const auto sample = [&](int offset) {
+            int index = base + offset;
+            if (index < 0) index += capacity;
+            else if (index >= capacity) index -= capacity;
+            return data[c][static_cast<size_t>(index)];
+        };
+        const float x0 = sample(-1), x1 = sample(0), x2 = sample(1), x3 = sample(2);
         const float a = -0.5f * x0 + 1.5f * x1 - 1.5f * x2 + 0.5f * x3;
         const float b = x0 - 2.5f * x1 + 2.0f * x2 - 0.5f * x3;
         const float c1 = -0.5f * x0 + 0.5f * x2;

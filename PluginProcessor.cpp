@@ -109,8 +109,13 @@ void SkellGlitchAudioProcessor::prepareToPlay(double sr, int) {
     triggers.prepare(currentSampleRate);
     for (auto& g : shapers) g.prepare(currentSampleRate);
     delayCapacity = maximum + 4096;
+    const int activeChannels = std::clamp(getMainBusNumInputChannels(), 1, 2);
     for (auto* array : {&dryDelay, &outsideDelay, &gateDelay})
-        for (auto& ch : *array) ch.assign(static_cast<size_t>(delayCapacity), 0.f);
+        for (int ch = 0; ch < 2; ++ch) {
+            auto& history = (*array)[static_cast<size_t>(ch)];
+            if (ch < activeChannels) history.assign(static_cast<size_t>(delayCapacity), 0.f);
+            else { history.clear(); history.shrink_to_fit(); }
+        }
     sampleCounter = 0;
     lastSlice = INT64_MIN;
     lastWet.fill(0.f);
@@ -197,6 +202,8 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     const float fadeOut = raw(apvts, "fadeOut") * static_cast<float>(currentSampleRate) / 1000.f;
     const float smoothingSamples = smooth * .025f * static_cast<float>(currentSampleRate);
     const float pitch = raw(apvts, "reversePitch");
+    const auto pitchContext = skell::dsp::Reverser::makePitchContext(
+        pitch, static_cast<int>(currentSampleRate));
     const float chaos = raw(apvts, "chaos");
     const int seed = static_cast<int>(raw(apvts, "seed"));
     const bool seedLock = raw(apvts, "seedLock") >= .5f;
@@ -304,6 +311,9 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
         const int delayPos = static_cast<int>(sampleCounter % delayCapacity);
         const int readPos = static_cast<int>((sampleCounter - latency + delayCapacity) % delayCapacity);
         const double phase = chaosEvent == skell::dsp::GlitchRandomizer::HalfTime ? position.phase * .5 : position.phase;
+        // Compute the crossfade trigonometry once, then reuse for L/R.
+        const auto mixGains = skell::dsp::Crossfader::equalPowerGains(mixSmoothed.getCurrentValue());
+        const float bypassAmount = bypassSmoothed.getCurrentValue();
         for (int ch = 0; ch < channels; ++ch) {
              const float delayedDry = latency ? dryDelay[ch][static_cast<size_t>(readPos)] : dry[ch];
             const float delayedOutside = latency ? outsideDelay[ch][static_cast<size_t>(readPos)] : outside[ch];
@@ -315,12 +325,12 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
             float wet = mode == 1 ? delayedGate : inside[ch];
             if (needsReverse && capture.length() > 0) {
                 const auto effectiveStyle = chaosEvent == skell::dsp::GlitchRandomizer::Stutter ? 3 : style;
-                wet = reverser.sample(capture, ch, phase, effectiveStyle,
-                                       position.sliceIndex, pitch, static_cast<int>(currentSampleRate)) * phaseEnv;
+                wet = reverser.samplePrepared(capture, ch, phase, effectiveStyle,
+                                               position.sliceIndex, pitchContext) * phaseEnv;
                 if (chaosEvent == skell::dsp::GlitchRandomizer::Flip)
                     wet = capture.readFinished(ch, phase * std::max(0, capture.length() - 1)) * phaseEnv;
                 if (chaosEvent == skell::dsp::GlitchRandomizer::Skip) wet = 0.f;
-                if (mode == 2 && !bothGateFirst) wet *= shaped[ch];
+                if ((mode == 2 && !bothGateFirst) || mode == 1) wet *= shaped[ch];
             } else if (mode != 1) wet = aligned ? delayedGate : liveGate;
             if (eventOn && chaosEvent == skell::dsp::GlitchRandomizer::Skip) wet = 0.f;
             if (needsReverse && capture.length() > 0 && transitionPhase < 1.0)
@@ -328,10 +338,9 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
                                                         wet, static_cast<float>(transitionPhase));
             lastWet[static_cast<size_t>(ch)] = wet;
             const float wetFull = delayedOutside + wet;
-            const float actualMix = mixSmoothed.getCurrentValue();
-            const float blended = skell::dsp::Crossfader::equalPower(delayedDry, wetFull, actualMix);
+            const float blended = delayedDry * mixGains.dry + wetFull * mixGains.wet;
             const float processed = delta ? blended - delayedDry : blended;
-            buffer.setSample(ch, i, delayedDry + (processed - delayedDry) * bypassSmoothed.getCurrentValue());
+            buffer.setSample(ch, i, delayedDry + (processed - delayedDry) * bypassAmount);
         }
         const float recL = bothGateFirst && mode == 2 ? inside[0] * shaped[0] : inside[0];
         const float recR = bothGateFirst && mode == 2 ? (channels > 1 ? inside[1] * shaped[1] : recL) :

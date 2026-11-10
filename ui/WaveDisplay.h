@@ -9,7 +9,7 @@ public:
     void mouseDrag(const juce::MouseEvent&) override;
     void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
 private:
-    void timerCallback() override { repaint(); }
+    void timerCallback() override { if (isShowing()) repaint(); }
     void editAt(const juce::MouseEvent&);
     SkellGlitchAudioProcessor& processor;
     float zoom = 1.f;

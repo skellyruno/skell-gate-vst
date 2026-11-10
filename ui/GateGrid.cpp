@@ -37,9 +37,15 @@ void GateGrid::paint(juce::Graphics& g) {
                          state == 1 ? skell::theme::neon : skell::theme::tile;
         g.setColour(skell::theme::colour(fill).withAlpha(state == 0 ? .9f : .77f));
         g.fillRoundedRectangle(x, state == 2 ? 0.f : 7.f, w, state == 2 ? 39.f : 32.f, 4.f);
-        if (i == active) {
-            g.setColour(skell::theme::colour(skell::theme::bone));
-            g.drawRoundedRectangle(x, 0.f, w, 41.f, 4.f, 1.25f);
+        if (i == active || i == hoveredStep) {
+            g.setColour(skell::theme::colour(i == active ? skell::theme::bone : skell::theme::cyan));
+            g.drawRoundedRectangle(x, 0.f, w, 41.f, 4.f, i == active ? 1.3f : 1.f);
+        }
+        if ((i % 4 == 0 || i == hoveredStep) && w > 22.f) {
+            g.setColour(skell::theme::colour(state == 0 ? skell::theme::gray : skell::theme::deep).withAlpha(.8f));
+            g.setFont(skell::theme::mono(9.f));
+            g.drawText(juce::String(i + 1), static_cast<int>(x), 29,
+                       static_cast<int>(w), 10, juce::Justification::centred);
         }
         g.setColour(skell::theme::colour(skell::theme::border));
         g.fillRoundedRectangle(x, 44.f, w, 3.f, 1.5f);
@@ -86,6 +92,15 @@ void GateGrid::mouseDown(const juce::MouseEvent& e) {
 void GateGrid::mouseDrag(const juce::MouseEvent& e) { edit(e); }
 void GateGrid::mouseUp(const juce::MouseEvent&) {
     edited = -1;
+}
+void GateGrid::mouseMove(const juce::MouseEvent& e) {
+    const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);
+    const int next = e.position.y < 52.f
+        ? std::clamp(static_cast<int>(e.position.x * steps / getWidth()), 0, steps - 1) : -1;
+    if (next != hoveredStep) { hoveredStep = next; repaint(); }
+}
+void GateGrid::mouseExit(const juce::MouseEvent&) {
+    if (hoveredStep != -1) { hoveredStep = -1; repaint(); }
 }
 void GateGrid::applyPattern(int op) {
     const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);

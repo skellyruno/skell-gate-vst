@@ -35,6 +35,7 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> fadeInAttach, fadeOutAttach, smoothAttach, mixAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> syncAttach, powerAttach;
     std::unique_ptr<SettingsPanel> settings;
+    std::unique_ptr<juce::TooltipWindow> tooltips;
     float uiScale = 1.f;
     uint64_t lastFlip = 0;
     int lastHeaderLatency = -1;

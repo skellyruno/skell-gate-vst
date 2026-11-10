@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(SkellGlitch VERSION 1.2.0 LANGUAGES CXX)
+project(SkellGlitch VERSION 1.3.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(SKELL_DSP_ONLY "Only build the dependency-free DSP tests" OFF)

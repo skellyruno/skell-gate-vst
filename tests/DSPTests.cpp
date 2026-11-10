@@ -54,6 +54,16 @@ static void sliceTest() {
     const float ending = reverse.sample(b, 0, 1, 0, 0, 0, 48000);
     check(beginning > ending, "reverse failed");
     check(std::isfinite(reverse.sample(b, 0, .45, 1, 0, -7, 48000)), "pitch shifter non-finite");
+    for (const float shift : {-12.f, -7.f, 0.f, 4.f, 12.f}) {
+        const auto context = Reverser::makePitchContext(shift, 48000);
+        for (int k = 0; k <= 100; ++k) {
+            const double phase = k / 100.0;
+            const float oldApi = reverse.sample(b, 0, phase, 0, 0, shift, 48000);
+            const float prepared = reverse.samplePrepared(b, 0, phase, 0, 0, context);
+            approx(oldApi, prepared, 1e-6, "cached reverse-pitch result differs");
+            check(std::isfinite(prepared), "cached reverse pitch is not finite");
+        }
+    }
     check(std::isfinite(reverse.sample(b, 0, .45, 3, 0, 9, 48000)), "stutter non-finite");
     b.clear();
     check(b.length() == 0 && b.readFinished(0, 200) == 0.f, "seek exposed stale audio");
@@ -67,6 +77,17 @@ static void sliceTest() {
     check(mono.length() == 512, "mono capture length incorrect");
     approx(mono.readFinished(0, 100), mono.readFinished(1, 100), 1e-7,
            "mono channel mapping returned invalid data");
+    SliceCapture wrapping;
+    wrapping.prepare(1, 2048);
+    wrapping.onBoundary();
+    for (int i = 0; i < 8100; ++i) wrapping.write(.1f, .1f);
+    wrapping.onBoundary(); // Intentionally too long for the finished-slice cap.
+    for (int i = 0; i < 300; ++i) wrapping.write(.625f, .625f);
+    wrapping.onBoundary(); // Cross the 8192-sample physical ring edge.
+    check(wrapping.length() == 300, "ring wrap invalid finished length");
+    for (double position : {2.0, 40.5, 100.0, 190.25, 297.0})
+        approx(wrapping.readFinished(0, position), .625, 1e-6,
+               "ring-buffer wrap changed Hermite read");
 }
 static void gateTest() {
     GateSequencer g;
@@ -82,6 +103,16 @@ static void gateTest() {
     check(one > 0 && one < 1, "gate smoothing invalid");
     for (int i = 0; i < 5000; ++i) shape.next(1, 10, 10, 1);
     check(shape.next(1, 10, 10, 1) > .99f, "gate not opening");
+    GateShaper linear;
+    linear.prepare(1000);
+    linear.reset(0.f);
+    linear.setTimes(10.f, 20.f);
+    for (int n = 0; n < 9; ++n)
+        check(linear.next(1.f, 0) < 1.f, "linear attack ended too early");
+    approx(linear.next(1.f, 0), 1.f, 1e-7, "linear attack missed its endpoint");
+    for (int n = 0; n < 19; ++n)
+        check(linear.next(0.f, 0) > 0.f, "linear release ended too early");
+    approx(linear.next(0.f, 0), 0.f, 1e-7, "linear release missed its endpoint");
     GateShaper cached, reference;
     cached.prepare(48000); reference.prepare(48000);
     cached.reset(0.f); reference.reset(0.f);
@@ -119,6 +150,11 @@ static void deterministicTest() {
         check(GlitchRandomizer::stepEnabled(123, i, 4, 80) == GlitchRandomizer::stepEnabled(123, i, 4, 80), "step mismatch");
     }
     check(std::isfinite(Crossfader::equalPower(.6f, .2f, .5f)), "crossfade nonfinite");
+    for (const float t : {0.f, .1f, .5f, .99f, 1.f}) {
+        const auto gains = Crossfader::equalPowerGains(t);
+        const float combined = .6f * gains.dry + .2f * gains.wet;
+        approx(combined, Crossfader::equalPower(.6f, .2f, t), 1e-7, "shared stereo mix coefficients changed gain");
+    }
     approx(Crossfader::spliceHold(.7f, -.3f, 0.f), .7f, 1e-7, "splice discontinuity at start");
     approx(Crossfader::spliceHold(.7f, -.3f, 1.f), -.3f, 1e-7, "splice discontinuity at end");
     for (int i = 0; i <= 100; ++i) {

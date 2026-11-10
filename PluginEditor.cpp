@@ -27,7 +27,7 @@ public:
         g.drawText("SMOOTH", 50, 648, 120, 18, juce::Justification::centred);
         g.drawText("MIX", 783, 648, 120, 18, juce::Justification::centred);
         g.setFont(skell::theme::mono(11));
-        g.drawText("v1.2.0", 888, 655, 66, 16, juce::Justification::centredRight);
+        g.drawText("v1.3.0", 888, 655, 66, 16, juce::Justification::centredRight);
     }
 };
 
@@ -192,6 +192,7 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     settings->setBounds(530, 102, 402, 548);
     settings->setVisible(false);
     top.settings.onClick = [this] { settings->setVisible(!settings->isVisible()); settings->toFront(false); };
+    tooltips = std::make_unique<juce::TooltipWindow>(this, 700);
     setResizable(true, true);
     setResizeLimits(479, 338, 1198, 845);
     getConstrainer()->setFixedAspectRatio(958.0 / 676.0);

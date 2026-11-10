@@ -1,5 +1,17 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.3.0 — responsive controls and leaner real-time DSP
+- The compact 75%-scale default and all existing skins/controls remain intact. Factory/preset toolbar uses readable short labels (A+, A USE, B+, B USE, SAVE, OPEN), with functional hover tooltips and safe asynchronous file picker callbacks.
+- Gate steps now show hover outlines and beat-quarter indices; waveform/grid painting pauses when those components are hidden. Tooltip window is enabled in the editor.
+- Reverse-pitch prepares the pitch ratio once per audio block and uses a 2,048-point linearly interpolated Hann table rather than expensive cosine calculations per sample. Reverse styles and pitch range remain unchanged.
+- Equal-power mix coefficients are calculated once per sample for stereo rather than separately per channel; 0% and 100% mix return exact endpoint gains.
+- Linear gate envelope reaches attack and release targets at a defined sample count; other gate curves retain their characteristic smoothing. Reverse states in GATE mode now respect the gate shaper.
+- Mono processing allocates only one channel of aligned delay history. Hermite capture reads now use one wrapped ring index plus local offsets rather than multiple 64-bit modulo operations.
+- Expanded dependency-free regressions cover precise linear attack/release, reverse-pitch context consistency, equal-power endpoints, and Hermite reads crossing a circular-buffer wrap.
+
+**Verification:** passing DSP unit tests and a successful CI compilation establish baseline correctness, not subjective sound quality. FL Studio host playback, transient listening, CPU profiling, and 50% UI click-testing remain to be done.
+
+
 ## v1.2.0 — compact interface and smooth splice engine
 - Default editor 719×507 (75% design scale, half the 150% screenshot dimensions), with XS 50% (479×338), M 100%, and L 125%. Legacy session sizes open at the compact default.
 - Rebalanced waveform/gate/mode/preset/band rows; fixed raw floating point knob text and broken icon glyphs with vector power/settings icons plus ASCII shift labels.

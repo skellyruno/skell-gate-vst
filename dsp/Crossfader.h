@@ -4,10 +4,17 @@
 
 namespace skell::dsp {
 struct Crossfader {
-    static float equalPower(float dry, float wet, float fraction) {
+    struct Gains { float dry = 1.f, wet = 0.f; };
+    static Gains equalPowerGains(float fraction) {
         constexpr float halfPi = 1.5707963267948966f;
         const float t = std::clamp(fraction, 0.f, 1.f);
-        return dry * std::cos(t * halfPi) + wet * std::sin(t * halfPi);
+        if (t <= 0.f) return {1.f, 0.f};
+        if (t >= 1.f) return {0.f, 1.f};
+        return {std::cos(t * halfPi), std::sin(t * halfPi)};
+    }
+    static float equalPower(float dry, float wet, float fraction) {
+        const auto gains = equalPowerGains(fraction);
+        return dry * gains.dry + wet * gains.wet;
     }
     // At a slice boundary, crossfade the last wet output sample into the
     // incoming slice; unlike a fade-to-zero this preserves perceived weight.

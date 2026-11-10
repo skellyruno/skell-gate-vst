@@ -1,14 +1,23 @@
 #include "PresetBar.h"
 #include "../PluginProcessor.h"
 PresetBar::PresetBar(SkellGlitchAudioProcessor& p) : processor(p),
-    actions{juce::TextButton("UNDO"), juce::TextButton("REDO"), juce::TextButton("SAVE A"),
-            juce::TextButton("LOAD A"), juce::TextButton("SAVE B"), juce::TextButton("LOAD B"),
-            juce::TextButton("EXPORT"), juce::TextButton("IMPORT")} {
+    actions{juce::TextButton("UNDO"), juce::TextButton("REDO"), juce::TextButton("A+"),
+            juce::TextButton("A USE"), juce::TextButton("B+"), juce::TextButton("B USE"),
+            juce::TextButton("SAVE"), juce::TextButton("OPEN")} {
     presets.addItemList(SkellGlitchAudioProcessor::factoryPresetNames(), 1);
     presets.setSelectedId(12, juce::dontSendNotification);
     presets.onChange = [this] { if (presets.getSelectedId() > 0) processor.loadFactoryPreset(presets.getSelectedId() - 1); };
+    presets.setTooltip("Choose a factory preset");
     addAndMakeVisible(presets);
-    for (auto& b : actions) addAndMakeVisible(b);
+    const std::array<const char*, 8> hints{
+        "Undo", "Redo", "Capture preset snapshot A", "Recall snapshot A",
+        "Capture preset snapshot B", "Recall snapshot B",
+        "Export user preset to XML", "Import user preset from XML"
+    };
+    for (size_t i = 0; i < actions.size(); ++i) {
+        actions[i].setTooltip(hints[i]);
+        addAndMakeVisible(actions[i]);
+    }
     actions[0].onClick = [this] { processor.undo.undo(); };
     actions[1].onClick = [this] { processor.undo.redo(); };
     actions[2].onClick = [this] { processor.snapshotAB(0); };
@@ -17,19 +26,29 @@ PresetBar::PresetBar(SkellGlitchAudioProcessor& p) : processor(p),
     actions[5].onClick = [this] { processor.recallAB(1); };
     actions[6].onClick = [this] {
         chooser = std::make_unique<juce::FileChooser>("Export Skell-Glitch preset", SkellGlitchAudioProcessor::userPresetFolder().getChildFile("My Preset.xml"), "*.xml");
+        juce::Component::SafePointer<PresetBar> safe(this);
         chooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-           [this](const juce::FileChooser& c) { if (c.getResult() != juce::File{}) processor.saveUserPreset(c.getResult(), c.getResult().getFileNameWithoutExtension()); });
+           [safe](const juce::FileChooser& c) {
+               if (safe != nullptr && c.getResult() != juce::File{})
+                   safe->processor.saveUserPreset(c.getResult(), c.getResult().getFileNameWithoutExtension());
+           });
     };
     actions[7].onClick = [this] {
         chooser = std::make_unique<juce::FileChooser>("Import Skell-Glitch preset", SkellGlitchAudioProcessor::userPresetFolder(), "*.xml");
+        juce::Component::SafePointer<PresetBar> safe(this);
         chooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-           [this](const juce::FileChooser& c) { if (c.getResult() != juce::File{}) processor.loadUserPreset(c.getResult()); });
+           [safe](const juce::FileChooser& c) {
+               if (safe != nullptr && c.getResult() != juce::File{})
+                   safe->processor.loadUserPreset(c.getResult());
+           });
     };
 }
 void PresetBar::resized() {
-    presets.setBounds(0, 0, 167, getHeight());
-    const int width = (getWidth() - 174) / 8;
+    constexpr int selectorWidth = 159;
+    constexpr int controlsStart = 165;
+    presets.setBounds(0, 0, selectorWidth, getHeight());
+    const int width = (getWidth() - controlsStart) / 8;
     for (size_t i = 0; i < actions.size(); ++i)
-        actions[i].setBounds(174 + static_cast<int>(i) * width, 0, width - 3, getHeight());
+        actions[i].setBounds(controlsStart + static_cast<int>(i) * width, 0, width - 2, getHeight());
 }
 void PresetBar::paint(juce::Graphics&) {}

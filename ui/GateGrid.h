@@ -8,9 +8,11 @@ public:
     void mouseDown(const juce::MouseEvent&) override;
     void mouseDrag(const juce::MouseEvent&) override;
     void mouseUp(const juce::MouseEvent&) override;
+    void mouseMove(const juce::MouseEvent&) override;
+    void mouseExit(const juce::MouseEvent&) override;
     void resized() override;
 private:
-    void timerCallback() override { repaint(); }
+    void timerCallback() override { if (isShowing()) repaint(); }
     void edit(const juce::MouseEvent&);
     void applyPattern(int operation);
     void setStep(int index, int value);
@@ -18,6 +20,6 @@ private:
     SkellGlitchAudioProcessor& processor;
     std::array<juce::TextButton, 5> commands;
     juce::ComboBox pattern;
-    int edited = -1, drawValue = 1;
+    int edited = -1, drawValue = 1, hoveredStep = -1;
     bool probabilityMode = false;
 };
