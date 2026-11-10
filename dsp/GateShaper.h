@@ -35,7 +35,9 @@ public:
             // after exactly ceil(attack/release samples), not asymptotically.
             if (previousCurve != 0 || target != linearTarget) {
                 linearStart = current; linearTarget = target;
-                linearDuration = std::max(1, static_cast<int>(std::ceil(
+                // Round sample counts to nearest integer: e.g. 10 ms at 1 kHz
+                // must be 10 samples, not 11 due to float precision noise.
+                linearDuration = std::max(1, static_cast<int>(std::lround(
                     target >= current ? attackSamples : releaseSamples)));
                 linearProgress = 0;
             }
