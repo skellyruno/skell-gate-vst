@@ -34,12 +34,16 @@ void WaveDisplay::paint(juce::Graphics& g) {
         g.drawLine(x, 28.f, x, getHeight() - 22.f, .9f);
     }
     bool hasWaveform = false;
+    for (const auto& peak : processor.waveform)
+        if (peak.load(std::memory_order_relaxed) > .001f) {
+            hasWaveform = true;
+            break;
+        }
     const int visible = std::max(1, static_cast<int>(160 / zoom));
-    for (int bar = 0; bar < 160; ++bar) {
+    if (hasWaveform) for (int bar = 0; bar < 160; ++bar) {
         const auto src = static_cast<size_t>(std::clamp(static_cast<int>(bar * visible / 160), 0, 159));
         const auto index = reverse ? 159 - src : src;
         const float amp = std::min(1.f, processor.waveform[static_cast<size_t>(index)].load(std::memory_order_relaxed) * 3.4f);
-        hasWaveform |= amp > .001f;
         const float x = 20.f + bar * (getWidth() - 40.f) / 160.f;
         const float height = std::max(1.5f, amp * (getHeight() - 67.f) * .5f);
         const bool played = reverse ? x >= playX : x <= playX;
@@ -47,9 +51,14 @@ void WaveDisplay::paint(juce::Graphics& g) {
         g.fillRoundedRectangle(x, getHeight() * .50f - height, 2.f, height * 2.f, 1.f);
     }
     if (!hasWaveform) {
-        g.setColour(skell::theme::colour(skell::theme::gray).withAlpha(.65f));
-        g.setFont(skell::theme::regular(12));
-        g.drawText("WAITING FOR AUDIO", getLocalBounds().reduced(30), juce::Justification::centred);
+        // Do not draw a false waveform baseline or a bright playhead on silence:
+        // the idle message must remain unobscured at 50%-125% window scales.
+        g.setColour(skell::theme::colour(skell::theme::gray).withAlpha(.76f));
+        g.setFont(skell::theme::regular(13));
+        g.drawFittedText("WAITING FOR INPUT",
+                         juce::Rectangle<int>(20, getHeight() / 2 - 12,
+                                              getWidth() - 40, 24),
+                         juce::Justification::centred, 1);
     }
     if (mode != 0) {
         const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);
@@ -71,10 +80,12 @@ void WaveDisplay::paint(juce::Graphics& g) {
         g.setFont(skell::theme::mono(11));
         g.drawText("REVERSE", getWidth() - 121, 8, 75, 19, juce::Justification::centredRight);
     }
-    g.setColour(skell::theme::colour(skell::theme::pale).withAlpha(.20f));
-    g.drawLine(playX, 28.f, playX, getHeight() - 22.f, 6.f);
-    g.setColour(skell::theme::colour(skell::theme::neon));
-    g.drawLine(playX, 28.f, playX, getHeight() - 22.f, 2.f);
+    if (hasWaveform) {
+        g.setColour(skell::theme::colour(skell::theme::pale).withAlpha(.20f));
+        g.drawLine(playX, 28.f, playX, getHeight() - 22.f, 6.f);
+        g.setColour(skell::theme::colour(skell::theme::neon));
+        g.drawLine(playX, 28.f, playX, getHeight() - 22.f, 2.f);
+    }
     g.setColour(skell::theme::colour(skell::theme::gray));
     g.setFont(skell::theme::mono(10));
     g.drawText("LIVE SLICE  /  " + juce::String(zoom, 1) + "x", 16, 7, 120, 17, juce::Justification::centredLeft);

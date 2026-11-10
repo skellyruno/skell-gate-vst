@@ -1,5 +1,10 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.4.3 — screenshot-driven UI fixes
+- Inspected the actual offscreen renders at 479x338, 719x507, 958x676, and 1198x845. When input is silent, waveform output no longer draws a false flatline or bright playhead over the waiting message.
+- Moved the version label away from the bottom-right JUCE resize grip so it cannot be truncated at any window size.
+
+
 ## v1.4.2 — full processor and automatable UI smoke
 - Added a real JUCE AudioProcessor block test with a known anti-phase sine input: exact bypass pass-through, zero-latency mode, finite and below-unity outputs, active reverse processing, and phase-coherent stereo.
 - Offscreen UI smoke also invokes the actual gate/loop button callbacks and verifies that their automatable parameters change correctly.
