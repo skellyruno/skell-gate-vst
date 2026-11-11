@@ -1,5 +1,10 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.6.5 — cap depth and four-knob reference fit
+- Replaced excessive concentric silver 'washer' outlines with a recessed bronze shoulder, warm metal gradients and one clean highlight. The raised center has a deeper cast shadow and matte champagne finish.
+- Enlarged and recentered Smooth/Mix controls to better match the reference; fade geometry and host automation positions remain unchanged.
+- Refined the SkellCore-based skull badge's jaw/teeth for a cleaner silhouette; shared geometry, click-to-cycle appearance and saved skins are intact.
+
 ## v1.6.4 — retro metal knobs and mechanical header controls
 - Refined all four real JUCE knobs against the reference: machined brass lip, inset dark-olive track, narrower neon lighting, warmer raised caps, and independent actual-value dots. Fade bezels show continuous backlight without making their automation values misleading.
 - Reworked skull, settings cog and power medallions: warm bronze raised buttons with engraved olive-green power/gear symbols; removed the oversized neon rings from non-skull icons. The skull continues to use SkellCore's shared geometry and theme switch callback.

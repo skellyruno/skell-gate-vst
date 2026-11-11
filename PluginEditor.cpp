@@ -68,7 +68,7 @@ public:
         g.drawText("SMOOTH",43,676,120,24,juce::Justification::centred);
         g.drawText("MIX",793,676,120,24,juce::Justification::centred);
         g.setFont(mono(11.5f));
-        g.drawText("v1.6.4",724,681,74,16,juce::Justification::centredRight);
+        g.drawText("v1.6.5",724,681,74,16,juce::Justification::centredRight);
     }
 };
 
@@ -214,8 +214,8 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     band.setBounds(skell::theme::band);
     fadeIn.setBounds(34, 190, 141, 154);
     fadeOut.setBounds(783, 190, 141, 154);
-    smooth.setBounds(39, 541, 117, 126);
-    mix.setBounds(793, 541, 117, 126);
+    smooth.setBounds(34, 539, 130, 130);
+    mix.setBounds(788, 539, 130, 130);
     for (auto* slider : {&fadeIn, &fadeOut, &smooth, &mix}) slider->setDoubleClickReturnValue(true, slider == &smooth ? 30. : slider == &mix ? 100. : 0.);
     fadeIn.textFromValueFunction = [](double value) { return value < .5 ? "Inst" : juce::String(value, 0) + " ms"; };
     fadeOut.textFromValueFunction = fadeIn.textFromValueFunction;

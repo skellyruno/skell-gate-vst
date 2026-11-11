@@ -40,10 +40,14 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
         // jaw details are polished without creating a new brand skull.
         skellcore::ui::drawSkullKeyMark(g,sx,sy,neon,juce::Colours::black);
         g.setColour(juce::Colours::black);
-        g.fillRoundedRectangle(c.x-9.3f,c.y+5.3f,18.6f,4.1f,1.f);
+        // Narrow, tapered jaw and shorter teeth match the approved skull
+        // medallion more closely while retaining the shared SkellCore mark.
+        g.fillEllipse(c.x-15.1f,c.y+8.8f,7.f,6.f);
+        g.fillEllipse(c.x+8.1f,c.y+8.8f,7.f,6.f);
+        g.fillRoundedRectangle(c.x-7.5f,c.y+5.3f,15.f,3.8f,1.f);
         for(int t=-2;t<=2;++t) {
             g.setColour(neon);
-            g.fillRoundedRectangle(c.x+t*3.25f-.66f,c.y+5.6f,1.5f,4.1f,.5f);
+            g.fillRoundedRectangle(c.x+t*2.6f-.55f,c.y+5.8f,1.15f,3.2f,.5f);
         }
     } else if(icon==Kind::Settings) {
         // Dark bevel under each spoke gives the green, engraved mechanical

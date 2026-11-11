@@ -79,14 +79,16 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
         bronze.brighter(.42f),c.x-outer*.74f,c.y-outer*.9f,
         bronze.darker(.29f),c.x+outer*.84f,c.y+outer*.92f,false));
     g.fillEllipse(ellipse(outer-.9f));
-    g.setColour(juce::Colours::white.withAlpha(.67f));
-    g.drawEllipse(ellipse(outer-2.5f),1.f);
-    g.setColour(border.withAlpha(.85f));
-    g.drawEllipse(ellipse(outer-4.2f),1.2f);
-    g.setColour(bronze.darker(.21f));
-    g.fillEllipse(ellipse(outer-5.7f));
-    g.setColour(bronze.brighter(.17f));
-    g.drawEllipse(ellipse(outer-6.7f),.75f);
+    g.setColour(juce::Colours::white.withAlpha(.56f));
+    g.drawEllipse(ellipse(outer-2.5f),1.25f);
+    // A single recessed bronze shoulder gives the knob its machined depth,
+    // without the stack of thin 'washer' lines from the earlier renderer.
+    g.setColour(border.darker(.32f));
+    g.fillEllipse(ellipse(outer-5.2f));
+    g.setGradientFill(juce::ColourGradient(
+        bronze.brighter(.34f), c.x-outer*.55f, c.y-outer*.65f,
+        bronze.darker(.30f), c.x+outer*.63f, c.y+outer*.83f, false));
+    g.fillEllipse(ellipse(outer-7.0f));
 
     const float ringRadius = outer * .78f;
     juce::Path track, progress;
@@ -121,19 +123,23 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
                                                  juce::PathStrokeType::rounded));
 
     // The dial is a raised ceramic-metal cap with an engraved outer groove.
-    const float cap = outer*.67f;
-    g.setColour(border.darker(.43f));
-    g.fillEllipse(ellipse(cap+2.0f).translated(0,1.6f));
-    g.setColour(bronze.brighter(.24f));
+    const float cap = outer*.69f;
+    // A pronounced cast shadow under the raised center is the key part of
+    // the reference's retro knob: it must look like a cap, not a flat washer.
+    g.setColour(juce::Colours::black.withAlpha(.33f));
+    g.fillEllipse(ellipse(cap+2.5f).translated(1.f,2.6f));
+    g.setColour(border.darker(.37f));
     g.fillEllipse(ellipse(cap+1.f));
+    g.setColour(bronze.brighter(.32f));
+    g.fillEllipse(ellipse(cap));
     g.setGradientFill(juce::ColourGradient(
-        bronze.brighter(.38f),c.x-cap*.60f,c.y-cap*.87f,
-        bronze.darker(.25f),c.x+cap*.67f,c.y+cap*.9f,false));
+        bronze.brighter(.48f),c.x-cap*.71f,c.y-cap*.81f,
+        bronze.darker(.14f),c.x+cap*.71f,c.y+cap*.91f,false));
     g.fillEllipse(ellipse(cap-.8f));
-    g.setColour(juce::Colours::white.withAlpha(.62f));
-    g.drawEllipse(ellipse(cap-2.3f),1.1f);
-    g.setColour(border.withAlpha(.22f));
-    g.drawEllipse(ellipse(cap-4.9f),.85f);
+    g.setColour(juce::Colours::white.withAlpha(.59f));
+    g.drawEllipse(ellipse(cap-2.0f),1.12f);
+    g.setColour(border.withAlpha(.15f));
+    g.drawEllipse(ellipse(cap-3.3f),.52f);
     // Position pin always follows the real parameter, including at the
     // Instant fade setting; it never follows the decorative illumination.
     const auto tip=c.getPointOnCircumference(ringRadius,angle);
