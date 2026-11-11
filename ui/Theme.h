@@ -70,17 +70,19 @@ inline void raised(juce::Graphics& g, juce::Rectangle<float> bounds, float radiu
     g.setColour(juce::Colours::black.withAlpha(.26f));
     g.fillRoundedRectangle(bounds.translated(0.f, 2.5f), radius);
     const auto c = colour(selected ? neon : tile);
-    juce::ColourGradient gradient(c.brighter(selected ? .20f : .18f),
+    const bool black = matteBlack();
+    juce::ColourGradient gradient(c.brighter(selected ? .16f : black ? .07f : .18f),
                                   bounds.getCentreX(), bounds.getY(),
-                                  c.darker(selected ? .16f : .24f),
+                                  c.darker(selected ? .16f : black ? .14f : .24f),
                                   bounds.getCentreX(), bounds.getBottom(), false);
     if (pressed) gradient = juce::ColourGradient(c.darker(.13f),bounds.getCentreX(),bounds.getY(),
                                                  c.brighter(.05f),bounds.getCentreX(),bounds.getBottom(),false);
     g.setGradientFill(gradient);
     g.fillRoundedRectangle(bounds, radius);
-    g.setColour(colour(selected ? dim : border).withAlpha(selected ? .95f : .85f));
+    g.setColour(colour(selected ? dim : border).withAlpha(selected ? .91f : (black ? .50f : .85f)));
     g.drawRoundedRectangle(bounds.reduced(.5f), radius, 1.35f);
-    g.setColour(juce::Colours::white.withAlpha(selected ? .48f : (ivory() ? .57f : .16f)));
+    g.setColour(juce::Colours::white.withAlpha(selected ? (black ? .24f : .48f)
+                                                      : (ivory() ? .57f : black ? .085f : .16f)));
     g.drawRoundedRectangle(bounds.reduced(1.6f), std::max(0.f,radius-1.2f), .9f);
     g.setColour(juce::Colours::black.withAlpha(.16f));
     g.drawLine(bounds.getX()+radius*.55f, bounds.getBottom()-2.f,
@@ -93,7 +95,7 @@ inline const juce::Rectangle<int> top{0,0,width,59};
 inline const juce::Rectangle<int> loops{22,72,924,71};
 inline const juce::Rectangle<int> wave{207,152,546,233};
 inline const juce::Rectangle<int> gate{210,393,545,85};
-inline const juce::Rectangle<int> modes{209,489,585,47};
-inline const juce::Rectangle<int> presets{205,541,560,32};
+inline const juce::Rectangle<int> modes{197,518,640,47};
+inline const juce::Rectangle<int> presets{328,10,300,39};
 inline const juce::Rectangle<int> band{233,586,496,85};
 }

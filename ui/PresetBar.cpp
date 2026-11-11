@@ -4,11 +4,16 @@ PresetBar::PresetBar(SkellGlitchAudioProcessor& p) : processor(p),
     actions{juce::TextButton("UNDO"), juce::TextButton("REDO"), juce::TextButton("A+"),
             juce::TextButton("A USE"), juce::TextButton("B+"), juce::TextButton("B USE"),
             juce::TextButton("SAVE"), juce::TextButton("OPEN")} {
+    setName("HEADER_PRESET_BAR");
     presets.addItemList(SkellGlitchAudioProcessor::factoryPresetNames(), 1);
     presets.setSelectedId(12, juce::dontSendNotification);
     presets.onChange = [this] { if (presets.getSelectedId() > 0) processor.loadFactoryPreset(presets.getSelectedId() - 1); };
     presets.setTooltip("Choose a factory preset");
     addAndMakeVisible(presets);
+    tools.setName("PRESET_TOOLS_MENU");
+    tools.setTooltip("Undo, redo, snapshots A/B, save and open preset");
+    tools.onClick = [this] { showToolsMenu(); };
+    addAndMakeVisible(tools);
     const std::array<const char*, 8> hints{
         "Undo", "Redo", "Capture preset snapshot A", "Recall snapshot A",
         "Capture preset snapshot B", "Recall snapshot B",
@@ -16,7 +21,7 @@ PresetBar::PresetBar(SkellGlitchAudioProcessor& p) : processor(p),
     };
     for (size_t i = 0; i < actions.size(); ++i) {
         actions[i].setTooltip(hints[i]);
-        addAndMakeVisible(actions[i]);
+        // Actions remain callable by menu ID; they are not another row of widgets.
     }
     actions[0].onClick = [this] { processor.undo.undo(); };
     actions[1].onClick = [this] { processor.undo.redo(); };
@@ -44,16 +49,35 @@ PresetBar::PresetBar(SkellGlitchAudioProcessor& p) : processor(p),
     };
 }
 void PresetBar::resized() {
-    // One baseline, consistent 4px gaps, and no button-on-button borders.
-    constexpr int selectorWidth = 166, controlsStart = 172, gap = 4;
-    presets.setBounds(0, 0, selectorWidth, getHeight());
-    const int available = getWidth() - controlsStart - gap * 7;
-    const int baseWidth = available / 8;
-    int px = controlsStart;
-    for (size_t i = 0; i < actions.size(); ++i) {
-        const int width = i == 7 ? getWidth() - px : baseWidth;
-        actions[i].setBounds(px, 0, width, getHeight());
-        px += width + gap;
-    }
+    constexpr int gap = 7, toolsWidth = 60;
+    presets.setBounds(0, 0, getWidth() - toolsWidth - gap, getHeight());
+    tools.setBounds(getWidth() - toolsWidth, 0, toolsWidth, getHeight());
+}
+void PresetBar::runAction(int index) {
+    if (index < 0 || index >= static_cast<int>(actions.size())) return;
+    // Reuse the existing tested callbacks so no A/B, import or undo feature
+    // is lost when replacing the visible strip with a compact tools menu.
+    if (actions[static_cast<size_t>(index)].onClick)
+        actions[static_cast<size_t>(index)].onClick();
+}
+void PresetBar::showToolsMenu() {
+    juce::PopupMenu menu;
+    menu.addSectionHeader("PRESET TOOLS");
+    menu.addItem(1, "Undo");
+    menu.addItem(2, "Redo");
+    menu.addSeparator();
+    menu.addItem(3, "Capture A");
+    menu.addItem(4, "Recall A");
+    menu.addItem(5, "Capture B");
+    menu.addItem(6, "Recall B");
+    menu.addSeparator();
+    menu.addItem(7, "Save preset...");
+    menu.addItem(8, "Open preset...");
+    juce::Component::SafePointer<PresetBar> safe(this);
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&tools),
+        [safe](int choice) {
+            if (safe != nullptr && choice >= 1 && choice <= 8)
+                safe->runAction(choice - 1);
+        });
 }
 void PresetBar::paint(juce::Graphics&) {}

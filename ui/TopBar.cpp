@@ -106,8 +106,9 @@ TopBar::TopBar(SkellGlitchAudioProcessor& p) : processor(p) {
 }
 void TopBar::resized() {
     skull.setBounds(10,4,49,50);
-    settings.setBounds(840,7,44,46);
-    power.setBounds(906,7,46,46);
+    // Physical controls are deliberately grouped with only a 5 px gap.
+    settings.setBounds(859,7,42,46);
+    power.setBounds(906,7,47,46);
 }
 void TopBar::paint(juce::Graphics& g) {
     const auto green=skell::theme::colour(skell::theme::neon);
@@ -124,19 +125,25 @@ void TopBar::paint(juce::Graphics& g) {
     {
         juce::Graphics::ScopedSaveState saved(g);
         g.addTransform(juce::AffineTransform::translation(static_cast<float>(jitterOffset),0.f));
-        g.setFont(skell::theme::display(29.f));
-        // SkellGlitch is one CamelCase word, with independent brand colours.
-        g.setColour(dark);g.drawText("Skell",62,8,78,43,juce::Justification::centredLeft);
-        g.setColour(green.darker(.3f));g.drawText("Glitch",126+1,9,99,43,juce::Justification::centredLeft);
-        g.setColour(green);g.drawText("Glitch",126,8,99,43,juce::Justification::centredLeft);
+        // A single uppercase word. A compact secondary line carries the
+        // vintage front-panel slogan; version is engraved alongside the name.
+        g.setFont(skell::theme::display(25.5f));
+        g.setColour(dark);
+        g.drawText("SKELL",62,7,83,30,juce::Justification::centredLeft);
+        g.setColour(green.darker(.32f));
+        g.drawText("GLITCH",143,8,102,30,juce::Justification::centredLeft);
+        g.setColour(green);
+        g.drawText("GLITCH",142,7,102,30,juce::Justification::centredLeft);
     }
     g.setColour(skell::theme::colour(skell::theme::gray));
-    g.setFont(skell::theme::regular(11.f));
-    g.drawText("CUT IT. FLIP IT.",244,21,157,18,juce::Justification::centredLeft);
+    g.setFont(skell::theme::regular(10.5f));
+    g.drawText("CUT IT. FLIP IT.",63,36,170,15,juce::Justification::centredLeft);
+    g.setFont(skell::theme::mono(9.7f));
+    g.drawText("v1.7.3",249,17,57,16,juce::Justification::centredLeft);
     const double sr=processor.getSampleRate();
     const int latency=processor.displayLatency.load(std::memory_order_relaxed);
     g.setFont(skell::theme::mono(12.f));
     g.setColour(dark.withAlpha(.93f));
     g.drawText(juce::String(sr>0?sr/1000.0:48.0,1)+" kHz  •  "+juce::String(latency)+" samples",
-               633,18,190,25,juce::Justification::centredRight);
+               651,18,196,25,juce::Justification::centredRight);
 }

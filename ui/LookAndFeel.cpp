@@ -65,7 +65,7 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     const auto neon = skell::theme::colour(skell::theme::neon);
     const auto border = skell::theme::colour(skell::theme::border);
     const auto bronze = skell::theme::matteBlack()
-        ? juce::Colour(0xff4c4b43) : skell::theme::colour(skell::theme::tile);
+        ? juce::Colour(0xff393c37) : skell::theme::colour(skell::theme::tile);
     const auto ink = skell::theme::colour(skell::theme::bone);
     const bool fade = slider.getName() == "FADE IN" || slider.getName() == "FADE OUT";
     const auto ellipse = [&](float radius) {
@@ -141,7 +141,7 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
         bronze.brighter(.48f),c.x-cap*.71f,c.y-cap*.81f,
         bronze.darker(.14f),c.x+cap*.71f,c.y+cap*.91f,false));
     g.fillEllipse(ellipse(cap-.8f));
-    g.setColour(juce::Colours::white.withAlpha(skell::theme::ivory() ? .59f : .31f));
+    g.setColour(juce::Colours::white.withAlpha(skell::theme::ivory() ? .59f : .18f));
     g.drawEllipse(ellipse(cap-2.0f),1.12f);
     g.setColour(border.withAlpha(.15f));
     g.drawEllipse(ellipse(cap-3.3f),.52f);

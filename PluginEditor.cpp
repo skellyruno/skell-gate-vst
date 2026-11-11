@@ -67,11 +67,10 @@ public:
         g.drawText("LOOP LENGTH",426,120,110,24,juce::Justification::centred);
         g.drawText("FADE IN",45,340,120,26,juce::Justification::centred);
         g.drawText("FADE OUT",794,340,120,26,juce::Justification::centred);
-        g.drawText("MODE",140,494,54,25,juce::Justification::centred);
+        g.drawText("MODE",139,525,54,24,juce::Justification::centred);
         g.drawText("SMOOTH",43,676,120,24,juce::Justification::centred);
         g.drawText("MIX",793,676,120,24,juce::Justification::centred);
-        g.setFont(mono(11.5f));
-        g.drawText("v1.7.2",724,681,74,16,juce::Justification::centredRight);
+        // The version is engraved alongside the brand in the header.
     }
 };
 
@@ -212,8 +211,9 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     loops.setBounds(skell::theme::loops);
     waveform.setBounds(skell::theme::wave);
     gate.setBounds(skell::theme::gate);
-    modes.setBounds(197, 489, 640, 47);
-    presets.setBounds(skell::theme::presets);
+    modes.setBounds(197, 518, 640, 47);
+    // The preset bar is now a single header control; no third bottom row.
+    presets.setBounds(328, 10, 300, 39);
     band.setBounds(skell::theme::band);
     fadeIn.setBounds(34, 190, 141, 154);
     fadeOut.setBounds(783, 190, 141, 154);

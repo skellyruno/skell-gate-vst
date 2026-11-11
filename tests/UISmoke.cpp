@@ -144,6 +144,24 @@ int main() {
             if (auto* found = findButton(*root.getChildComponent(i), text)) return found;
         return nullptr;
     };
+    // The header must own the only visible preset strip; the lower section
+    // must have no third action-button row after the redesign.
+    std::function<juce::Component*(juce::Component&, const juce::String&)> findNamed;
+    findNamed = [&](juce::Component& root, const juce::String& name) -> juce::Component* {
+        if (root.getName() == name) return &root;
+        for (int i = 0; i < root.getNumChildComponents(); ++i)
+            if (auto* match = findNamed(*root.getChildComponent(i), name)) return match;
+        return nullptr;
+    };
+    auto* headerPreset = findNamed(*editor, "HEADER_PRESET_BAR");
+    auto* presetTools = findNamed(*editor, "PRESET_TOOLS_MENU");
+    if (!headerPreset || !presetTools || !presetTools->isVisible() ||
+        headerPreset->getY() >= 59 || headerPreset->getHeight() > 59 ||
+        headerPreset->getWidth() < 250 ||
+        presetTools->getParentComponent() != headerPreset) {
+        std::cerr << "UI_LAYOUT: header preset control/menu missing or incorrectly placed\n";
+        return 27;
+    }
     auto* gateButton = findButton(*editor, "GATE");
     auto* loopButton = findButton(*editor, "1/16");
     auto* syncButton = findButton(*editor, "SYNC ON");
