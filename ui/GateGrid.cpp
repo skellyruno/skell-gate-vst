@@ -84,7 +84,8 @@ void GateGrid::paint(juce::Graphics& g) {
             g.drawRoundedRectangle(x, 0.f, w, 41.f, 4.f, i == active ? 1.6f : 1.f);
         }
         if ((i % 4 == 0 || i == hoveredStep) && w > 21.f) {
-            g.setColour(skell::theme::colour(skell::theme::bone).withAlpha(.86f));
+            g.setColour(state == 0 ? skell::theme::colour(skell::theme::bone).withAlpha(.86f)
+                                   : juce::Colour(0xff162010));
             g.setFont(skell::theme::mono(10.f));
             g.drawText(juce::String(i + 1), static_cast<int>(x), 27,
                        static_cast<int>(w), 12, juce::Justification::centred);

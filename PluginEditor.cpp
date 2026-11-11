@@ -71,7 +71,7 @@ public:
         g.drawText("SMOOTH",43,676,120,24,juce::Justification::centred);
         g.drawText("MIX",793,676,120,24,juce::Justification::centred);
         g.setFont(mono(11.5f));
-        g.drawText("v1.7.1",724,681,74,16,juce::Justification::centredRight);
+        g.drawText("v1.7.2",724,681,74,16,juce::Justification::centredRight);
     }
 };
 

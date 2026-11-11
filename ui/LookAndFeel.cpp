@@ -20,7 +20,8 @@ void SkellLookAndFeel::setSkin(skellcore::ui::StudioSkin chosen) {
     setColour(juce::PopupMenu::backgroundColourId, bg);
     setColour(juce::PopupMenu::textColourId, fore);
     setColour(juce::PopupMenu::highlightedBackgroundColourId, accent);
-    setColour(juce::PopupMenu::highlightedTextColourId, skell::theme::colour(skell::theme::bone));
+    // All four selected skin accents need dark text for legibility.
+    setColour(juce::PopupMenu::highlightedTextColourId, juce::Colour(0xff131811));
     setColour(juce::Slider::thumbColourId, accent);
     setColour(juce::Slider::rotarySliderFillColourId, accent);
     setColour(juce::Slider::textBoxTextColourId, fore);
@@ -45,7 +46,8 @@ void SkellLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& b, 
     }
 }
 void SkellLookAndFeel::drawButtonText(juce::Graphics& g, juce::TextButton& b, bool, bool) {
-    g.setColour(skell::theme::colour(skell::theme::bone));
+    g.setColour(b.getToggleState() ? juce::Colour(0xff121910)
+                                  : skell::theme::colour(skell::theme::bone));
     const float h = static_cast<float>(b.getHeight());
     g.setFont(skell::theme::display(h >= 40.f ? 15.3f : h >= 29.f ? 12.7f : 11.f));
     g.drawFittedText(b.getButtonText(), b.getLocalBounds().reduced(3,2),

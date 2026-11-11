@@ -1,5 +1,9 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.7.2 — matte-black theme readability polish
+- Selected neon-green buttons use engraved dark text instead of white-on-lime; step numerals and highlighted popup entries use the same accessible contrast.
+- No parameter, layout, automation, or audio-engine changes; the vintage black/ivory SkellCore palette and one-word product name are preserved.
+
 ## v1.7.1 — DSP resilience at extreme sample rates and automation values
 - Filter cutoff coefficients now stay finite for invalid host sample rates, reversed ranges, and non-finite automation values; stereo split recombines exactly across multiple sample-rate regimes.
 - Reverse pitch, stutter and phase values now have finite fallback behavior so invalid upstream values cannot generate NaN samples.
