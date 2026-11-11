@@ -15,8 +15,32 @@ GateGrid::GateGrid(SkellGlitchAudioProcessor& p) : processor(p),
     pattern.onChange = [this] { if (pattern.getSelectedId() > 0) loadPattern(pattern.getSelectedId() - 1); };
     addAndMakeVisible(pattern);
     setTooltip("Click to cycle steps. Drag to paint. Drag probability strip or hold Shift to edit chance.");
+    for (int i = 0; i < 32; ++i) {
+        const auto name = "step" + juce::String(i + 1);
+        stateValues[static_cast<size_t>(i)] = processor.apvts.getRawParameterValue(name + "_state");
+        probabilityValues[static_cast<size_t>(i)] = processor.apvts.getRawParameterValue(name + "_prob");
+    }
+    lastStates.fill(-1.f);
+    lastProbabilities.fill(-1.f);
     startTimerHz(30);
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
+}
+void GateGrid::timerCallback() {
+    if (!isShowing()) return;
+    const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);
+    const int active = processor.displayStep.load(std::memory_order_relaxed);
+    bool changed = steps != lastStepCount || active != lastPaintedStep;
+    lastStepCount = steps;
+    lastPaintedStep = active;
+    for (int i = 0; i < steps; ++i) {
+        const auto idx = static_cast<size_t>(i);
+        const float state = stateValues[idx]->load(std::memory_order_relaxed);
+        const float chance = probabilityValues[idx]->load(std::memory_order_relaxed);
+        if (state != lastStates[idx] || chance != lastProbabilities[idx]) changed = true;
+        lastStates[idx] = state;
+        lastProbabilities[idx] = chance;
+    }
+    if (changed) repaint();
 }
 void GateGrid::resized() {
     const int buttonWidth = (getWidth() - 140) / 5;
@@ -28,9 +52,9 @@ void GateGrid::paint(juce::Graphics& g) {
     const float cell = static_cast<float>(getWidth()) / steps;
     const int active = processor.displayStep.load();
     for (int i = 0; i < steps; ++i) {
-        const auto name = "step" + juce::String(i + 1);
-        const int state = static_cast<int>(processor.apvts.getRawParameterValue(name + "_state")->load());
-        const float probability = processor.apvts.getRawParameterValue(name + "_prob")->load();
+        const auto idx = static_cast<size_t>(i);
+        const int state = static_cast<int>(stateValues[idx]->load(std::memory_order_relaxed));
+        const float probability = probabilityValues[idx]->load(std::memory_order_relaxed);
         const float x = i * cell + 2.f;
         const float w = cell - 4.f;
         const auto fill = state == 3 ? skell::theme::magenta :
@@ -62,6 +86,7 @@ void GateGrid::setStep(int index, int value) {
         p->beginChangeGesture();
         p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(value)));
         p->endChangeGesture();
+        repaint();
     }
 }
 void GateGrid::edit(const juce::MouseEvent& e) {
@@ -86,8 +111,10 @@ void GateGrid::edit(const juce::MouseEvent& e) {
         }
         if (auto* p = processor.apvts.getParameter(key)) {
             const float old = processor.apvts.getRawParameterValue(key)->load();
-            if (std::abs(old - probability) >= .5f)
+            if (std::abs(old - probability) >= .5f) {
                 p->setValueNotifyingHost(p->convertTo0to1(probability));
+                repaint();
+            }
         }
     } else setStep(idx, drawValue);
 }

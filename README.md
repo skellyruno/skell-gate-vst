@@ -1,5 +1,11 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.5.3 — idle-friendly 32-step UI rendering
+- Cached direct atomic pointers to the 32 step-state/probability parameters, removing JUCE parameter-ID construction and lookup from each grid paint.
+- Grid now redraws only when the playhead step, visible step count, or a gate/probability parameter actually changes; no more unconditional 30 Hz repaints while stationary.
+- Mouse-painted gate and probability edits now repaint immediately, while external automation updates continue to appear through lightweight change detection.
+
+
 ## v1.5.2 — pitch-consistent ping-pong and peak-safe reverse playback
 - Fixed Ping-Pong mode's forward half ignoring reverse-pitch controls. Both playback directions now use the same overlap-grain pitch processing with correctly oriented read offsets.
 - Corrected Tape mode to slow down toward the end of each slice instead of accelerating.
