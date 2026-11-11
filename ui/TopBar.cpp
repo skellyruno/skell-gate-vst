@@ -123,13 +123,13 @@ void TopBar::paint(juce::Graphics& g) {
     const auto dark=skell::theme::colour(skell::theme::bone);
     const auto face=skell::theme::colour(skell::theme::tile);
     g.setGradientFill(juce::ColourGradient(
-        skell::theme::matteBlack() ? face.brighter(.055f) : face.brighter(.24f),0.f,0.f,
+        skell::theme::matteBlack() ? face.brighter(.08f) : face.brighter(.24f),0.f,0.f,
                                           skell::theme::colour(skell::theme::background).darker(.08f),
                                           0.f,59.f,false));
     g.fillAll();
     g.setColour(skell::theme::colour(skell::theme::border));
     g.drawLine(0.f,57.5f,static_cast<float>(getWidth()),57.5f,1.3f);
-    g.setColour(juce::Colours::white.withAlpha(skell::theme::matteBlack() ? .08f : .42f));
+    g.setColour(juce::Colours::white.withAlpha(skell::theme::matteBlack() ? .14f : .42f));
     g.drawLine(0.f,55.8f,static_cast<float>(getWidth()),55.8f,.7f);
     {
         juce::Graphics::ScopedSaveState saved(g);
@@ -140,17 +140,17 @@ void TopBar::paint(juce::Graphics& g) {
         g.setColour(dark);
         g.drawText("SKELL",62,7,83,30,juce::Justification::centredLeft);
         g.setColour(green.darker(.32f));
-        g.drawText("GLITCH",143,8,102,30,juce::Justification::centredLeft);
+        g.drawText("GLITCH",148,8,102,30,juce::Justification::centredLeft);
         g.setColour(green);
-        g.drawText("GLITCH",142,7,102,30,juce::Justification::centredLeft);
+        g.drawText("GLITCH",147,7,102,30,juce::Justification::centredLeft);
     }
     g.setColour(skell::theme::colour(skell::theme::gray));
     g.setFont(skell::theme::regular(10.5f));
-    g.drawText("CUT IT. FLIP IT.",63,36,170,15,juce::Justification::centredLeft);
+    g.drawText("CUT IT. FLIP IT.",63,38,170,14,juce::Justification::centredLeft);
     // Small engraved edition mark directly beside the one-word title.
     g.setColour(skell::theme::colour(skell::theme::gray).withAlpha(.88f));
     g.setFont(skell::theme::mono(9.f));
-    g.drawText("v1.7.s",248,15,55,14,juce::Justification::centredLeft);
+    g.drawText("v1.7.s",258,15,55,14,juce::Justification::centredLeft);
     const double sr=processor.getSampleRate();
     const int latency=processor.displayLatency.load(std::memory_order_relaxed);
     g.setFont(skell::theme::mono(12.f));
