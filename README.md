@@ -1,5 +1,11 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.5.4 — aligned-mode startup PDC correctness
+- Aligned latency is now reported during prepareToPlay(), before audio starts, based on the selected loop length and the 120 BPM fallback transport. Zero-latency mode still reports zero.
+- A Windows JUCE processor smoke test verifies the exact 6,000-sample delay of a 1/16-note slice at 120 BPM / 48 kHz using a known impulse while the plugin is bypassed.
+- Dynamic host-tempo changes after playback begins still request message-thread PDC updates and require real DAW host testing.
+
+
 ## v1.5.3 — idle-friendly 32-step UI rendering
 - Cached direct atomic pointers to the 32 step-state/probability parameters, removing JUCE parameter-ID construction and lookup from each grid paint.
 - Grid now redraws only when the playhead step, visible step count, or a gate/probability parameter actually changes; no more unconditional 30 Hz repaints while stationary.

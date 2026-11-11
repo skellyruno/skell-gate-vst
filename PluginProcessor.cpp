@@ -127,9 +127,18 @@ void SkellGlitchAudioProcessor::prepareToPlay(double sr, int) {
     highSmoothed.reset(currentSampleRate, .030);
     lowSmoothed.setCurrentAndTargetValue(raw(apvts, "bandLow"));
     highSmoothed.setCurrentAndTargetValue(raw(apvts, "bandHigh"));
-    desiredLatency.store(0);
-    displayLatency.store(0);
-    setLatencySamples(0);
+    // Declare the selected PDC contract before the first audio callback.
+    // The old unconditional zero left aligned mode unreported until an
+    // async message-thread update after processing had already begun.
+    const bool sync = raw(apvts, "sync") >= .5f;
+    const int loop = static_cast<int>(raw(apvts, "loopLength"));
+    clock.setHost(120.0, 4, 4, 0.0, false, sync, loop, raw(apvts, "loopMs"));
+    const int initialSliceSamples = std::max(16, static_cast<int>(std::round(clock.getSamplesPerSlice())));
+    const int initialLatency = raw(apvts, "latencyMode") < .5f
+        ? 0 : std::min(initialSliceSamples, delayCapacity - 8);
+    desiredLatency.store(initialLatency, std::memory_order_release);
+    displayLatency.store(initialLatency, std::memory_order_relaxed);
+    setLatencySamples(initialLatency);
 }
 void SkellGlitchAudioProcessor::releaseResources() {}
 void SkellGlitchAudioProcessor::requestLatencyRefresh() { triggerAsyncUpdate(); }

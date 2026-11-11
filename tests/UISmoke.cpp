@@ -153,6 +153,34 @@ int main() {
     processor->processBlock(audio, midi);
     for (int i = 0; i < 512; ++i)
         if (!std::isfinite(audio.getSample(0, i))) return 16;
+    // Aligned mode must report its delay before processing starts, then
+    // reproduce a delayed dry impulse exactly under bypass (host PDC contract).
+    auto* latencyMode = findParameter("Latency mode");
+    if (!latencyMode) { std::cerr << "LATENCY_SMOKE: missing latency control\n"; return 19; }
+    latencyMode->setValueNotifyingHost(1.f); // Aligned
+    power->setValueNotifyingHost(0.f); // Bypass retains declared host latency
+    midi.clear();
+    processor->prepareToPlay(48000.0, 512);
+    if (processor->getLatencySamples() != 6000) {
+        std::cerr << "LATENCY_SMOKE: expected 6000-sample 1/16 delay at 120 BPM\n";
+        return 20;
+    }
+    for (int block = 0; block < 13; ++block) {
+        audio.clear();
+        if (block == 0) audio.setSample(0, 0, .75f);
+        processor->processBlock(audio, midi);
+        for (int i = 0; i < audio.getNumSamples(); ++i) {
+            const int absolute = block * audio.getNumSamples() + i;
+            const float expected = absolute == 6000 ? .75f : 0.f;
+            if (!std::isfinite(audio.getSample(0, i))
+                || std::abs(audio.getSample(0, i) - expected) > 1.e-5f
+                || std::abs(audio.getSample(1, i)) > 1.e-5f) {
+                std::cerr << "LATENCY_SMOKE: impulse misaligned at sample " << absolute << "\n";
+                return 21;
+            }
+        }
+    }
+    std::cout << "LATENCY_SMOKE: aligned=6000, bypass impulse sample=6000, passed\n";
     const auto elapsed = std::chrono::duration<double>(
         std::chrono::steady_clock::now() - began).count();
     std::cout << "HOST_SMOKE: processed=" << processed
