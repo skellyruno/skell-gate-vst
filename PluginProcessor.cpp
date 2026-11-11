@@ -233,6 +233,7 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     int previousGateStep = -1;
     int64_t previousGateCycle = INT64_MIN;
     float cachedGateTarget = 1.f;
+    bool cachedStepReverse = false;
     for (int i = 0; i < samples; ++i) {
         while (midiIt != midiEnd && (*midiIt).samplePosition <= i) {
             const auto event = *midiIt;
@@ -276,14 +277,16 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
                 : sidechain.getSample(0, i));
         const bool eventOn = source == skell::dsp::TriggerRouter::Auto || triggers.active() || freeze;
         if (step != previousGateStep || gateCycleIndex != previousGateCycle) {
-            cachedGateTarget = sequencer.target(step, gateCycleIndex, seed, closedGain);
+            const auto decision = sequencer.evaluate(step, gateCycleIndex, seed, closedGain);
+            cachedGateTarget = decision.gain;
+            cachedStepReverse = decision.reverse;
             previousGateStep = step;
             previousGateCycle = gateCycleIndex;
         }
         float gateTarget = eventOn ? cachedGateTarget : 1.f;
         if (source == skell::dsp::TriggerRouter::MIDI && eventOn)
             gateTarget = closedGain + (gateTarget - closedGain) * triggers.velocity();
-        const bool stepReverse = sequencer.isReverseStep(step) && cachedGateTarget > closedGain;
+        const bool stepReverse = cachedStepReverse;
         const bool needsReverse = eventOn && (mode != 1 || stepReverse ||
             chaosEvent == skell::dsp::GlitchRandomizer::Flip ||
             chaosEvent == skell::dsp::GlitchRandomizer::Stutter ||

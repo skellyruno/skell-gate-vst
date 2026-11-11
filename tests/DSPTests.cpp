@@ -108,6 +108,19 @@ static void gateTest() {
     check(g.stepAt(.08, 16, 0) == 1, "gate step wrong");
     check(g.stepAt(.08, 16, .75) == 0, "swing did not delay odd steps");
     g.setStep(2, 3, 100); check(g.isReverseStep(2), "reverse step missing");
+    const auto fullGainReverse = g.evaluate(2, 19, 733, 1.f);
+    check(fullGainReverse.reverse && fullGainReverse.gain == 1.f,
+          "reverse step incorrectly disabled when gate depth is unity");
+    g.setStep(2, 3, 0.f);
+    check(!g.evaluate(2, 19, 733, .001f).reverse,
+          "probability-zero reverse step should not play");
+    g.setStep(2, 3, 100.f);
+    for (int64_t cycle = 0; cycle < 64; ++cycle) {
+        const auto once = g.evaluate(2, cycle, 733, .8f);
+        const auto twice = g.evaluate(2, cycle, 733, .8f);
+        check(once.reverse && once.reverse == twice.reverse &&
+              once.gain == twice.gain, "reverse probability decision nondeterministic");
+    }
     GateShaper shape; shape.prepare(48000); shape.reset(0);
     const float one = shape.next(1, 10, 10, 1);
     check(one > 0 && one < 1, "gate smoothing invalid");
@@ -187,6 +200,17 @@ static void deterministicTest() {
     }
     TriggerRouter trigger; trigger.prepare(48000); trigger.trigger(.5f, 60);
     check(trigger.active() && trigger.note() == 60 && trigger.velocity() == .5f, "trigger fail");
+    TriggerRouter sidechain; sidechain.prepare(48000);
+    const auto bad = std::numeric_limits<float>::quiet_NaN();
+    check(!sidechain.processSidechain(bad), "NaN sidechain caused false trigger");
+    check(!sidechain.processSidechain(std::numeric_limits<float>::infinity()),
+          "Inf sidechain caused false trigger");
+    bool detected = false;
+    for (int i = 0; i < 16; ++i) detected |= sidechain.processSidechain(.95f);
+    check(detected && sidechain.active(), "sidechain failed to recover after NaN/Inf");
+    sidechain.trigger(bad, 180);
+    check(std::isfinite(sidechain.velocity()) && sidechain.note() == 127,
+          "non-finite trigger controls were not sanitized");
 }
 
 static std::vector<float> renderForBlockSize(int blockSize) {

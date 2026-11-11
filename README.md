@@ -1,5 +1,12 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.5.0 — probability-correct reverse steps and robust sidechain triggers
+- Resolved sequencer probability once per step for both gain and reverse state. Previously reverse-enabled gate steps stopped reversing whenever the gate's closed gain equalled the open gain; this no longer happens.
+- A 0% probability reverse step never reverses, 100% always reverses, and fixed-seed decisions remain deterministic across repeated render passes.
+- Sidechain triggering now treats non-finite samples as silence and sanitises trigger velocity/note, preventing indefinite detector corruption by upstream NaNs/Infs.
+- Regression tests cover all the above without introducing processing allocations or additional dependencies.
+
+
 ## v1.4.3 — screenshot-driven UI fixes
 - Inspected the actual offscreen renders at 479x338, 719x507, 958x676, and 1198x845. When input is silent, waveform output no longer draws a false flatline or bright playhead over the waiting message.
 - Moved the version label away from the bottom-right JUCE resize grip so it cannot be truncated at any window size.

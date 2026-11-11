@@ -21,13 +21,25 @@ public:
         if ((i & 1) && scaled - i < std::clamp(swing, 0.0, .75) * 0.5) --i;
         return i;
     }
-    float target(int index, int64_t cycle, int seed, float closedGain) const {
+    struct Decision {
+        float gain = 1.f;
+        bool reverse = false;
+    };
+    // Resolve the probability just once per step and share the decision between
+    // gate level and the reverse engine. Reverse must not depend on gate depth:
+    // the old gain > closedGain check accidentally suppressed reverse steps
+    // when the closed gain was close to or equal to unity.
+    Decision evaluate(int index, int64_t cycle, int seed, float closedGain) const {
         index = std::clamp(index, 0, 31);
-        const int state = states[static_cast<size_t>(index)];
-        if (!GlitchRandomizer::stepEnabled(seed, cycle, index, probabilities[static_cast<size_t>(index)])) return closedGain;
-        if (state == Off) return closedGain;
-        if (state == Accent) return 1.15f;
-        return 1.0f;
+        const auto i = static_cast<size_t>(index);
+        const int state = states[i];
+        const bool enabled = GlitchRandomizer::stepEnabled(seed, cycle, index, probabilities[i]);
+        if (!enabled || state == Off) return {closedGain, false};
+        if (state == Accent) return {1.15f, false};
+        return {1.f, state == Reverse};
+    }
+    float target(int index, int64_t cycle, int seed, float closedGain) const {
+        return evaluate(index, cycle, seed, closedGain).gain;
     }
     bool isReverseStep(int index) const { return states[static_cast<size_t>(std::clamp(index, 0, 31))] == Reverse; }
 private:
