@@ -10,6 +10,7 @@ private:
     void timerCallback() override;
     SkellGlitchAudioProcessor& processor;
     std::array<juce::TextButton, 3> modes;
+    int displayedMode = -1;
     juce::ComboBox reverseStyle, gateRate;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> reverseAttach, gateAttach;
 };

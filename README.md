@@ -1,5 +1,11 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.5.1 — responsive selection and gate automation painting
+- Selected loop length and reverse/gate/both mode now render correctly at startup, without waiting for a 20 Hz timer. Button clicks update active appearance and combo visibility immediately; unchanged selections no longer trigger periodic repaints.
+- Gate-step probability can be painted intuitively across the full step height while holding Shift, or via the narrow probability strip. A single host gesture stays open during continuous dragging and closes when switching steps or releasing the mouse, avoiding repeated automation begin/end events on every pixel.
+- Offscreen JUCE harness asserts that the initially selected loop/mode buttons are highlighted and that action callbacks update both host parameters and button states immediately.
+
+
 ## v1.5.0 — probability-correct reverse steps and robust sidechain triggers
 - Resolved sequencer probability once per step for both gain and reverse state. Previously reverse-enabled gate steps stopped reversing whenever the gate's closed gain equalled the open gain; this no longer happens.
 - A 0% probability reverse step never reverses, 100% always reverses, and fixed-seed decisions remain deterministic across repeated render passes.

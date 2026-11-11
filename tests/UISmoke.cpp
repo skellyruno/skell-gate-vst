@@ -122,6 +122,13 @@ int main() {
     };
     auto* gateButton = findButton(*editor, "GATE");
     auto* loopButton = findButton(*editor, "1/16");
+    auto* selectedReverse = findButton(*editor, "REVERSE");
+    auto* selectedBar = findButton(*editor, "1 Bar");
+    if (!selectedReverse || !selectedBar || !selectedReverse->getToggleState()
+        || !selectedBar->getToggleState()) {
+        std::cerr << "UI_CONTROL: initial mode/loop selection not visible\n";
+        return 17;
+    }
     auto* mode = findParameter("Mode");
     auto* loop = findParameter("Loop length");
     if (!gateButton || !loopButton || !mode || !loop
@@ -131,6 +138,10 @@ int main() {
     }
     gateButton->onClick();
     loopButton->onClick();
+    if (!gateButton->getToggleState() || !loopButton->getToggleState()) {
+        std::cerr << "UI_CONTROL: active mode/loop highlights lag behind clicks\n";
+        return 18;
+    }
     if (std::abs(mode->getValue() - .5f) > .001f || loop->getValue() > .001f) {
         std::cerr << "UI_CONTROL: mode or loop action did not automate\n";
         return 14;

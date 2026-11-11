@@ -11,4 +11,5 @@ private:
     void timerCallback() override;
     SkellGlitchAudioProcessor& processor;
     std::array<std::unique_ptr<juce::TextButton>, 9> buttons;
+    int displayedSelection = -1;
 };

@@ -7,6 +7,7 @@ ModeRow::ModeRow(SkellGlitchAudioProcessor& p) : processor(p),
         modes[static_cast<size_t>(i)].onClick = [this, i] {
             if (auto* p = processor.apvts.getParameter("mode")) {
                 p->beginChangeGesture(); p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(i))); p->endChangeGesture();
+                timerCallback(); // Update selected mode and combo visibility on click.
             }
         };
     }
@@ -17,6 +18,7 @@ ModeRow::ModeRow(SkellGlitchAudioProcessor& p) : processor(p),
     addAndMakeVisible(reverseStyle); addAndMakeVisible(gateRate);
     reverseAttach = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(processor.apvts, "reverseStyle", reverseStyle);
     gateAttach = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(processor.apvts, "gateRate", gateRate);
+    timerCallback(); // Correct active mode and associated combo on first paint.
     startTimerHz(20);
 }
 void ModeRow::resized() {
@@ -27,6 +29,8 @@ void ModeRow::resized() {
 void ModeRow::paint(juce::Graphics&) {}
 void ModeRow::timerCallback() {
     const int mode = static_cast<int>(processor.apvts.getRawParameterValue("mode")->load());
+    if (mode == displayedMode) return;
+    displayedMode = mode;
     for (int i = 0; i < 3; ++i) modes[static_cast<size_t>(i)].setToggleState(i == mode, juce::dontSendNotification);
     gateRate.setVisible(mode != 0); reverseStyle.setVisible(mode != 1);
 }

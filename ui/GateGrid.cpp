@@ -1,6 +1,7 @@
 #include "GateGrid.h"
 #include "../PluginProcessor.h"
 #include "../dsp/GlitchRandomizer.h"
+#include <cmath>
 GateGrid::GateGrid(SkellGlitchAudioProcessor& p) : processor(p),
     commands{juce::TextButton("RANDOM"), juce::TextButton("SHIFT <"),
              juce::TextButton("SHIFT >"), juce::TextButton("INVERT"), juce::TextButton("CLEAR")} {
@@ -71,18 +72,31 @@ void GateGrid::edit(const juce::MouseEvent& e) {
     edited = idx;
     if (probabilityMode) {
         const auto key = "step" + juce::String(idx + 1) + "_prob";
-        const float probability = std::clamp((52.f - e.position.y) / 13.f * 100.f, 0.f, 100.f);
+        // Holding Shift over the full-height step edits 0-100% instead of
+        // instantly pegging at 100%; the small strip keeps its own fine zone.
+        const float probability = std::clamp(
+            (probabilityOnBody ? (39.f - e.position.y) / 39.f
+                               : (52.f - e.position.y) / 13.f) * 100.f, 0.f, 100.f);
+        if (idx != activeProbabilityStep) {
+            finishProbabilityGesture();
+            if (auto* p = processor.apvts.getParameter(key)) {
+                p->beginChangeGesture();
+                activeProbabilityStep = idx;
+            }
+        }
         if (auto* p = processor.apvts.getParameter(key)) {
-            p->beginChangeGesture();
-            p->setValueNotifyingHost(p->convertTo0to1(probability));
-            p->endChangeGesture();
+            const float old = processor.apvts.getRawParameterValue(key)->load();
+            if (std::abs(old - probability) >= .5f)
+                p->setValueNotifyingHost(p->convertTo0to1(probability));
         }
     } else setStep(idx, drawValue);
 }
 void GateGrid::mouseDown(const juce::MouseEvent& e) {
     if (e.position.y >= 52) return;
     edited = -1;
+    finishProbabilityGesture();
     probabilityMode = e.position.y > 39 || e.mods.isShiftDown();
+    probabilityOnBody = e.mods.isShiftDown() && e.position.y <= 39;
     const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);
     const int idx = std::clamp(static_cast<int>(e.position.x / (getWidth() / static_cast<float>(steps))), 0, steps - 1);
     const auto key = "step" + juce::String(idx + 1) + (probabilityMode ? "_prob" : "_state");
@@ -90,8 +104,16 @@ void GateGrid::mouseDown(const juce::MouseEvent& e) {
     edit(e);
 }
 void GateGrid::mouseDrag(const juce::MouseEvent& e) { edit(e); }
+void GateGrid::finishProbabilityGesture() {
+    if (activeProbabilityStep < 0) return;
+    const auto key = "step" + juce::String(activeProbabilityStep + 1) + "_prob";
+    if (auto* p = processor.apvts.getParameter(key)) p->endChangeGesture();
+    activeProbabilityStep = -1;
+}
 void GateGrid::mouseUp(const juce::MouseEvent&) {
+    finishProbabilityGesture();
     edited = -1;
+    probabilityMode = false;
 }
 void GateGrid::mouseMove(const juce::MouseEvent& e) {
     const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);
