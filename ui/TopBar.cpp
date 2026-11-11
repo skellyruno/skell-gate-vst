@@ -53,7 +53,8 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
     } else if(icon==Kind::Settings) {
         // Dark bevel under each spoke gives the green, engraved mechanical
         // gear in the reference, rather than a flat neon sun icon.
-        const auto olive=skell::theme::colour(skell::theme::dim).darker(.26f);
+        const auto olive=skell::theme::matteBlack()
+            ? neon.darker(.23f) : skell::theme::colour(skell::theme::dim).darker(.26f);
         for(int n=0;n<8;++n) {
             const float a=juce::MathConstants<float>::twoPi*n/8.f;
             const float dx=std::sin(a),dy=-std::cos(a);
@@ -75,7 +76,14 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
         g.setColour(olive.darker(.52f));
         g.fillEllipse(ellipse(2.7f));
     } else {
-        const auto olive=skell::theme::colour(skell::theme::dim).darker(.35f);
+        const bool active = getToggleState();
+        const auto olive = skell::theme::matteBlack()
+            ? neon.darker(active ? .06f : .32f)
+            : skell::theme::colour(skell::theme::dim).darker(.35f);
+        if (active) {
+            g.setColour(neon.withAlpha(.085f));
+            g.fillEllipse(ellipse(radius - 5.f));
+        }
         juce::Path powerArc;
         powerArc.addCentredArc(c.x,c.y+1.f,9.f,9.f,0.f,.68f,
                               juce::MathConstants<float>::twoPi-.68f,true);
