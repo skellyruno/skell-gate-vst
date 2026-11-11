@@ -60,23 +60,33 @@ void GateGrid::paint(juce::Graphics& g) {
         const auto fill = state == 3 ? skell::theme::magenta :
                          state == 2 ? skell::theme::pale :
                          state == 1 ? skell::theme::neon : skell::theme::tile;
-        g.setColour(skell::theme::colour(fill).withAlpha(state == 0 ? .9f : .77f));
-        g.fillRoundedRectangle(x, state == 2 ? 0.f : 7.f, w, state == 2 ? 39.f : 32.f, 4.f);
+        const auto colour = skell::theme::colour(fill);
+        const float y = state == 2 ? 0.f : 4.f;
+        const float h = state == 2 ? 40.f : 36.f;
+        g.setColour(juce::Colours::black.withAlpha(.26f));
+        g.fillRoundedRectangle(x, y+3.f, w, h, 4.f);
+        g.setGradientFill(juce::ColourGradient(colour.brighter(.13f),
+              x+w*.5f,y,colour.darker(.20f),x+w*.5f,y+h,false));
+        g.fillRoundedRectangle(x,y,w,h,4.f);
+        g.setColour(skell::theme::colour(skell::theme::border).withAlpha(.88f));
+        g.drawRoundedRectangle(x+.45f,y+.45f,w-.9f,h-.9f,4.f,1.f);
+        g.setColour(juce::Colours::white.withAlpha(.40f));
+        g.drawLine(x+4.f,y+2.f,x+w-4.f,y+2.f,.75f);
         if (i == active || i == hoveredStep) {
-            g.setColour(skell::theme::colour(i == active ? skell::theme::bone : skell::theme::cyan));
-            g.drawRoundedRectangle(x, 0.f, w, 41.f, 4.f, i == active ? 1.3f : 1.f);
+            g.setColour(skell::theme::colour(i == active ? skell::theme::bone : skell::theme::dim));
+            g.drawRoundedRectangle(x, 0.f, w, 41.f, 4.f, i == active ? 1.6f : 1.f);
         }
-        if ((i % 4 == 0 || i == hoveredStep) && w > 22.f) {
-            g.setColour(skell::theme::colour(state == 0 ? skell::theme::gray : skell::theme::deep).withAlpha(.8f));
-            g.setFont(skell::theme::mono(9.f));
-            g.drawText(juce::String(i + 1), static_cast<int>(x), 29,
-                       static_cast<int>(w), 10, juce::Justification::centred);
+        if ((i % 4 == 0 || i == hoveredStep) && w > 21.f) {
+            g.setColour(skell::theme::colour(skell::theme::bone).withAlpha(.86f));
+            g.setFont(skell::theme::mono(10.f));
+            g.drawText(juce::String(i + 1), static_cast<int>(x), 27,
+                       static_cast<int>(w), 12, juce::Justification::centred);
         }
-        g.setColour(skell::theme::colour(skell::theme::border));
-        g.fillRoundedRectangle(x, 44.f, w, 3.f, 1.5f);
+        g.setColour(skell::theme::colour(skell::theme::border).darker(.3f));
+        g.fillRoundedRectangle(x, 44.f, w, 4.f, 2.f);
         if (probability > 0.f) {
-            g.setColour(skell::theme::colour(skell::theme::cyan).withAlpha(.35f + probability * .004f));
-            g.fillRoundedRectangle(x, 44.f, w * probability * .01f, 3.f, 1.5f);
+            g.setColour(skell::theme::colour(skell::theme::neon).darker(.11f));
+            g.fillRoundedRectangle(x, 44.f, w * probability * .01f, 4.f, 2.f);
         }
     }
 }

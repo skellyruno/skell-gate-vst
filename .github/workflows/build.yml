@@ -32,9 +32,14 @@ jobs:
           repository: juce-framework/JUCE
           ref: 8.0.10
           path: JUCE
+      - uses: actions/checkout@v4
+        with:
+          repository: skellyruno/skellcore-vst-template
+          ref: d02d50849123f28bbc2e32cded0e78aced15afb3
+          path: SkellCoreSource
       - name: Configure JUCE
         shell: bash
-        run: cmake -S . -B build -DJUCE_DIR="$GITHUB_WORKSPACE/JUCE" -DSKELL_BUILD_UI_SMOKE=ON
+        run: cmake -S . -B build -DJUCE_DIR="$GITHUB_WORKSPACE/JUCE" -DSKELLCORE_DIR="$GITHUB_WORKSPACE/SkellCoreSource" -DSKELL_BUILD_UI_SMOKE=ON
       - name: Compile VST3 + Standalone
         shell: bash
         run: cmake --build build --config Release --target SkellGlitch_VST3 SkellGlitch_Standalone SkellGlitchUISmoke --parallel 3

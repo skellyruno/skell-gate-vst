@@ -21,48 +21,51 @@ void BandSlider::mouseExit(const juce::MouseEvent&) { hovered = -1; repaint(); }
 float BandSlider::frequencyToX(float hz) const { return 14.f + (getWidth() - 28.f) * std::log(std::clamp(hz, 20.f, 20000.f) / 20.f) / std::log(1000.f); }
 float BandSlider::xToFrequency(float x) const { return 20.f * std::pow(1000.f, std::clamp((x - 14.f) / (getWidth() - 28.f), 0.f, 1.f)); }
 void BandSlider::paint(juce::Graphics& g) {
-    const float low = processor.apvts.getRawParameterValue("bandLow")->load();
-    const float high = processor.apvts.getRawParameterValue("bandHigh")->load();
-    const auto a = frequencyToX(low), b = frequencyToX(high);
-    g.setColour(skell::theme::colour(skell::theme::gray));
-    g.setFont(skell::theme::regular(12));
-    g.drawText("LOW CUT", 8, 0, 100, 19, juce::Justification::centredLeft);
-    g.drawText("HIGH CUT", getWidth() - 110, 0, 100, 19, juce::Justification::centredRight);
-    g.setColour(skell::theme::colour(skell::theme::tile));
-    g.fillRoundedRectangle(2.f, 20.f, getWidth() - 4.f, 31.f, 8.f);
-    g.setColour(skell::theme::colour(skell::theme::border));
-    g.drawRoundedRectangle(2.5f, 20.5f, getWidth() - 5.f, 30.f, 8.f, .8f);
-    g.setColour(skell::theme::colour(0xff203029));
-    g.fillRoundedRectangle(14.f, 30.f, getWidth() - 28.f, 8.f, 4.f);
-    for (const auto freq : {100.f, 1000.f, 10000.f}) {
-        const float x = frequencyToX(freq);
-        g.setColour(skell::theme::colour(skell::theme::gray).withAlpha(.33f));
-        g.drawLine(x, 28.f, x, 40.f, .7f);
+    using namespace skell::theme;
+    const float low=processor.apvts.getRawParameterValue("bandLow")->load();
+    const float high=processor.apvts.getRawParameterValue("bandHigh")->load();
+    const float left=frequencyToX(low),right=frequencyToX(high);
+    g.setColour(colour(gray));
+    g.setFont(regular(13.f));
+    g.drawText("LOW CUT",11,0,120,20,juce::Justification::centredLeft);
+    g.drawText("HIGH CUT",getWidth()-136,0,125,20,juce::Justification::centredRight);
+    auto rail=juce::Rectangle<float>(13.f,29.f,getWidth()-26.f,10.f);
+    g.setColour(juce::Colours::black.withAlpha(.40f));
+    g.fillRoundedRectangle(rail.translated(0,2.f),5.f);
+    g.setColour(colour(border).darker(.38f));g.fillRoundedRectangle(rail,5.f);
+    g.setColour(colour(neon).darker(.5f));
+    g.fillRoundedRectangle(left,29.f,std::max(1.f,right-left),10.f,5.f);
+    g.setGradientFill(juce::ColourGradient(colour(neon).brighter(.2f),0.f,31.f,
+                                          colour(neon).darker(.21f),0.f,38.f,false));
+    g.fillRoundedRectangle(left,31.f,std::max(1.f,right-left),6.f,3.f);
+    for (const auto freq:{100.f,1000.f,10000.f}) {
+        const float x=frequencyToX(freq);
+        g.setColour(colour(border).withAlpha(.32f));
+        g.drawLine(x,30.f,x,39.f,.8f);
     }
-    g.setColour(skell::theme::colour(skell::theme::dim));
-    g.fillRoundedRectangle(a, 30.f, std::max(1.f, b - a), 8.f, 4.f);
-    g.setColour(skell::theme::colour(skell::theme::neon));
-    g.fillRoundedRectangle(a, 32.f, std::max(1.f, b - a), 4.f, 2.f);
-    for (int handle = 0; handle < 2; ++handle) {
-        const float pos = handle == 0 ? a : b;
-        if (handle == hovered) {
-            g.setColour(skell::theme::colour(skell::theme::neon).withAlpha(.12f));
-            g.fillRoundedRectangle(pos - 12.f, 19.f, 24.f, 31.f, 8.f);
-        }
-        g.setColour(skell::theme::colour(skell::theme::bone));
-        g.fillRoundedRectangle(pos - 7.f, 22.f, 14.f, 25.f, 5.f);
-        g.setColour(skell::theme::colour(skell::theme::deep));
-        g.drawRoundedRectangle(pos - 7.f, 22.f, 14.f, 25.f, 5.f, 1.f);
-        g.setColour(skell::theme::colour(skell::theme::neon).withAlpha(.7f));
-        g.fillRoundedRectangle(pos - 1.f, 27.f, 2.f, 14.f, 1.f);
+    for(int i=0;i<2;++i) {
+        const float x=i==0?left:right;
+        auto handle=juce::Rectangle<float>(x-9.f,18.f,18.f,32.f);
+        g.setColour(juce::Colours::black.withAlpha(.30f));
+        g.fillRoundedRectangle(handle.translated(1.f,2.f),7.f);
+        g.setGradientFill(juce::ColourGradient(colour(tile).brighter(.4f),x-8,18,
+                            colour(tile).darker(.26f),x+8,50,false));
+        g.fillRoundedRectangle(handle,6.f);
+        g.setColour(colour(border));g.drawRoundedRectangle(handle,6.f,1.2f);
+        g.setColour(juce::Colours::white.withAlpha(.65f));
+        g.drawLine(x-6.f,21.f,x+6.f,21.f,1.f);
+        g.setColour(colour(neon).darker(.16f));
+        g.fillRoundedRectangle(x-1.2f,27.f,2.4f,16.f,1.2f);
     }
-    const auto fmt = [](float f) { return f >= 1000 ? juce::String(f / 1000.f, 1) + " kHz" : juce::String(f, 0) + " Hz"; };
-    g.setFont(skell::theme::mono(11));
-    g.setColour(skell::theme::colour(skell::theme::bone));
-    g.drawText(fmt(low), 8, 49, 100, 16, juce::Justification::centredLeft);
-    g.drawText(fmt(high), getWidth() - 110, 49, 100, 16, juce::Justification::centredRight);
-    g.setColour(skell::theme::colour(skell::theme::gray));
-    g.drawText("BAND", 0, 56, getWidth(), 18, juce::Justification::centred);
+    const auto format=[](float f) {
+        return f>=1000.f?juce::String(f/1000.f,1)+" kHz":juce::String(f,0)+" Hz";
+    };
+    g.setColour(colour(bone));g.setFont(mono(12.5f));
+    g.drawText(format(low),8,53,128,19,juce::Justification::centredLeft);
+    g.drawText(format(high),getWidth()-139,53,131,19,juce::Justification::centredRight);
+    g.setColour(colour(gray));
+    g.setFont(regular(13.f));
+    g.drawText("BAND",0,61,getWidth(),19,juce::Justification::centred);
 }
 void BandSlider::change(float x) {
     const char* id = selected ? "bandHigh" : "bandLow";

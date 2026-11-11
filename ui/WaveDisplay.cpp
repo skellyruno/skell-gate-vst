@@ -21,74 +21,79 @@ void WaveDisplay::timerCallback() {
     }
 }
 void WaveDisplay::paint(juce::Graphics& g) {
-    auto r = getLocalBounds().toFloat().reduced(1);
-    g.setColour(skell::theme::colour(skell::theme::deep)); g.fillRoundedRectangle(r, 16);
-    g.setColour(skell::theme::colour(skell::theme::border)); g.drawRoundedRectangle(r, 16, 1.4f);
-    const auto mode = static_cast<int>(processor.apvts.getRawParameterValue("mode")->load());
-    const float phase = processor.displayPhase.load();
-    const bool reverse = processor.displayReverse.load() != 0;
-    const float playX = 20.f + (getWidth() - 40.f) * (reverse ? 1.f - phase : phase);
-    g.setColour(skell::theme::colour(skell::theme::border));
-    for (int beat = 1; beat < 8; ++beat) {
-        const auto x = (getWidth() - 40.f) * beat / 8.f + 20.f;
-        g.drawLine(x, 28.f, x, getHeight() - 22.f, .9f);
+    using namespace skell::theme;
+    const auto bounds=getLocalBounds().toFloat().reduced(2.f);
+    const auto inside=bounds.reduced(4.f);
+    // Deep inset metal display: rounded rim, shadow, warm vignette and ticks.
+    g.setColour(juce::Colours::black.withAlpha(.30f));
+    g.fillRoundedRectangle(bounds.translated(0,3),18.f);
+    g.setColour(colour(tile).brighter(.30f));
+    g.fillRoundedRectangle(bounds,18.f);
+    g.setColour(colour(border).darker(.15f));
+    g.drawRoundedRectangle(bounds,18.f,2.f);
+    g.setGradientFill(juce::ColourGradient(colour(deep).darker(.12f),inside.getCentreX(),inside.getY(),
+         colour(deep).brighter(.18f),inside.getCentreX(),inside.getBottom(),false));
+    g.fillRoundedRectangle(inside,14.f);
+    g.setColour(juce::Colours::white.withAlpha(.32f));
+    g.drawRoundedRectangle(bounds.reduced(2.f),16.f,1.2f);
+    g.setColour(colour(border).withAlpha(.55f));
+    g.drawRoundedRectangle(inside.reduced(.5f),14.f,1.f);
+    for (int beat=1; beat<8; ++beat) {
+        const float x=20.f+(getWidth()-40.f)*beat/8.f;
+        g.setColour(colour(border).withAlpha(.60f));
+        g.drawLine(x,31.f,x,getHeight()-24.f,.85f);
     }
-    bool hasWaveform = false;
-    for (const auto& peak : processor.waveform)
-        if (peak.load(std::memory_order_relaxed) > .001f) {
-            hasWaveform = true;
-            break;
+    const float phase=std::clamp(processor.displayPhase.load(std::memory_order_relaxed),0.f,1.f);
+    const bool reverse=processor.displayReverse.load(std::memory_order_relaxed)!=0;
+    const float playX=20.f+(getWidth()-40.f)*(reverse?1.f-phase:phase);
+    bool hasWaveform=false;
+    for (const auto& peak:processor.waveform)
+        if (peak.load(std::memory_order_relaxed)>.001f) { hasWaveform=true;break; }
+    const int visible=std::max(1,static_cast<int>(160/zoom));
+    if (hasWaveform) {
+        for(int bar=0;bar<160;++bar) {
+            const auto src=static_cast<size_t>(std::clamp(static_cast<int>(bar*visible/160),0,159));
+            const auto index=reverse?159-src:src;
+            const float amplitude=std::min(1.f,processor.waveform[index].load(std::memory_order_relaxed)*3.4f);
+            const float x=20.f+bar*(getWidth()-40.f)/160.f;
+            const float h=std::max(1.3f,amplitude*(getHeight()-70.f)*.5f);
+            const bool played=reverse?x>=playX:x<=playX;
+            g.setColour(colour(played?neon:dim).withAlpha(played?.97f:.63f));
+            g.fillRoundedRectangle(x,getHeight()*.50f-h,2.f,h*2.f,1.f);
         }
-    const int visible = std::max(1, static_cast<int>(160 / zoom));
-    if (hasWaveform) for (int bar = 0; bar < 160; ++bar) {
-        const auto src = static_cast<size_t>(std::clamp(static_cast<int>(bar * visible / 160), 0, 159));
-        const auto index = reverse ? 159 - src : src;
-        const float amp = std::min(1.f, processor.waveform[static_cast<size_t>(index)].load(std::memory_order_relaxed) * 3.4f);
-        const float x = 20.f + bar * (getWidth() - 40.f) / 160.f;
-        const float height = std::max(1.5f, amp * (getHeight() - 67.f) * .5f);
-        const bool played = reverse ? x >= playX : x <= playX;
-        g.setColour(skell::theme::colour(played ? skell::theme::neon : skell::theme::dim).withAlpha(played ? .98f : .8f));
-        g.fillRoundedRectangle(x, getHeight() * .50f - height, 2.f, height * 2.f, 1.f);
+        g.setColour(colour(neon).withAlpha(.25f));
+        g.drawLine(playX,31.f,playX,getHeight()-23.f,5.f);
+        g.setColour(colour(neon));
+        g.drawLine(playX,31.f,playX,getHeight()-23.f,2.f);
+    } else {
+        g.setColour(colour(bone).withAlpha(.87f));
+        g.setFont(regular(13.6f));
+        g.drawText("WAITING FOR INPUT",getLocalBounds().reduced(26),
+                   juce::Justification::centred);
     }
-    if (!hasWaveform) {
-        // Do not draw a false waveform baseline or a bright playhead on silence:
-        // the idle message must remain unobscured at 50%-125% window scales.
-        g.setColour(skell::theme::colour(skell::theme::gray).withAlpha(.76f));
-        g.setFont(skell::theme::regular(13));
-        g.drawFittedText("WAITING FOR INPUT",
-                         juce::Rectangle<int>(20, getHeight() / 2 - 12,
-                                              getWidth() - 40, 24),
-                         juce::Justification::centred, 1);
-    }
-    if (mode != 0) {
-        const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);
-        for (int step = 0; step < steps; ++step) {
-            const auto p = processor.apvts.getRawParameterValue("step" + juce::String(step + 1) + "_state");
-            if (p && p->load() < .5f) {
-                const float x = 20.f + (getWidth() - 40.f) * step / steps;
-                const float w = (getWidth() - 40.f) / steps;
-                g.setColour(skell::theme::colour(skell::theme::cyan).withAlpha(.09f));
-                g.fillRect(x, 26.f, w, static_cast<float>(getHeight() - 48));
+    const int mode=static_cast<int>(processor.apvts.getRawParameterValue("mode")->load());
+    if(mode!=0) {
+        const int count=std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()),1,32);
+        for(int i=0;i<count;++i) {
+            const auto p=processor.apvts.getRawParameterValue("step"+juce::String(i+1)+"_state");
+            if(p && p->load()<.5f) {
+                const float x=20.f+(getWidth()-40.f)*i/count;
+                g.setColour(colour(dim).withAlpha(.13f));
+                g.fillRect(x,31.f,(getWidth()-40.f)/count,static_cast<float>(getHeight()-55));
             }
         }
     }
-    if (reverse) {
-        g.setColour(skell::theme::colour(skell::theme::magenta));
-        juce::Path arrow; arrow.startNewSubPath(getWidth() - 38.f, 13.f);
-        arrow.lineTo(getWidth() - 46.f, 18.f); arrow.lineTo(getWidth() - 38.f, 23.f);
-        g.strokePath(arrow, juce::PathStrokeType(1.6f));
-        g.setFont(skell::theme::mono(11));
-        g.drawText("REVERSE", getWidth() - 121, 8, 75, 19, juce::Justification::centredRight);
+    g.setColour(colour(bone));
+    g.setFont(mono(10.8f));
+    g.drawText("LIVE SLICE  /  "+juce::String(zoom,1)+"x",17,9,149,18,juce::Justification::centredLeft);
+    if(reverse) {
+        g.setColour(colour(magenta));
+        g.drawText("REVERSE",getWidth()-120,9,84,18,juce::Justification::centredRight);
+        juce::Path arrow;
+        arrow.startNewSubPath(getWidth()-24.f,12.f);
+        arrow.lineTo(getWidth()-33.f,18.f);arrow.lineTo(getWidth()-24.f,24.f);
+        g.strokePath(arrow,juce::PathStrokeType(1.6f));
     }
-    if (hasWaveform) {
-        g.setColour(skell::theme::colour(skell::theme::pale).withAlpha(.20f));
-        g.drawLine(playX, 28.f, playX, getHeight() - 22.f, 6.f);
-        g.setColour(skell::theme::colour(skell::theme::neon));
-        g.drawLine(playX, 28.f, playX, getHeight() - 22.f, 2.f);
-    }
-    g.setColour(skell::theme::colour(skell::theme::gray));
-    g.setFont(skell::theme::mono(10));
-    g.drawText("LIVE SLICE  /  " + juce::String(zoom, 1) + "x", 16, 7, 120, 17, juce::Justification::centredLeft);
 }
 void WaveDisplay::editAt(const juce::MouseEvent& e) {
     const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);

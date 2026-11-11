@@ -3,8 +3,8 @@
 class SkellGlitchAudioProcessor;
 class SkellGlyphButton final : public juce::TextButton {
 public:
-    enum class Kind { Settings, Power };
-    explicit SkellGlyphButton(Kind kind) : icon(kind) {}
+    enum class Kind { Skull, Settings, Power };
+    explicit SkellGlyphButton(Kind which) : icon(which) {}
     void paintButton(juce::Graphics&, bool hovered, bool pressed) override;
 private:
     Kind icon;
@@ -15,6 +15,7 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
     void setJitterOffset(int v) { if (v != jitterOffset) { jitterOffset = v; repaint(); } }
+    SkellGlyphButton skull{SkellGlyphButton::Kind::Skull};
     juce::TextButton sync{"SYNC ON"};
     SkellGlyphButton power{SkellGlyphButton::Kind::Power};
     SkellGlyphButton settings{SkellGlyphButton::Kind::Settings};

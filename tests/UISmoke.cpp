@@ -22,7 +22,7 @@ int main() {
                                .getChildFile("build").getChildFile("ui-snapshots");
     if (!directory.createDirectory()) { std::cerr << "Failed creating snapshot directory\n"; return 3; }
     const std::array<std::pair<int, int>, 4> sizes{
-        std::pair<int, int>{479, 338}, {719, 507}, {958, 676}, {1198, 845}
+        std::pair<int, int>{480, 360}, {720, 540}, {960, 720}, {1200, 900}
     };
     juce::PNGImageFormat png;
     for (const auto& [width, height] : sizes) {

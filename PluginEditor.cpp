@@ -8,26 +8,55 @@ class Backplate final : public juce::Component {
 public:
     Backplate() { setInterceptsMouseClicks(false, false); setBufferedToImage(true); }
     void paint(juce::Graphics& g) override {
-        g.fillAll(skell::theme::colour(skell::theme::background));
-        juce::ColourGradient vignette(skell::theme::colour(0xff132319), 479, 320,
-                                      skell::theme::colour(skell::theme::background), 880, 650, true);
-        g.setGradientFill(vignette); g.fillAll();
-        g.setColour(skell::theme::colour(skell::theme::border));
-        g.drawLine(0.f, 55.f, 958.f, 55.f, 1.f);
-        g.drawLine(0.f, 672.f, 958.f, 672.f, 1.f);
-        // Quiet section dividers preserve visual hierarchy without noisy glows.
-        g.setColour(skell::theme::colour(skell::theme::border).withAlpha(.65f));
-        g.drawLine(186.f, 143.f, 772.f, 143.f, 1.f);
-        g.drawLine(215.f, 583.f, 744.f, 583.f, 1.f);
-        g.setColour(skell::theme::colour(skell::theme::gray));
-        g.setFont(skell::theme::regular(12));
-        g.drawText("FADE IN", 50, 346, 120, 24, juce::Justification::centred);
-        g.drawText("FADE OUT", 786, 346, 120, 24, juce::Justification::centred);
-        g.drawText("MODE", 151, 505, 53, 19, juce::Justification::centredRight);
-        g.drawText("SMOOTH", 50, 648, 120, 18, juce::Justification::centred);
-        g.drawText("MIX", 783, 648, 120, 18, juce::Justification::centred);
-        g.setFont(skell::theme::mono(11));
-        g.drawText("v1.5.4", 700, 652, 70, 17, juce::Justification::centredRight);
+        using namespace skell::theme;
+        const auto ivory = skell::theme::ivory();
+        const auto base = colour(background);
+        const auto upper = ivory ? juce::Colour(0xffe9d8c1) : base.brighter(.12f);
+        const auto lower = ivory ? juce::Colour(0xffc8b094) : base.darker(.12f);
+        g.setGradientFill(juce::ColourGradient(upper,100.f,55.f,lower,870.f,720.f,false));
+        g.fillAll();
+        // Reproducible horizontal brush strokes: cached offscreen by JUCE,
+        // not an expensive texture allocation in the audio process.
+        if (ivory) {
+            juce::uint32 seed=0x1af0405u;
+            for(int i=0;i<2200;++i) {
+                seed ^= seed<<13; seed ^= seed>>17; seed ^= seed<<5;
+                const float x=static_cast<float>(seed%960);
+                seed ^= seed<<13; seed ^= seed>>17; seed ^= seed<<5;
+                const float y=static_cast<float>(seed%720);
+                seed ^= seed<<13; seed ^= seed>>17; seed ^= seed<<5;
+                const float len=5.f+static_cast<float>(seed%78);
+                g.setColour(((seed&1u)?juce::Colours::white:juce::Colours::black)
+                             .withAlpha(.018f+static_cast<float>(seed%5u)*.005f));
+                g.drawLine(x,y,std::min(955.f,x+len),y,.43f);
+            }
+        }
+        auto frame=juce::Rectangle<float>(2,2,956,716);
+        g.setColour(juce::Colours::black.withAlpha(.62f));
+        g.drawRoundedRectangle(frame,23.f,3.f);
+        g.setColour(colour(border).brighter(.22f));
+        g.drawRoundedRectangle(frame.reduced(2.f),21.f,2.f);
+        g.setColour(juce::Colours::white.withAlpha(.62f));
+        g.drawRoundedRectangle(frame.reduced(4.f),19.f,1.f);
+        g.setColour(juce::Colours::black.withAlpha(.18f));
+        g.drawRoundedRectangle(frame.reduced(5.5f),18.f,1.f);
+        // Continuous thin engraved section rules.
+        g.setColour(colour(border).withAlpha(.47f));
+        g.drawLine(168,139,431,139,.85f);
+        g.drawLine(535,139,792,139,.85f);
+        g.drawLine(196,583,759,583,1.1f);
+        g.setColour(juce::Colours::white.withAlpha(.35f));
+        g.drawLine(196,584,759,584,.75f);
+        g.setFont(regular(14));
+        g.setColour(colour(gray));
+        g.drawText("LOOP LENGTH",426,120,110,24,juce::Justification::centred);
+        g.drawText("FADE IN",45,350,120,26,juce::Justification::centred);
+        g.drawText("FADE OUT",794,350,120,26,juce::Justification::centred);
+        g.drawText("MODE",160,500,70,25,juce::Justification::centred);
+        g.drawText("SMOOTH",44,684,120,24,juce::Justification::centred);
+        g.drawText("MIX",798,684,120,24,juce::Justification::centred);
+        g.setFont(mono(11.5f));
+        g.drawText("v1.6.0",744,686,74,16,juce::Justification::centredRight);
     }
 };
 
@@ -161,7 +190,7 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     addAndMakeVisible(canvas);
     background = std::make_unique<Backplate>();
     canvas.addAndMakeVisible(*background);
-    background->setBounds(0, 0, 958, 676);
+    background->setBounds(0, 0, skell::theme::width, skell::theme::height);
     for (juce::Component* c : std::array<juce::Component*, 11>{&top, &loops, &waveform, &gate, &modes, &presets,
                                                          &band, &fadeIn, &fadeOut, &smooth, &mix}) canvas.addAndMakeVisible(*c);
     top.setBounds(skell::theme::top);
@@ -171,10 +200,10 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     modes.setBounds(skell::theme::modes);
     presets.setBounds(skell::theme::presets);
     band.setBounds(skell::theme::band);
-    fadeIn.setBounds(43, 191, 130, 150);
-    fadeOut.setBounds(783, 191, 130, 150);
-    smooth.setBounds(50, 555, 119, 97);
-    mix.setBounds(786, 555, 119, 97);
+    fadeIn.setBounds(34, 198, 141, 158);
+    fadeOut.setBounds(783, 198, 141, 158);
+    smooth.setBounds(42, 551, 122, 129);
+    mix.setBounds(794, 551, 122, 129);
     for (auto* slider : {&fadeIn, &fadeOut, &smooth, &mix}) slider->setDoubleClickReturnValue(true, slider == &smooth ? 30. : slider == &mix ? 100. : 0.);
     fadeIn.textFromValueFunction = [](double value) { return value < .5 ? "Inst" : juce::String(value, 0) + " ms"; };
     fadeOut.textFromValueFunction = fadeIn.textFromValueFunction;
@@ -192,10 +221,23 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     settings->setBounds(530, 102, 402, 548);
     settings->setVisible(false);
     top.settings.onClick = [this] { settings->setVisible(!settings->isVisible()); settings->toFront(false); };
+    // Same skull-click appearance workflow as SkellKey and the SkellCore quickstart.
+    top.skull.onClick = [this] {
+        const auto next = skellcore::ui::studioSkinFromIndex((static_cast<int>(look.skin()) + 1) % 4);
+        setLookAndFeel(nullptr);
+        look.setSkin(next);
+        setLookAndFeel(&look);
+        (void)skellcore::ui::StudioSkinStore::save(next);
+        background->repaint();
+        top.repaint(); loops.repaint(); waveform.repaint(); gate.repaint();
+        modes.repaint(); presets.repaint(); band.repaint();
+        for (auto* dial : {&fadeIn, &fadeOut, &smooth, &mix}) dial->repaint();
+        settings->repaint();
+    };
     tooltips = std::make_unique<juce::TooltipWindow>(this, 700);
     setResizable(true, true);
-    setResizeLimits(479, 338, 1198, 845);
-    getConstrainer()->setFixedAspectRatio(958.0 / 676.0);
+    setResizeLimits(480, 360, 1200, 900);
+    getConstrainer()->setFixedAspectRatio(4.0 / 3.0);
     applyWindowSize(p.getSavedSize());
     startTimerHz(30);
 }
@@ -210,14 +252,17 @@ void SkellGlitchAudioProcessorEditor::applyWindowSize(int index) {
     constexpr float scales[] = {.5f, .75f, 1.f, 1.25f};
     uiScale = scales[static_cast<size_t>(std::clamp(index, 0, 3))];
     processor.setSavedSize(index);
-    setSize(juce::roundToInt(958 * uiScale), juce::roundToInt(676 * uiScale));
+    setSize(juce::roundToInt(skell::theme::width * uiScale),
+            juce::roundToInt(skell::theme::height * uiScale));
 }
 void SkellGlitchAudioProcessorEditor::resized() {
-    uiScale = getWidth() / 958.f;
-    canvas.setBounds(0, 0, 958, 676);
+    uiScale = getWidth() / static_cast<float>(skell::theme::width);
+    canvas.setBounds(0, 0, skell::theme::width, skell::theme::height);
     canvas.setTransform(juce::AffineTransform::scale(uiScale));
 }
-void SkellGlitchAudioProcessorEditor::paint(juce::Graphics& g) { g.fillAll(skell::theme::colour(skell::theme::background)); }
+void SkellGlitchAudioProcessorEditor::paint(juce::Graphics& g) {
+    g.fillAll(skell::theme::colour(skell::theme::background));
+}
 void SkellGlitchAudioProcessorEditor::timerCallback() {
     const bool on = processor.apvts.getRawParameterValue("sync")->load() >= .5f;
     const auto label = on ? juce::String("SYNC ON") : juce::String("SYNC OFF");

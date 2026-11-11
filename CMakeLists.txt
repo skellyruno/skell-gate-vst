@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(SkellGlitch VERSION 1.5.4 LANGUAGES CXX)
+project(SkellGlitch VERSION 1.6.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(SKELL_DSP_ONLY "Only build the dependency-free DSP tests" OFF)
@@ -25,6 +25,20 @@ else()
         FetchContent_Declare(JUCE GIT_REPOSITORY https://github.com/juce-framework/JUCE.git GIT_TAG 8.0.10 GIT_SHALLOW TRUE)
         FetchContent_MakeAvailable(JUCE)
     endif()
+endif()
+
+# SkellCore Studio skin, shared appearance storage and official skull geometry.
+# Pin to a reviewed immutable commit, so identical builds use identical assets.
+set(SKELLCORE_COMMIT "d02d50849123f28bbc2e32cded0e78aced15afb3")
+if(DEFINED SKELLCORE_DIR AND EXISTS "${SKELLCORE_DIR}/SkellCore/CMakeLists.txt")
+    add_subdirectory("${SKELLCORE_DIR}/SkellCore" "${CMAKE_BINARY_DIR}/skellcore" EXCLUDE_FROM_ALL)
+else()
+    include(FetchContent)
+    FetchContent_Declare(SkellCoreRoot
+        GIT_REPOSITORY https://github.com/skellyruno/skellcore-vst-template.git
+        GIT_TAG ${SKELLCORE_COMMIT}
+        SOURCE_SUBDIR SkellCore)
+    FetchContent_MakeAvailable(SkellCoreRoot)
 endif()
 
 juce_add_plugin(SkellGlitch
@@ -60,7 +74,7 @@ target_sources(SkellGlitch PRIVATE
 target_compile_definitions(SkellGlitch PRIVATE
     JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
 target_link_libraries(SkellGlitch PRIVATE
-    juce::juce_audio_utils juce::juce_dsp juce::juce_gui_extra
+    juce::juce_audio_utils juce::juce_dsp juce::juce_gui_extra SkellCore::UI
     PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 # Original vector mark is embedded; no third-party or redistributable font files are included.
 juce_add_binary_data(SkellGlitchAssets SOURCES assets/original_mark.svg)

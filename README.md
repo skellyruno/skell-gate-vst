@@ -1,5 +1,13 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.6.0 — Studio Ivory reference UI and SkellCore skull
+- Rebuilt the real JUCE editor around the supplied ivory + lime 4:3 reference, while keeping existing automation parameters and DSP unchanged.
+- Official shared SkellCore StudioUI/SkullTheme integration pinned to commit d02d508; click the shared skull geometry to cycle Ivory/Obsidian/Amethyst/Crimson and share the user appearance preference.
+- Brushed champagne metal, bevelled real buttons and knobs, recessed waveform, emerald sequencer and illuminated band handles, across 480×360 to 1200×900.
+- The 720×540 compact default retains the user's prior small-window preference. Full interactive controls remain attached.
+- CI renders all four sizes and continues real processor/audio/DSP regressions. See docs/REFERENCE_UI_IMPLEMENTATION.md.
+
+
 ## v1.5.4 — aligned-mode startup PDC correctness
 - Aligned latency is now reported during prepareToPlay(), before audio starts, based on the selected loop length and the 120 BPM fallback transport. Zero-latency mode still reports zero.
 - A Windows JUCE processor smoke test verifies the exact 6,000-sample delay of a 1/16-note slice at 120 BPM / 48 kHz using a known impulse while the plugin is bypassed.
