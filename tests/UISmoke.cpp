@@ -43,6 +43,23 @@ int main() {
             std::cerr << "Blank or missing neon controls at " << width << "x" << height << "\n";
             return 5;
         }
+        if (width == 960) {
+            // The reference's Inst fade knobs have a deliberately lit bezel
+            // even at zero value. Verify that the actual JUCE draw covers the
+            // left dial rather than only the parameter's tiny endpoint dot.
+            int illuminated = 0;
+            for (int yy = 197; yy <= 333; ++yy)
+                for (int xx = 43; xx <= 170; ++xx) {
+                    const auto pixel = frame.getPixelAt(xx, yy);
+                    if (pixel.getGreen() > 170
+                        && pixel.getGreen() > pixel.getRed() + 75) ++illuminated;
+                }
+            if (illuminated < 110) {
+                std::cerr << "UI_REFERENCE: fade bezel lacks reference neon ring\n";
+                return 24;
+            }
+            std::cout << "UI_REFERENCE: fade illuminated pixels=" << illuminated << "\n";
+        }
         const auto output = directory.getChildFile(
             "Skell-Glitch-" + juce::String(width) + "x" + juce::String(height) + ".png");
         juce::FileOutputStream stream(output);

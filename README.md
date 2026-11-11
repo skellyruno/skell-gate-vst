@@ -1,5 +1,10 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.6.3 — faithfully illuminated fade bezels
+- Both fade knobs now reproduce the reference's always-lit left chrome/lime bezel, with the small moving green marker still accurately indicating the real automation value. The cosmetic arc does not alter the control or its DSP.
+- Warmer reflective knob rim and corrected footer version alignment.
+- CI additionally checks the actual rendered fade region for neon coverage at 960x720.
+
 ## v1.6.2 — measured reference alignment
 - Measured selected-loop, gate, mode, preset and filter-rail pixel bounds at a matched 960x720 resolution. Adjusted the real component positions rather than applying a blanket vertical shift.
 - Increased metallic dial radius to match the reference, retaining the true interactive parameter arc and value markers.

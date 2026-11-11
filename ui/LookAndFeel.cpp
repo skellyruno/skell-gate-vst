@@ -64,8 +64,8 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     // Recessed shadow, three machined metallic rims, inner ceramic face.
     g.setColour(juce::Colours::black.withAlpha(.24f));
     g.fillEllipse(c.x-outer-3.f,c.y-outer+5.f,2*(outer+3.f),2*(outer+3.f));
-    g.setGradientFill(juce::ColourGradient(face.brighter(.24f),c.x-outer,c.y-outer,
-                                          line.darker(.25f),c.x+outer,c.y+outer,false));
+    g.setGradientFill(juce::ColourGradient(face.brighter(.29f),c.x-outer,c.y-outer,
+                                          face.darker(.17f),c.x+outer,c.y+outer,false));
     g.fillEllipse(c.x-outer,c.y-outer,2*outer,2*outer);
     g.setColour(line.withAlpha(.95f)); g.drawEllipse(c.x-outer,c.y-outer,2*outer,2*outer,1.1f);
     g.setColour(juce::Colours::white.withAlpha(.58f));
@@ -77,6 +77,19 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     g.setColour(line.darker(.26f)); g.strokePath(track,juce::PathStrokeType(7.2f,juce::PathStrokeType::curved,juce::PathStrokeType::rounded));
     g.setColour(accent.darker(.6f)); g.strokePath(active,juce::PathStrokeType(8.f,juce::PathStrokeType::curved,juce::PathStrokeType::rounded));
     g.setColour(accent); g.strokePath(active,juce::PathStrokeType(5.1f,juce::PathStrokeType::curved,juce::PathStrokeType::rounded));
+    const auto name = slider.getName();
+    if (name == "FADE IN" || name == "FADE OUT") {
+        // The reference has a separate always-lit left bezel on both fade
+        // knobs, even while they display Inst. It is decorative, not the
+        // parameter arc: the moving marker below remains the true value.
+        juce::Path bezelLight;
+        bezelLight.addCentredArc(c.x,c.y,trackR+4.f,trackR+4.f,0.f,
+                                 start,juce::MathConstants<float>::twoPi,true);
+        g.setColour(accent.darker(.56f).withAlpha(.78f));
+        g.strokePath(bezelLight,juce::PathStrokeType(7.f,juce::PathStrokeType::curved,juce::PathStrokeType::rounded));
+        g.setColour(accent.withAlpha(.98f));
+        g.strokePath(bezelLight,juce::PathStrokeType(3.9f,juce::PathStrokeType::curved,juce::PathStrokeType::rounded));
+    }
     const float dial = outer*.65f;
     g.setColour(line.darker(.22f)); g.fillEllipse(c.x-dial-2,c.y-dial-1,2*(dial+2),2*(dial+2));
     g.setGradientFill(juce::ColourGradient(face.brighter(.22f), c.x-dial*.5f,c.y-dial*.8f,
@@ -87,7 +100,6 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     const auto tip = c.getPointOnCircumference(trackR,angle);
     g.setColour(accent.darker(.7f)); g.fillEllipse(tip.x-5.2f,tip.y-5.2f,10.4f,10.4f);
     g.setColour(accent.brighter(.12f)); g.fillEllipse(tip.x-3.8f,tip.y-3.8f,7.6f,7.6f);
-    const auto name = slider.getName();
     const double value = slider.getValue();
     const juce::String text = (name=="FADE IN" || name=="FADE OUT")
         ? (value < .5 ? juce::String("Inst") : juce::String(juce::roundToInt(value))+" ms")
