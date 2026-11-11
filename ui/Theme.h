@@ -32,17 +32,17 @@ inline juce::Colour colour(juce::uint32 token) {
         // A dark, warm, subtly aged hardware variant of SkellCore Obsidian.
         // The saved shared skin index and the other three skins are untouched.
         switch (token) {
-            case background: return C(0xff090b0b);
-            case tile: return C(0xff20221f);
-            case deep: return C(0xff33342f);
-            case border: return C(0xff67645b);
-            case neon: return C(0xff57fb1e);
-            case pale: return C(0xffa3ff75);
-            case dim: return C(0xff2a9b18);
-            case magenta: return C(0xffca6595);
-            case cyan: return C(0xff4aae70);
-            case bone: return C(0xffeeece2);
-            case gray: return C(0xffb6b3a8);
+            case background: return C(0xff090b0a);
+            case tile: return C(0xff191d19);
+            case deep: return C(0xff272d28);
+            case border: return C(0xff566056);
+            case neon: return C(0xff57f526);
+            case pale: return C(0xffb3fd80);
+            case dim: return C(0xff327b30);
+            case magenta: return C(0xffc76391);
+            case cyan: return C(0xff4baf7b);
+            case bone: return C(0xffebeee7);
+            case gray: return C(0xffabb5aa);
         }
     }
     const auto p = skellcore::ui::studioPalette(skin());
@@ -69,8 +69,33 @@ inline void raised(juce::Graphics& g, juce::Rectangle<float> bounds, float radiu
     // Recessed shadow and warm machined relief, restrained and legible at 50%.
     g.setColour(juce::Colours::black.withAlpha(.26f));
     g.fillRoundedRectangle(bounds.translated(0.f, 2.5f), radius);
-    const auto c = colour(selected ? neon : tile);
     const bool black = matteBlack();
+    // Obsidian uses charcoal switches with one luminous edge, not slabs
+    // of full-bright neon. Selected, unselected and hover all share a
+    // restrained machined-metal contrast.
+    if (black) {
+        const auto base = colour(tile);
+        const auto line = colour(border);
+        const auto accent = colour(neon);
+        g.setColour(juce::Colours::black.withAlpha(.57f));
+        g.fillRoundedRectangle(bounds.translated(0.f, 2.2f), radius);
+        g.setGradientFill(juce::ColourGradient(
+            base.brighter(selected ? .22f : .17f), bounds.getX(), bounds.getY(),
+            base.darker(pressed ? .22f : .12f), bounds.getRight(), bounds.getBottom(), false));
+        g.fillRoundedRectangle(bounds, radius);
+        g.setColour((selected ? accent : line).withAlpha(selected ? .79f : .72f));
+        g.drawRoundedRectangle(bounds.reduced(.6f), radius, selected ? 1.3f : 1.f);
+        g.setColour(juce::Colours::white.withAlpha(selected ? .18f : .10f));
+        g.drawLine(bounds.getX() + radius, bounds.getY() + 2.f,
+                   bounds.getRight() - radius, bounds.getY() + 2.f, 1.f);
+        if (selected) {
+            g.setColour(accent.withAlpha(.92f));
+            g.fillRoundedRectangle(bounds.getX() + radius, bounds.getBottom() - 3.5f,
+                                   bounds.getWidth() - 2.f * radius, 1.7f, .8f);
+        }
+        return;
+    }
+    const auto c = colour(selected ? neon : tile);
     juce::ColourGradient gradient(c.brighter(selected ? .16f : black ? .07f : .18f),
                                   bounds.getCentreX(), bounds.getY(),
                                   c.darker(selected ? .16f : black ? .14f : .24f),
