@@ -1,5 +1,10 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.6.4 — retro metal knobs and mechanical header controls
+- Refined all four real JUCE knobs against the reference: machined brass lip, inset dark-olive track, narrower neon lighting, warmer raised caps, and independent actual-value dots. Fade bezels show continuous backlight without making their automation values misleading.
+- Reworked skull, settings cog and power medallions: warm bronze raised buttons with engraved olive-green power/gear symbols; removed the oversized neon rings from non-skull icons. The skull continues to use SkellCore's shared geometry and theme switch callback.
+- Existing layouts, SkellCore persistence, automation attachments, presets, and DSP remain unchanged. Offscreen snapshots and audio smoke tests remain mandatory.
+
 ## v1.6.3 — faithfully illuminated fade bezels
 - Both fade knobs now reproduce the reference's always-lit left chrome/lime bezel, with the small moving green marker still accurately indicating the real automation value. The cosmetic arc does not alter the control or its DSP.
 - Warmer reflective knob rim and corrected footer version alignment.

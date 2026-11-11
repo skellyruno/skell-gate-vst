@@ -2,53 +2,93 @@
 #include "../PluginProcessor.h"
 #include <cmath>
 void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
-    auto r = getLocalBounds().toFloat().reduced(2.f);
-    const auto neon = skell::theme::colour(skell::theme::neon);
-    const auto frame = skell::theme::colour(skell::theme::border);
-    const auto face = skell::theme::colour(skell::theme::tile);
-    auto c = r.getCentre();
-    const float radius = std::min(r.getWidth(),r.getHeight())*.50f;
-    g.setColour(juce::Colours::black.withAlpha(.24f));
-    g.fillEllipse(c.x-radius,c.y-radius+3.f,2*radius,2*radius);
-    g.setGradientFill(juce::ColourGradient(face.brighter(.26f),c.x-radius,c.y-radius,
-                                          frame.darker(.08f),c.x+radius,c.y+radius,true));
-    g.fillEllipse(c.x-radius,c.y-radius,2*radius,2*radius);
-    g.setColour(frame);g.drawEllipse(c.x-radius,c.y-radius,2*radius,2*radius,1.4f);
-    g.setColour(juce::Colours::white.withAlpha(.57f));
-    g.drawEllipse(c.x-radius+2,c.y-radius+2,2*(radius-2),2*(radius-2),1.f);
-    g.setColour(neon);
-    const float inner = radius * (icon==Kind::Skull ? .73f : .72f);
-    g.drawEllipse(c.x-inner,c.y-inner,2*inner,2*inner,icon==Kind::Skull ? 3.1f : 1.5f);
-    if (icon==Kind::Skull) {
-        g.setColour(skell::theme::colour(skell::theme::dim));
-        g.fillEllipse(c.x-inner+3,c.y-inner+3,2*(inner-3),2*(inner-3));
-        // Same reusable skull geometry defined in the SkellCore master asset.
-        // Clip away its key shaft to fit the circular medallion in the reference.
-        juce::Graphics::ScopedSaveState saved(g);
-        const float sx = c.x - 12.5f, sy = c.y - 15.0f;
-        g.reduceClipRegion(juce::Rectangle<int>(static_cast<int>(sx),
-                           static_cast<int>(sy),26,29));
-        skellcore::ui::drawSkullKeyMark(g,sx,sy,neon,
-                    skell::theme::colour(skell::theme::deep).darker(.6f));
-    } else if (icon==Kind::Power) {
-        juce::Path arc;
-        arc.addCentredArc(c.x,c.y+1.f,9.f,9.f,0.f,.70f,
-                          juce::MathConstants<float>::twoPi-.70f,true);
-        g.strokePath(arc,juce::PathStrokeType(2.8f,
-                     juce::PathStrokeType::curved,juce::PathStrokeType::rounded));
-        g.drawLine(c.x,c.y-11.f,c.x,c.y+1.f,2.8f);
-    } else {
-        g.drawEllipse(c.x-6.5f,c.y-6.5f,13.f,13.f,2.3f);
-        g.drawEllipse(c.x-2.3f,c.y-2.3f,4.6f,4.6f,1.6f);
-        for(int i=0;i<8;++i) {
-            const float a=i*juce::MathConstants<float>::twoPi/8.f;
-            const float dx=std::cos(a),dy=std::sin(a);
-            g.drawLine(c.x+dx*8.f,c.y+dy*8.f,c.x+dx*11.f,c.y+dy*11.f,2.f);
+    const auto r=getLocalBounds().toFloat().reduced(2.f);
+    const auto neon=skell::theme::colour(skell::theme::neon);
+    const auto border=skell::theme::colour(skell::theme::border);
+    const auto bronze=skell::theme::colour(skell::theme::tile);
+    const auto c=r.getCentre();
+    const float radius=std::min(r.getWidth(),r.getHeight())*.49f;
+    const auto ellipse=[&](float rad) {
+        return juce::Rectangle<float>(c.x-rad,c.y-rad,2*rad,2*rad);
+    };
+    g.setColour(juce::Colours::black.withAlpha(.27f));
+    g.fillEllipse(ellipse(radius+1.f).translated(.7f,2.5f));
+    g.setColour(border.darker(.38f));
+    g.fillEllipse(ellipse(radius));
+    // Reference gear and power buttons are warm inset brass, not
+    // neon-ringed badges; only the skull identity badge has a green rim.
+    g.setGradientFill(juce::ColourGradient(
+         bronze.brighter(.34f),c.x-radius*.7f,c.y-radius*.8f,
+         bronze.darker(.24f),c.x+radius*.78f,c.y+radius*.95f,false));
+    g.fillEllipse(ellipse(radius-1.3f));
+    g.setColour(juce::Colours::white.withAlpha(.60f));
+    g.drawEllipse(ellipse(radius-3.f),1.f);
+    g.setColour(border.withAlpha(.37f));
+    g.drawEllipse(ellipse(radius-4.7f),.7f);
+    if(icon==Kind::Skull) {
+        const float medallion=radius*.78f;
+        g.setColour(neon.darker(.62f).withAlpha(.5f));
+        g.fillEllipse(ellipse(medallion+2.f));
+        g.setColour(neon.brighter(.15f));
+        g.drawEllipse(ellipse(medallion+1.f),3.5f);
+        g.setColour(juce::Colours::black.withAlpha(.97f));
+        g.fillEllipse(ellipse(medallion-1.4f));
+        juce::Graphics::ScopedSaveState save(g);
+        const float sx=c.x-13.f,sy=c.y-14.4f;
+        g.reduceClipRegion(juce::Rectangle<int>((int)(sx-2),(int)(sy-1),30,30));
+        // Shared SkellCore master skull, cropped to the medallion silhouette;
+        // jaw details are polished without creating a new brand skull.
+        skellcore::ui::drawSkullKeyMark(g,sx,sy,neon,juce::Colours::black);
+        g.setColour(juce::Colours::black);
+        g.fillRoundedRectangle(c.x-9.3f,c.y+5.3f,18.6f,4.1f,1.f);
+        for(int t=-2;t<=2;++t) {
+            g.setColour(neon);
+            g.fillRoundedRectangle(c.x+t*3.25f-.66f,c.y+5.6f,1.5f,4.1f,.5f);
         }
+    } else if(icon==Kind::Settings) {
+        // Dark bevel under each spoke gives the green, engraved mechanical
+        // gear in the reference, rather than a flat neon sun icon.
+        const auto olive=skell::theme::colour(skell::theme::dim).darker(.26f);
+        for(int n=0;n<8;++n) {
+            const float a=juce::MathConstants<float>::twoPi*n/8.f;
+            const float dx=std::sin(a),dy=-std::cos(a);
+            g.setColour(olive.darker(.48f));
+            g.drawLine(c.x+dx*8.6f+1.f,c.y+dy*8.6f+1.f,
+                       c.x+dx*12.f+1.f,c.y+dy*12.f+1.f,3.2f);
+            g.setColour(olive);
+            g.drawLine(c.x+dx*8.6f,c.y+dy*8.6f,
+                       c.x+dx*12.f,c.y+dy*12.f,2.6f);
+        }
+        g.setColour(olive.darker(.47f));
+        g.fillEllipse(ellipse(9.7f));
+        g.setColour(neon.darker(.3f));
+        g.fillEllipse(ellipse(8.2f));
+        g.setColour(olive);
+        g.fillEllipse(ellipse(5.7f));
+        g.setColour(neon.brighter(.22f));
+        g.drawEllipse(ellipse(5.7f),1.1f);
+        g.setColour(olive.darker(.52f));
+        g.fillEllipse(ellipse(2.7f));
+    } else {
+        const auto olive=skell::theme::colour(skell::theme::dim).darker(.35f);
+        juce::Path powerArc;
+        powerArc.addCentredArc(c.x,c.y+1.f,9.f,9.f,0.f,.68f,
+                              juce::MathConstants<float>::twoPi-.68f,true);
+        const juce::PathStrokeType thick(3.7f,juce::PathStrokeType::curved,
+                                        juce::PathStrokeType::rounded);
+        g.setColour(juce::Colours::black.withAlpha(.49f));
+        g.strokePath(powerArc,juce::PathStrokeType(5.f));
+        g.drawLine(c.x+1.3f,c.y-11.8f,c.x+1.3f,c.y+.5f,4.5f);
+        g.setColour(olive);
+        g.strokePath(powerArc,thick);
+        g.drawLine(c.x,c.y-11.f,c.x,c.y+.5f,3.5f);
+        g.setColour(neon.darker(.24f).withAlpha(.83f));
+        g.strokePath(powerArc,juce::PathStrokeType(1.15f));
+        g.drawLine(c.x-.8f,c.y-10.1f,c.x-.8f,c.y-1.f,1.f);
     }
-    if (hover||down) {
-        g.setColour(neon.withAlpha(down?.25f:.09f));
-        g.fillEllipse(c.x-inner,c.y-inner,2*inner,2*inner);
+    if(hover || down) {
+        g.setColour(neon.withAlpha(down?.12f:.055f));
+        g.fillEllipse(ellipse(radius-5.f));
     }
 }
 TopBar::TopBar(SkellGlitchAudioProcessor& p) : processor(p) {

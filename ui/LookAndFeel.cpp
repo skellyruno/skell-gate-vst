@@ -51,63 +51,104 @@ void SkellLookAndFeel::drawButtonText(juce::Graphics& g, juce::TextButton& b, bo
 }
 void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, int h,
                                        float pos, float start, float end, juce::Slider& slider) {
-    if (w < 20 || h < 20) return;
-    const auto b = juce::Rectangle<float>(static_cast<float>(x),static_cast<float>(y),
-                                           static_cast<float>(w),static_cast<float>(h));
-    const float size = std::min(b.getWidth(),b.getHeight());
-    const float outer = std::max(15.f,size*.47f);
-    const auto c = b.getCentre();
-    const float angle = start + std::clamp(std::isfinite(pos) ? pos : 0.f,0.f,1.f)*(end-start);
-    const auto accent = skell::theme::colour(skell::theme::neon);
-    const auto line = skell::theme::colour(skell::theme::border);
-    const auto face = skell::theme::colour(skell::theme::tile);
-    // Recessed shadow, three machined metallic rims, inner ceramic face.
-    g.setColour(juce::Colours::black.withAlpha(.24f));
-    g.fillEllipse(c.x-outer-3.f,c.y-outer+5.f,2*(outer+3.f),2*(outer+3.f));
-    g.setGradientFill(juce::ColourGradient(face.brighter(.29f),c.x-outer,c.y-outer,
-                                          face.darker(.17f),c.x+outer,c.y+outer,false));
-    g.fillEllipse(c.x-outer,c.y-outer,2*outer,2*outer);
-    g.setColour(line.withAlpha(.95f)); g.drawEllipse(c.x-outer,c.y-outer,2*outer,2*outer,1.1f);
-    g.setColour(juce::Colours::white.withAlpha(.58f));
-    g.drawEllipse(c.x-outer+3,c.y-outer+3,2*(outer-3),2*(outer-3),1.2f);
-    const float trackR = outer*.82f;
-    juce::Path track, active;
-    track.addCentredArc(c.x,c.y,trackR,trackR,0.f,start,end,true);
-    active.addCentredArc(c.x,c.y,trackR,trackR,0.f,start,angle,true);
-    g.setColour(line.darker(.26f)); g.strokePath(track,juce::PathStrokeType(7.2f,juce::PathStrokeType::curved,juce::PathStrokeType::rounded));
-    g.setColour(accent.darker(.6f)); g.strokePath(active,juce::PathStrokeType(8.f,juce::PathStrokeType::curved,juce::PathStrokeType::rounded));
-    g.setColour(accent); g.strokePath(active,juce::PathStrokeType(5.1f,juce::PathStrokeType::curved,juce::PathStrokeType::rounded));
-    const auto name = slider.getName();
-    if (name == "FADE IN" || name == "FADE OUT") {
-        // The reference has a separate always-lit left bezel on both fade
-        // knobs, even while they display Inst. It is decorative, not the
-        // parameter arc: the moving marker below remains the true value.
-        juce::Path bezelLight;
-        bezelLight.addCentredArc(c.x,c.y,trackR+4.f,trackR+4.f,0.f,
-                                 start,juce::MathConstants<float>::twoPi,true);
-        g.setColour(accent.darker(.56f).withAlpha(.78f));
-        g.strokePath(bezelLight,juce::PathStrokeType(7.f,juce::PathStrokeType::curved,juce::PathStrokeType::rounded));
-        g.setColour(accent.withAlpha(.98f));
-        g.strokePath(bezelLight,juce::PathStrokeType(3.9f,juce::PathStrokeType::curved,juce::PathStrokeType::rounded));
+    if (w < 24 || h < 24) return;
+    const auto bounds = juce::Rectangle<float>((float)x, (float)y, (float)w, (float)h);
+    const auto c = bounds.getCentre();
+    const float size = std::min(bounds.getWidth(), bounds.getHeight());
+    const float outer = size * .455f;
+    const float fraction = std::clamp(std::isfinite(pos) ? pos : 0.f, 0.f, 1.f);
+    const float angle = start + fraction * (end - start);
+    const auto neon = skell::theme::colour(skell::theme::neon);
+    const auto border = skell::theme::colour(skell::theme::border);
+    const auto bronze = skell::theme::colour(skell::theme::tile);
+    const auto ink = skell::theme::colour(skell::theme::bone);
+    const bool fade = slider.getName() == "FADE IN" || slider.getName() == "FADE OUT";
+    const auto ellipse = [&](float radius) {
+        return juce::Rectangle<float>(c.x-radius,c.y-radius,2.f*radius,2.f*radius);
+    };
+    // A soft cast shadow, not the old hard gray crescent.
+    for (int i=5; i>=1; --i) {
+        g.setColour(juce::Colours::black.withAlpha(.017f + .009f*(5-i)));
+        g.fillEllipse(ellipse(outer + i*.72f).translated(0,3.6f));
     }
-    const float dial = outer*.65f;
-    g.setColour(line.darker(.22f)); g.fillEllipse(c.x-dial-2,c.y-dial-1,2*(dial+2),2*(dial+2));
-    g.setGradientFill(juce::ColourGradient(face.brighter(.22f), c.x-dial*.5f,c.y-dial*.8f,
-                                          face.darker(.15f),c.x+dial*.68f,c.y+dial*.93f,true));
-    g.fillEllipse(c.x-dial,c.y-dial,2*dial,2*dial);
-    g.setColour(juce::Colours::white.withAlpha(.40f));
-    g.drawEllipse(c.x-dial+2,c.y-dial+2,2*(dial-2),2*(dial-2),1.25f);
-    const auto tip = c.getPointOnCircumference(trackR,angle);
-    g.setColour(accent.darker(.7f)); g.fillEllipse(tip.x-5.2f,tip.y-5.2f,10.4f,10.4f);
-    g.setColour(accent.brighter(.12f)); g.fillEllipse(tip.x-3.8f,tip.y-3.8f,7.6f,7.6f);
+    // Machined outer brass ring: three concentric lips with light from the
+    // upper-left and a thin dark engraved edge, as on the reference knobs.
+    g.setColour(border.darker(.42f));
+    g.fillEllipse(ellipse(outer+.6f));
+    g.setGradientFill(juce::ColourGradient(
+        bronze.brighter(.42f),c.x-outer*.74f,c.y-outer*.9f,
+        bronze.darker(.29f),c.x+outer*.84f,c.y+outer*.92f,false));
+    g.fillEllipse(ellipse(outer-.9f));
+    g.setColour(juce::Colours::white.withAlpha(.67f));
+    g.drawEllipse(ellipse(outer-2.5f),1.f);
+    g.setColour(border.withAlpha(.85f));
+    g.drawEllipse(ellipse(outer-4.2f),1.2f);
+    g.setColour(bronze.darker(.21f));
+    g.fillEllipse(ellipse(outer-5.7f));
+    g.setColour(bronze.brighter(.17f));
+    g.drawEllipse(ellipse(outer-6.7f),.75f);
+
+    const float ringRadius = outer * .78f;
+    juce::Path track, progress;
+    track.addCentredArc(c.x,c.y,ringRadius,ringRadius,0.f,start,end,true);
+    progress.addCentredArc(c.x,c.y,ringRadius,ringRadius,0.f,start,angle,true);
+    const juce::PathStrokeType roundTrack(5.4f,juce::PathStrokeType::curved,
+                                        juce::PathStrokeType::rounded);
+    const juce::PathStrokeType lightTrack(4.4f,juce::PathStrokeType::curved,
+                                        juce::PathStrokeType::rounded);
+    // The dark unlit track has the deep olive / bronze treatment in the
+    // reference, rather than an oversized gray band.
+    g.setColour(border.darker(.67f));
+    g.strokePath(track,roundTrack);
+    g.setColour(skell::theme::colour(skell::theme::dim).darker(.15f).withAlpha(.82f));
+    g.strokePath(track,juce::PathStrokeType(3.5f,juce::PathStrokeType::curved,
+                                           juce::PathStrokeType::rounded));
+    // The fade knob's short neon arc is an illuminated backplate. The small
+    // moving dot remains the honest automation position at Inst / 0 ms.
+    juce::Path illuminated = progress;
+    if (fade) {
+        illuminated.clear();
+        illuminated.addCentredArc(c.x,c.y,ringRadius,ringRadius,0.f,
+                                 start,start+(end-start)*.715f,true);
+    }
+    g.setColour(neon.darker(.46f).withAlpha(.65f));
+    g.strokePath(illuminated,juce::PathStrokeType(7.f,juce::PathStrokeType::curved,
+                                                 juce::PathStrokeType::rounded));
+    g.setColour(neon);
+    g.strokePath(illuminated,lightTrack);
+    g.setColour(neon.brighter(.3f).withAlpha(.63f));
+    g.strokePath(illuminated,juce::PathStrokeType(1.15f,juce::PathStrokeType::curved,
+                                                 juce::PathStrokeType::rounded));
+
+    // The dial is a raised ceramic-metal cap with an engraved outer groove.
+    const float cap = outer*.67f;
+    g.setColour(border.darker(.43f));
+    g.fillEllipse(ellipse(cap+2.0f).translated(0,1.6f));
+    g.setColour(bronze.brighter(.24f));
+    g.fillEllipse(ellipse(cap+1.f));
+    g.setGradientFill(juce::ColourGradient(
+        bronze.brighter(.38f),c.x-cap*.60f,c.y-cap*.87f,
+        bronze.darker(.25f),c.x+cap*.67f,c.y+cap*.9f,false));
+    g.fillEllipse(ellipse(cap-.8f));
+    g.setColour(juce::Colours::white.withAlpha(.62f));
+    g.drawEllipse(ellipse(cap-2.3f),1.1f);
+    g.setColour(border.withAlpha(.22f));
+    g.drawEllipse(ellipse(cap-4.9f),.85f);
+    // Position pin always follows the real parameter, including at the
+    // Instant fade setting; it never follows the decorative illumination.
+    const auto tip=c.getPointOnCircumference(ringRadius,angle);
+    g.setColour(border.darker(.47f));
+    g.fillEllipse(tip.x-4.8f,tip.y-3.9f,9.6f,9.6f);
+    g.setColour(neon.brighter(.1f));
+    g.fillEllipse(tip.x-3.8f,tip.y-3.3f,7.6f,7.6f);
     const double value = slider.getValue();
-    const juce::String text = (name=="FADE IN" || name=="FADE OUT")
+    const auto text = fade
         ? (value < .5 ? juce::String("Inst") : juce::String(juce::roundToInt(value))+" ms")
         : juce::String(juce::roundToInt(value))+"%";
-    g.setColour(skell::theme::colour(skell::theme::bone));
-    g.setFont(skell::theme::display(outer > 53.f ? 21.f : 17.f));
-    g.drawFittedText(text, juce::Rectangle<int>(static_cast<int>(c.x-dial+7),
-       static_cast<int>(c.y-13),static_cast<int>((dial-7)*2),26),juce::Justification::centred,1);
+    g.setColour(ink.withAlpha(.95f));
+    g.setFont(skell::theme::display(size > 130 ? 18.6f : 17.1f));
+    g.drawFittedText(text,juce::Rectangle<int>((int)(c.x-cap+6),(int)(c.y-13),
+        (int)(2*cap-12),26),juce::Justification::centred,1);
 }
 void SkellLookAndFeel::drawComboBox(juce::Graphics& g, int w, int h, bool, int, int, int, int, juce::ComboBox&) {
     skell::theme::raised(g,juce::Rectangle<float>(1.f,1.f,static_cast<float>(w-2),static_cast<float>(h-4)),7.f);
