@@ -44,8 +44,8 @@ PresetBar::PresetBar(SkellGlitchAudioProcessor& p) : processor(p),
     };
 }
 void PresetBar::resized() {
-    constexpr int selectorWidth = 159;
-    constexpr int controlsStart = 165;
+    constexpr int selectorWidth = 166;
+    constexpr int controlsStart = 172;
     presets.setBounds(0, 0, selectorWidth, getHeight());
     const int width = (getWidth() - controlsStart) / 8;
     for (size_t i = 0; i < actions.size(); ++i)

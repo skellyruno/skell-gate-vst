@@ -22,9 +22,11 @@ ModeRow::ModeRow(SkellGlitchAudioProcessor& p) : processor(p),
     startTimerHz(20);
 }
 void ModeRow::resized() {
-    for (int i = 0; i < 3; ++i) modes[static_cast<size_t>(i)].setBounds(116 + i * 106, 0, 101, 42);
+    modes[0].setBounds(109, 0, 111, 42);
+    modes[1].setBounds(228, 0, 108, 42);
+    modes[2].setBounds(337, 0, 109, 42);
     gateRate.setBounds(0, 7, 109, 31);
-    reverseStyle.setBounds(439, 7, 102, 31);
+    reverseStyle.setBounds(459, 7, 117, 31);
 }
 void ModeRow::paint(juce::Graphics&) {}
 void ModeRow::timerCallback() {

@@ -1,5 +1,10 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.6.2 — measured reference alignment
+- Measured selected-loop, gate, mode, preset and filter-rail pixel bounds at a matched 960x720 resolution. Adjusted the real component positions rather than applying a blanket vertical shift.
+- Increased metallic dial radius to match the reference, retaining the true interactive parameter arc and value markers.
+- Widened the preset and mode controls, corrected the low/high filter rail and footer spacing, and retained the shared skull skin cycling.
+
 ## v1.6.1 — screenshot-reviewed geometry and shared skin cycling
 - Moved the waveform, 16-step grid, mode/preset rows, band and side dials to their measured 4:3 reference positions. Raised the bottom labels away from the frame.
 - Darkened the lower/left brushed champagne panel to match the provided UI image without adding a repeating raster layer.

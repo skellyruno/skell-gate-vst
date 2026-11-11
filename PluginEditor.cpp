@@ -56,19 +56,19 @@ public:
         g.setColour(colour(border).withAlpha(.47f));
         g.drawLine(168,139,431,139,.85f);
         g.drawLine(535,139,792,139,.85f);
-        g.drawLine(196,570,759,570,1.1f);
+        g.drawLine(196,583,759,583,1.1f);
         g.setColour(juce::Colours::white.withAlpha(.35f));
-        g.drawLine(196,571,759,571,.75f);
+        g.drawLine(196,584,759,584,.75f);
         g.setFont(regular(14));
         g.setColour(colour(gray));
         g.drawText("LOOP LENGTH",426,120,110,24,juce::Justification::centred);
         g.drawText("FADE IN",45,340,120,26,juce::Justification::centred);
         g.drawText("FADE OUT",794,340,120,26,juce::Justification::centred);
-        g.drawText("MODE",141,484,70,25,juce::Justification::centred);
-        g.drawText("SMOOTH",44,665,120,24,juce::Justification::centred);
-        g.drawText("MIX",798,665,120,24,juce::Justification::centred);
+        g.drawText("MODE",141,494,70,25,juce::Justification::centred);
+        g.drawText("SMOOTH",43,676,120,24,juce::Justification::centred);
+        g.drawText("MIX",793,676,120,24,juce::Justification::centred);
         g.setFont(mono(11.5f));
-        g.drawText("v1.6.1",744,667,74,16,juce::Justification::centredRight);
+        g.drawText("v1.6.2",744,681,74,16,juce::Justification::centredRight);
     }
 };
 
@@ -212,10 +212,10 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     modes.setBounds(skell::theme::modes);
     presets.setBounds(skell::theme::presets);
     band.setBounds(skell::theme::band);
-    fadeIn.setBounds(34, 180, 141, 154);
-    fadeOut.setBounds(783, 180, 141, 154);
-    smooth.setBounds(42, 535, 122, 130);
-    mix.setBounds(794, 535, 122, 130);
+    fadeIn.setBounds(34, 190, 141, 154);
+    fadeOut.setBounds(783, 190, 141, 154);
+    smooth.setBounds(39, 541, 117, 126);
+    mix.setBounds(793, 541, 117, 126);
     for (auto* slider : {&fadeIn, &fadeOut, &smooth, &mix}) slider->setDoubleClickReturnValue(true, slider == &smooth ? 30. : slider == &mix ? 100. : 0.);
     fadeIn.textFromValueFunction = [](double value) { return value < .5 ? "Inst" : juce::String(value, 0) + " ms"; };
     fadeOut.textFromValueFunction = fadeIn.textFromValueFunction;

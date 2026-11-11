@@ -16,7 +16,7 @@ LoopRow::LoopRow(SkellGlitchAudioProcessor& p) : processor(p) {
     startTimerHz(20);
 }
 void LoopRow::resized() {
-    const int gap = 10;
+    const int gap = 12;
     const int w = (getWidth() - gap * 8) / 9;
     for (int i = 0; i < 9; ++i)
         buttons[static_cast<size_t>(i)]->setBounds(i * (w + gap), 2, w, 43);

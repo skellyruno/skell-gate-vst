@@ -55,7 +55,7 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     const auto b = juce::Rectangle<float>(static_cast<float>(x),static_cast<float>(y),
                                            static_cast<float>(w),static_cast<float>(h));
     const float size = std::min(b.getWidth(),b.getHeight());
-    const float outer = std::max(15.f,size*.43f);
+    const float outer = std::max(15.f,size*.47f);
     const auto c = b.getCentre();
     const float angle = start + std::clamp(std::isfinite(pos) ? pos : 0.f,0.f,1.f)*(end-start);
     const auto accent = skell::theme::colour(skell::theme::neon);
