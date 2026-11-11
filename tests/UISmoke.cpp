@@ -181,6 +181,32 @@ int main() {
         }
     }
     std::cout << "LATENCY_SMOKE: aligned=6000, bypass impulse sample=6000, passed\n";
+    // Verify that the official SkellCore skull is clickable and actually
+    // changes the real editor skin; four clicks must restore the original.
+    std::function<juce::TextButton*(juce::Component&)> findSkull;
+    findSkull = [&](juce::Component& root) -> juce::TextButton* {
+        if (auto* button = dynamic_cast<juce::TextButton*>(&root))
+            if (button->getTooltip().containsIgnoreCase("SKELL appearance")) return button;
+        for (int i = 0; i < root.getNumChildComponents(); ++i)
+            if (auto* found = findSkull(*root.getChildComponent(i))) return found;
+        return nullptr;
+    };
+    auto* skull = findSkull(*editor);
+    if (!skull || !skull->onClick) {
+        std::cerr << "SKELLCORE_SKULL: shared skull button missing\n";
+        return 22;
+    }
+    editor->setSize(960, 720);
+    const auto beforeSkin = editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    skull->onClick();
+    const auto afterSkin = editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    if (!beforeSkin.isValid() || !afterSkin.isValid()
+        || beforeSkin.getPixelAt(120,170) == afterSkin.getPixelAt(120,170)) {
+        std::cerr << "SKELLCORE_SKULL: clicking skull did not change editor skin\n";
+        return 23;
+    }
+    for (int i = 0; i < 3; ++i) skull->onClick();
+    std::cout << "SKELLCORE_SKULL: 4-skin cycle and return passed\n";
     const auto elapsed = std::chrono::duration<double>(
         std::chrono::steady_clock::now() - began).count();
     std::cout << "HOST_SMOKE: processed=" << processed

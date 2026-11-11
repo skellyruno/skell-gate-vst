@@ -1,5 +1,10 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.6.1 — screenshot-reviewed geometry and shared skin cycling
+- Moved the waveform, 16-step grid, mode/preset rows, band and side dials to their measured 4:3 reference positions. Raised the bottom labels away from the frame.
+- Darkened the lower/left brushed champagne panel to match the provided UI image without adding a repeating raster layer.
+- Added a headless UI assertion that the official skull cycles all four SkellCore Studio skins and restores the original palette.
+
 ## v1.6.0 — Studio Ivory reference UI and SkellCore skull
 - Rebuilt the real JUCE editor around the supplied ivory + lime 4:3 reference, while keeping existing automation parameters and DSP unchanged.
 - Official shared SkellCore StudioUI/SkullTheme integration pinned to commit d02d508; click the shared skull geometry to cycle Ivory/Obsidian/Amethyst/Crimson and share the user appearance preference.

@@ -73,9 +73,9 @@ inline void roundTile(juce::Graphics& g, juce::Rectangle<float> bounds, float co
 }
 inline const juce::Rectangle<int> top{0,0,width,59};
 inline const juce::Rectangle<int> loops{20,72,920,71};
-inline const juce::Rectangle<int> wave{207,157,546,228};
-inline const juce::Rectangle<int> gate{210,396,545,85};
-inline const juce::Rectangle<int> modes{209,491,545,47};
-inline const juce::Rectangle<int> presets{205,544,550,32};
-inline const juce::Rectangle<int> band{237,589,487,81};
+inline const juce::Rectangle<int> wave{207,151,546,227};
+inline const juce::Rectangle<int> gate{210,386,545,85};
+inline const juce::Rectangle<int> modes{209,479,545,47};
+inline const juce::Rectangle<int> presets{205,532,550,32};
+inline const juce::Rectangle<int> band{237,575,487,81};
 }
