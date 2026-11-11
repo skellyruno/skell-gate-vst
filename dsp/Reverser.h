@@ -21,7 +21,8 @@ public:
                 6.28318530717958647692 * static_cast<double>(i) / hann.size()));
     }
     static PitchContext makePitchContext(float semitones, int sampleRate) {
-        const double st = std::clamp(static_cast<double>(semitones), -12.0, 12.0);
+        const double st = std::isfinite(semitones)
+            ? std::clamp(static_cast<double>(semitones), -12.0, 12.0) : 0.0;
         return {std::exp2(st / 12.0), std::clamp(std::max(sampleRate, 1) * .03, 64.0, 4096.0),
                 std::abs(st) >= .001};
     }
@@ -35,7 +36,7 @@ public:
                          int64_t sliceIndex, const PitchContext& pitch) const {
         const int length = capture.length();
         if (length < 5) return 0.f;
-        double p = std::clamp(phase, 0.0, 1.0);
+        double p = std::isfinite(phase) ? std::clamp(phase, 0.0, 1.0) : 0.0;
         const bool forward = style == PingPong && (sliceIndex & 1);
         // Ease-out tape transport: starts fast and decelerates toward the end.
         // The previous p*p curve instead accelerated throughout the slice.
@@ -46,9 +47,11 @@ public:
             : (length - 3) - p * (length - 6);
         constexpr std::array<float, 4> stutterGains{1.f, .8f, .64f, .512f};
         const float gain = style == Stutter
-            ? stutterGains[static_cast<size_t>(std::clamp(static_cast<int>(phase * 4.0), 0, 3))]
+            ? stutterGains[static_cast<size_t>(std::clamp(static_cast<int>(p * 4.0), 0, 3))]
             : 1.f;
-        if (!pitch.enabled) return gain * capture.readFinished(ch, readPosition);
+        if (!pitch.enabled || !std::isfinite(pitch.ratio) ||
+            !std::isfinite(pitch.grainLen) || pitch.grainLen < 1.0)
+            return gain * capture.readFinished(ch, readPosition);
         // Overlap two equal-length Hann grains. Normalisation prevents
         // amplitude modulation at grain joins; interpolation avoids table steps.
         const double period = pitch.grainLen;

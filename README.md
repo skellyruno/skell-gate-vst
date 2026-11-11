@@ -1,5 +1,10 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.7.1 — DSP resilience at extreme sample rates and automation values
+- Filter cutoff coefficients now stay finite for invalid host sample rates, reversed ranges, and non-finite automation values; stereo split recombines exactly across multiple sample-rate regimes.
+- Reverse pitch, stutter and phase values now have finite fallback behavior so invalid upstream values cannot generate NaN samples.
+- Expanded synthetic DSP tests for filter reconstruction and invalid control values; the sound engine, plugin identifiers and saved presets remain compatible.
+
 ## v1.7.0 — vintage matte black, clean controls, one-word brand
 - New installs default to a darker, brushed-metal **Obsidian** appearance; the previous ivory reference finish is still available by clicking the SkellCore skull. Existing saved Studio skin preferences are respected.
 - Sync is part of the mode row immediately left of Reverse; the reverse-style and gate-rate selectors have separate positions even in BOTH mode.

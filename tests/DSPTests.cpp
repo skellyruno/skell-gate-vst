@@ -73,6 +73,14 @@ static void sliceTest() {
     check(std::abs(forwardShift - forward) > .01f,
           "ping-pong forward half silently ignored pitch shifting");
     check(std::isfinite(reverse.sample(b, 0, .45, 1, 0, -7, 48000)), "pitch shifter non-finite");
+    const float invalidFloat = std::numeric_limits<float>::quiet_NaN();
+    const auto safePitch = Reverser::makePitchContext(invalidFloat, 48000);
+    check(!safePitch.enabled && safePitch.ratio == 1.0,
+          "non-finite reverse pitch did not fall back to neutral");
+    check(std::isfinite(reverse.sample(b, 0, invalidFloat, Reverser::Classic, 0,
+                                      invalidFloat, 48000)), "NaN reverse controls leaked into audio");
+    check(std::isfinite(reverse.sample(b, 0, invalidFloat, Reverser::Stutter, 0,
+                                      0.f, 48000)), "NaN stutter phase leaked into audio");
     for (const float shift : {-12.f, -7.f, 0.f, 4.f, 12.f}) {
         const auto context = Reverser::makePitchContext(shift, 48000);
         for (int k = 0; k <= 100; ++k) {
@@ -308,6 +316,33 @@ static void stressTest() {
     std::cout << "DSP_STRESS: 768000 stereo frames, "
               << elapsed << " s, checksum=" << checksum << '\n';
 }
+static void filterRobustnessTest() {
+    // Exercise all sample-rate regimes and broken automation without allowing
+    // invalid biquad coefficients or stale states into the rendered signal.
+    for (const double sr : {8000., 22050., 44100., 48000., 96000., 192000.,
+                            std::numeric_limits<double>::quiet_NaN()}) {
+        BandSplitter splitter;
+        splitter.prepare(sr);
+        for (const double low : {20., 400., 6000., std::numeric_limits<double>::quiet_NaN()}) {
+            for (const double high : {120., 20000., 25000.,
+                                      std::numeric_limits<double>::infinity()}) {
+                splitter.setCuts(low, high);
+                for (int n=0; n<512; ++n) {
+                    const float input = (n==0 ? .93f : .4f*std::sin(n*.041f));
+                    float inside=0, outside=0;
+                    splitter.process(n%2, input, inside, outside);
+                    check(std::isfinite(inside) && std::isfinite(outside),
+                          "band filter produced non-finite samples");
+                    approx(inside + outside, input, 1.e-6,
+                           "band complement fails to reconstruct input");
+                }
+            }
+        }
+        float inside=1.f,outside=1.f;
+        splitter.process(0,std::numeric_limits<float>::quiet_NaN(),inside,outside);
+        check(inside==0.f && outside==0.f, "invalid filter input not sanitized");
+    }
+}
 static void offlineReproTest() {
     const auto reference = renderForBlockSize(512);
     for (const int block : {1, 64, 4096, 16384}) {
@@ -334,7 +369,7 @@ static void offlineReproTest() {
 }
 
 int main() {
-    try { clockTest(); sliceTest(); gateTest(); bandTest(); deterministicTest(); offlineReproTest(); stressTest(); }
+    try { clockTest(); sliceTest(); gateTest(); bandTest(); deterministicTest(); offlineReproTest(); filterRobustnessTest(); stressTest(); }
     catch (const std::exception& ex) { std::cerr << "FAIL: " << ex.what() << '\n'; return EXIT_FAILURE; }
     std::cout << "PASS: TempoClock / SliceCapture / Reverser / GateSequencer / GateShaper / BandSplitter / Crossfader / TriggerRouter / seeded randomness\n";
     return EXIT_SUCCESS;

@@ -27,10 +27,20 @@ private:
 };
 class BandSplitter {
 public:
-    void prepare(double sr) { sampleRate = std::max(sr, 1.0); for (auto& c : filters) for (auto& f : c) f.reset(); setCuts(20, 20000); }
+    void prepare(double sr) {
+        // Reject impossible/invalid host sample rates before filter design.
+        sampleRate = std::isfinite(sr) && sr >= 8000.0 ? sr : 48000.0;
+        oldLow = oldHigh = -1.0;
+        for (auto& c : filters) for (auto& f : c) f.reset();
+        setCuts(20, 20000);
+    }
     void setCuts(double low, double high) {
-        low = std::clamp(low, 20.0, sampleRate * .45);
-        high = std::clamp(high, low + 0.00001, std::max(low + 0.00001, sampleRate * .45));
+        const double limit = std::max(20.0, sampleRate * .45);
+        low = std::isfinite(low) ? std::clamp(low, 20.0, limit) : 20.0;
+        high = std::isfinite(high) ? std::clamp(high, 20.0, limit)
+                                  : std::min(20000.0, limit);
+        if (high < low) std::swap(low, high);
+        high = std::max(high, low + .00001);
         if (std::abs(low - oldLow) < .01 && std::abs(high - oldHigh) < .01) return;
         oldLow = low; oldHigh = high;
         lowActive = low > 20.01;
@@ -44,6 +54,7 @@ public:
     }
     void process(int ch, float input, float& inside, float& outside) {
         auto& f = filters[static_cast<size_t>(std::clamp(ch, 0, 1))];
+        if (!std::isfinite(input)) input = 0.f;
         inside = input;
         if (lowActive) { inside = f[0].process(inside); inside = f[1].process(inside); }
         if (highActive) { inside = f[2].process(inside); inside = f[3].process(inside); }
