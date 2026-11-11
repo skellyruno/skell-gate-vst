@@ -64,7 +64,13 @@ public:
         const float a = -0.5f * x0 + 1.5f * x1 - 1.5f * x2 + 0.5f * x3;
         const float b = x0 - 2.5f * x1 + 2.0f * x2 - 0.5f * x3;
         const float c1 = -0.5f * x0 + 0.5f * x2;
-        return ((a * frac + b) * frac + c1) * frac + x1;
+        const float interpolated = ((a * frac + b) * frac + c1) * frac + x1;
+        // Catmull-Rom Hermite can overshoot a full-scale transient by ~25%.
+        // Bound each read by its four neighbouring samples to preserve peaks
+        // without introducing a processing limiter or clipping the dry signal.
+        const float minimum = std::min(std::min(x0, x1), std::min(x2, x3));
+        const float maximum = std::max(std::max(x0, x1), std::max(x2, x3));
+        return std::clamp(interpolated, minimum, maximum);
     }
     float readFinished(int channel, double fractionalIndex) const {
         if (finishedLength < 5) return 0.0f;

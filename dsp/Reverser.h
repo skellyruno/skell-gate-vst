@@ -36,11 +36,14 @@ public:
         const int length = capture.length();
         if (length < 5) return 0.f;
         double p = std::clamp(phase, 0.0, 1.0);
-        if (style == PingPong && (sliceIndex & 1))
-            return capture.readFinished(ch, p * (length - 1));
-        if (style == Tape) p = p * p;
+        const bool forward = style == PingPong && (sliceIndex & 1);
+        // Ease-out tape transport: starts fast and decelerates toward the end.
+        // The previous p*p curve instead accelerated throughout the slice.
+        if (style == Tape) p = p * (2.0 - p);
         if (style == Stutter) p = std::fmod(p * 4.0, 1.0) * .25;
-        const double readPosition = (length - 3) - p * (length - 6);
+        const double readPosition = forward
+            ? 2.0 + p * (length - 6)
+            : (length - 3) - p * (length - 6);
         constexpr std::array<float, 4> stutterGains{1.f, .8f, .64f, .512f};
         const float gain = style == Stutter
             ? stutterGains[static_cast<size_t>(std::clamp(static_cast<int>(phase * 4.0), 0, 3))]
@@ -55,7 +58,9 @@ public:
             const double local = std::fmod(grainPhase + grain * period * .5, period);
             const float window = hannAt(local / period);
             const double offset = (pitch.ratio - 1.0) * (local - period * .5);
-            sum += window * capture.readFinished(ch, readPosition - offset);
+            // Ping-pong's forward half must honour pitch, too. The old early
+            // return bypassed pitch-shifting on every odd slice.
+            sum += window * capture.readFinished(ch, readPosition + (forward ? offset : -offset));
             weight += window;
         }
         return gain * sum / std::max(weight, .001f);

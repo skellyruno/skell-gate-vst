@@ -1,5 +1,12 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.5.2 — pitch-consistent ping-pong and peak-safe reverse playback
+- Fixed Ping-Pong mode's forward half ignoring reverse-pitch controls. Both playback directions now use the same overlap-grain pitch processing with correctly oriented read offsets.
+- Corrected Tape mode to slow down toward the end of each slice instead of accelerating.
+- Four-point capture interpolation now stays within the neighbouring sample range, avoiding interpolation-created peak overshoots on sharp near-full-scale transients without altering dry audio.
+- Added DSP regressions for pitched forward ping-pong, tape deceleration, transparent unpitched forward playback and bounded interpolation of square transients.
+
+
 ## v1.5.1 — responsive selection and gate automation painting
 - Selected loop length and reverse/gate/both mode now render correctly at startup, without waiting for a 20 Hz timer. Button clicks update active appearance and combo visibility immediately; unchanged selections no longer trigger periodic repaints.
 - Gate-step probability can be painted intuitively across the full step height while holding Shift, or via the narrow probability strip. A single host gesture stays open during continuous dragging and closes when switching steps or releasing the mouse, avoiding repeated automation begin/end events on every pixel.

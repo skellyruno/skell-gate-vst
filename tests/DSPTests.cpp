@@ -63,6 +63,15 @@ static void sliceTest() {
     const float beginning = reverse.sample(b, 0, 0, 0, 0, 0, 48000);
     const float ending = reverse.sample(b, 0, 1, 0, 0, 0, 48000);
     check(beginning > ending, "reverse failed");
+    const float classic = reverse.sample(b, 0, .5, Reverser::Classic, 0, 0.f, 48000);
+    const float tape = reverse.sample(b, 0, .5, Reverser::Tape, 0, 0.f, 48000);
+    check(tape < classic, "tape deck must decelerate near the end, not accelerate");
+    const float forward = reverse.sample(b, 0, .35, Reverser::PingPong, 1, 0.f, 48000);
+    approx(forward, b.readFinished(0, .35 * (b.length() - 1)), .003,
+           "ping-pong forward orientation changed without pitch");
+    const float forwardShift = reverse.sample(b, 0, .35, Reverser::PingPong, 1, 7.f, 48000);
+    check(std::abs(forwardShift - forward) > .01f,
+          "ping-pong forward half silently ignored pitch shifting");
     check(std::isfinite(reverse.sample(b, 0, .45, 1, 0, -7, 48000)), "pitch shifter non-finite");
     for (const float shift : {-12.f, -7.f, 0.f, 4.f, 12.f}) {
         const auto context = Reverser::makePitchContext(shift, 48000);
@@ -81,6 +90,19 @@ static void sliceTest() {
     for (int i = 0; i < 128; ++i) b.write(0.f, 0.f);
     b.onBoundary();
     check(b.length() == 128 && b.readFinished(0, 45) == 0.f, "seek reset leaked previous slice");
+    // Interpolation must not turn a -0.95..+0.95 square transient into a
+    // >1.0 sample peak. This catches unbounded Catmull-Rom overshoot.
+    SliceCapture transients; transients.prepare(1, 2048); transients.onBoundary();
+    for (int i = 0; i < 512; ++i) {
+        const float value = ((i % 4 == 1) || (i % 4 == 2)) ? .95f : -.95f;
+        transients.write(value, value);
+    }
+    transients.onBoundary();
+    for (int i = 5; i < 507; ++i) {
+        const float value = transients.readFinished(0, i + .5);
+        check(std::isfinite(value) && std::abs(value) <= .95001f,
+              "Hermite interpolation overshot normalized transient");
+    }
     SliceCapture mono; mono.prepare(1, 2048); mono.onBoundary();
     for (int i = 0; i < 512; ++i) mono.write(static_cast<float>(i) / 512.f, -2.f);
     mono.onBoundary();
