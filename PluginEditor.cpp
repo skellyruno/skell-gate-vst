@@ -213,7 +213,7 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     gate.setBounds(skell::theme::gate);
     modes.setBounds(197, 489, 640, 47);
     // The preset bar is now a single header control; no third bottom row.
-    presets.setBounds(328, 10, 300, 39);
+    presets.setBounds(318, 11, 322, 37);
     band.setBounds(skell::theme::band);
     fadeIn.setBounds(34, 190, 141, 154);
     fadeOut.setBounds(783, 190, 141, 154);
