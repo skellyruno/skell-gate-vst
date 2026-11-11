@@ -106,21 +106,22 @@ TopBar::TopBar(SkellGlitchAudioProcessor& p) : processor(p) {
 }
 void TopBar::resized() {
     skull.setBounds(10,4,49,50);
-    // Physical controls are deliberately grouped with only a 5 px gap.
-    settings.setBounds(859,7,42,46);
-    power.setBounds(906,7,47,46);
+    // Tight two-control hardware group at the right edge: only 2 px apart.
+    settings.setBounds(866,7,43,46);
+    power.setBounds(911,7,45,46);
 }
 void TopBar::paint(juce::Graphics& g) {
     const auto green=skell::theme::colour(skell::theme::neon);
     const auto dark=skell::theme::colour(skell::theme::bone);
     const auto face=skell::theme::colour(skell::theme::tile);
-    g.setGradientFill(juce::ColourGradient(face.brighter(.24f),0.f,0.f,
+    g.setGradientFill(juce::ColourGradient(
+        skell::theme::matteBlack() ? face.brighter(.055f) : face.brighter(.24f),0.f,0.f,
                                           skell::theme::colour(skell::theme::background).darker(.08f),
                                           0.f,59.f,false));
     g.fillAll();
     g.setColour(skell::theme::colour(skell::theme::border));
     g.drawLine(0.f,57.5f,static_cast<float>(getWidth()),57.5f,1.3f);
-    g.setColour(juce::Colours::white.withAlpha(.42f));
+    g.setColour(juce::Colours::white.withAlpha(skell::theme::matteBlack() ? .08f : .42f));
     g.drawLine(0.f,55.8f,static_cast<float>(getWidth()),55.8f,.7f);
     {
         juce::Graphics::ScopedSaveState saved(g);
@@ -138,12 +139,14 @@ void TopBar::paint(juce::Graphics& g) {
     g.setColour(skell::theme::colour(skell::theme::gray));
     g.setFont(skell::theme::regular(10.5f));
     g.drawText("CUT IT. FLIP IT.",63,36,170,15,juce::Justification::centredLeft);
-    g.setFont(skell::theme::mono(9.7f));
-    g.drawText("v1.7.3",249,17,57,16,juce::Justification::centredLeft);
+    // Small engraved edition mark directly beside the one-word title.
+    g.setColour(skell::theme::colour(skell::theme::gray).withAlpha(.88f));
+    g.setFont(skell::theme::mono(9.f));
+    g.drawText("v1.7.s",248,15,55,14,juce::Justification::centredLeft);
     const double sr=processor.getSampleRate();
     const int latency=processor.displayLatency.load(std::memory_order_relaxed);
     g.setFont(skell::theme::mono(12.f));
     g.setColour(dark.withAlpha(.93f));
     g.drawText(juce::String(sr>0?sr/1000.0:48.0,1)+" kHz  •  "+juce::String(latency)+" samples",
-               651,18,196,25,juce::Justification::centredRight);
+               648,18,202,25,juce::Justification::centredRight);
 }
