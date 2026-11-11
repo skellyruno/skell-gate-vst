@@ -1,5 +1,5 @@
 #pragma once
-// Skell-Glitch Studio Ivory: shared SkellCore skin state and skull geometry.
+// SkellGlitch shared SkellCore skins; matte-black vintage Obsidian is the new-install default.
 // UI-only; no painting or file I/O from the audio callback.
 #include <JuceHeader.h>
 #include <SkellCore/StudioUI.h>
@@ -20,13 +20,31 @@ constexpr auto magenta    = 0xffce3290;
 constexpr auto cyan       = 0xff3cae72;
 constexpr auto bone       = 0xff2b2924;
 constexpr auto gray       = 0xff594f44;
-inline std::atomic<int>& skinStorage() { static std::atomic<int> choice{0}; return choice; }
+inline std::atomic<int>& skinStorage() { static std::atomic<int> choice{1}; return choice; }
 inline void setSkin(skellcore::ui::StudioSkin s) { skinStorage().store(static_cast<int>(s), std::memory_order_relaxed); }
 inline skellcore::ui::StudioSkin skin() { return skellcore::ui::studioSkinFromIndex(skinStorage().load(std::memory_order_relaxed)); }
 inline bool ivory() { return skin() == skellcore::ui::StudioSkin::Ivory; }
+inline bool matteBlack() { return skin() == skellcore::ui::StudioSkin::Obsidian; }
 inline juce::Colour colour(juce::uint32 token) {
     using C = juce::Colour;
     if (ivory()) return C(token);
+    if (matteBlack()) {
+        // A dark, warm, subtly aged hardware variant of SkellCore Obsidian.
+        // The saved shared skin index and the other three skins are untouched.
+        switch (token) {
+            case background: return C(0xff090b0b);
+            case tile: return C(0xff20221f);
+            case deep: return C(0xff33342f);
+            case border: return C(0xff67645b);
+            case neon: return C(0xff57fb1e);
+            case pale: return C(0xffa3ff75);
+            case dim: return C(0xff2a9b18);
+            case magenta: return C(0xffca6595);
+            case cyan: return C(0xff4aae70);
+            case bone: return C(0xffeeece2);
+            case gray: return C(0xffb6b3a8);
+        }
+    }
     const auto p = skellcore::ui::studioPalette(skin());
     switch (token) {
         case background: return p.background;

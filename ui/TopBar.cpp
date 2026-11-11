@@ -5,7 +5,8 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
     const auto r=getLocalBounds().toFloat().reduced(2.f);
     const auto neon=skell::theme::colour(skell::theme::neon);
     const auto border=skell::theme::colour(skell::theme::border);
-    const auto bronze=skell::theme::colour(skell::theme::tile);
+    const auto bronze=skell::theme::matteBlack()
+        ? juce::Colour(0xff4b4b43) : skell::theme::colour(skell::theme::tile);
     const auto c=r.getCentre();
     const float radius=std::min(r.getWidth(),r.getHeight())*.49f;
     const auto ellipse=[&](float rad) {
@@ -21,7 +22,7 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
          bronze.brighter(.34f),c.x-radius*.7f,c.y-radius*.8f,
          bronze.darker(.24f),c.x+radius*.78f,c.y+radius*.95f,false));
     g.fillEllipse(ellipse(radius-1.3f));
-    g.setColour(juce::Colours::white.withAlpha(.60f));
+    g.setColour(juce::Colours::white.withAlpha(skell::theme::ivory() ? .60f : .30f));
     g.drawEllipse(ellipse(radius-3.f),1.f);
     g.setColour(border.withAlpha(.37f));
     g.drawEllipse(ellipse(radius-4.7f),.7f);
@@ -97,7 +98,6 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
 }
 TopBar::TopBar(SkellGlitchAudioProcessor& p) : processor(p) {
     addAndMakeVisible(skull);
-    addAndMakeVisible(sync);
     addAndMakeVisible(power);
     addAndMakeVisible(settings);
     skull.setTooltip("SKELL appearance: click skull to cycle the shared SkellCore skins");
@@ -106,9 +106,8 @@ TopBar::TopBar(SkellGlitchAudioProcessor& p) : processor(p) {
 }
 void TopBar::resized() {
     skull.setBounds(10,4,49,50);
-    settings.setBounds(694,7,43,45);
-    sync.setBounds(744,8,145,43);
-    power.setBounds(900,7,46,46);
+    settings.setBounds(840,7,44,46);
+    power.setBounds(906,7,46,46);
 }
 void TopBar::paint(juce::Graphics& g) {
     const auto green=skell::theme::colour(skell::theme::neon);
@@ -126,18 +125,18 @@ void TopBar::paint(juce::Graphics& g) {
         juce::Graphics::ScopedSaveState saved(g);
         g.addTransform(juce::AffineTransform::translation(static_cast<float>(jitterOffset),0.f));
         g.setFont(skell::theme::display(29.f));
-        g.setColour(dark);g.drawText("Skell",62,8,85,43,juce::Justification::centredLeft);
-        g.setColour(green.darker(.3f));
-        g.drawText("Glitch",136+1,9,95,43,juce::Justification::centredLeft);
-        g.setColour(green);g.drawText("Glitch",136,8,95,43,juce::Justification::centredLeft);
+        // SkellGlitch is one CamelCase word, with independent brand colours.
+        g.setColour(dark);g.drawText("Skell",62,8,78,43,juce::Justification::centredLeft);
+        g.setColour(green.darker(.3f));g.drawText("Glitch",126+1,9,99,43,juce::Justification::centredLeft);
+        g.setColour(green);g.drawText("Glitch",126,8,99,43,juce::Justification::centredLeft);
     }
     g.setColour(skell::theme::colour(skell::theme::gray));
     g.setFont(skell::theme::regular(11.f));
-    g.drawText("CUT IT. FLIP IT.",249,21,157,18,juce::Justification::centredLeft);
+    g.drawText("CUT IT. FLIP IT.",244,21,157,18,juce::Justification::centredLeft);
     const double sr=processor.getSampleRate();
     const int latency=processor.displayLatency.load(std::memory_order_relaxed);
     g.setFont(skell::theme::mono(12.f));
     g.setColour(dark.withAlpha(.93f));
     g.drawText(juce::String(sr>0?sr/1000.0:48.0,1)+" kHz  •  "+juce::String(latency)+" samples",
-               501,18,185,25,juce::Justification::centredRight);
+               633,18,190,25,juce::Justification::centredRight);
 }

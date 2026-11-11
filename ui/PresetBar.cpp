@@ -44,11 +44,16 @@ PresetBar::PresetBar(SkellGlitchAudioProcessor& p) : processor(p),
     };
 }
 void PresetBar::resized() {
-    constexpr int selectorWidth = 166;
-    constexpr int controlsStart = 172;
+    // One baseline, consistent 4px gaps, and no button-on-button borders.
+    constexpr int selectorWidth = 166, controlsStart = 172, gap = 4;
     presets.setBounds(0, 0, selectorWidth, getHeight());
-    const int width = (getWidth() - controlsStart) / 8;
-    for (size_t i = 0; i < actions.size(); ++i)
-        actions[i].setBounds(controlsStart + static_cast<int>(i) * width, 0, width - 2, getHeight());
+    const int available = getWidth() - controlsStart - gap * 7;
+    const int baseWidth = available / 8;
+    int px = controlsStart;
+    for (size_t i = 0; i < actions.size(); ++i) {
+        const int width = i == 7 ? getWidth() - px : baseWidth;
+        actions[i].setBounds(px, 0, width, getHeight());
+        px += width + gap;
+    }
 }
 void PresetBar::paint(juce::Graphics&) {}

@@ -44,6 +44,13 @@ int main() {
             return 5;
         }
         if (width == 960) {
+            // On a clean runner with no previous SkellCore selection, the
+            // matte-black hardware finish must be the default, not Ivory.
+            const auto body = frame.getPixelAt(110, 160);
+            if (body.getRed() > 85 || body.getGreen() > 85 || body.getBlue() > 85) {
+                std::cerr << "UI_THEME: initial chassis is not matte black\n";
+                return 25;
+            }
             // The reference's Inst fade knobs have a deliberately lit bezel
             // even at zero value. Verify that the actual JUCE draw covers the
             // left dial rather than only the parameter's tiny endpoint dot.
@@ -139,6 +146,15 @@ int main() {
     };
     auto* gateButton = findButton(*editor, "GATE");
     auto* loopButton = findButton(*editor, "1/16");
+    auto* syncButton = findButton(*editor, "SYNC ON");
+    auto* reverseButton = findButton(*editor, "REVERSE");
+    if (!syncButton || !reverseButton ||
+        syncButton->getParentComponent() != reverseButton->getParentComponent() ||
+        syncButton->getRight() + 2 > reverseButton->getX() ||
+        !syncButton->getBounds().intersects(reverseButton->getBounds().withX(syncButton->getX()))) {
+        std::cerr << "UI_LAYOUT: sync must sit immediately left of reverse\n";
+        return 26;
+    }
     auto* selectedReverse = findButton(*editor, "REVERSE");
     auto* selectedBar = findButton(*editor, "1 Bar");
     if (!selectedReverse || !selectedBar || !selectedReverse->getToggleState()

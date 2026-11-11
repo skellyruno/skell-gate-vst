@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(SkellGlitch VERSION 1.6.5 LANGUAGES CXX)
+project(SkellGlitch VERSION 1.7.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(SKELL_DSP_ONLY "Only build the dependency-free DSP tests" OFF)
@@ -46,8 +46,8 @@ juce_add_plugin(SkellGlitch
     BUNDLE_ID "uno.skellyr.skellglitch"
     PLUGIN_MANUFACTURER_CODE SkLy
     PLUGIN_CODE SkGl
-    PRODUCT_NAME "Skell-Glitch"
-    PLUGIN_NAME "Skell-Glitch"
+    PRODUCT_NAME "SkellGlitch"
+    PLUGIN_NAME "SkellGlitch"
     FORMATS VST3 Standalone
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT TRUE

@@ -43,9 +43,16 @@ void GateGrid::timerCallback() {
     if (changed) repaint();
 }
 void GateGrid::resized() {
-    const int buttonWidth = (getWidth() - 140) / 5;
-    for (int i = 0; i < 5; ++i) commands[static_cast<size_t>(i)].setBounds(i * buttonWidth + 1, 53, buttonWidth - 2, 27);
-    pattern.setBounds(getWidth() - 138, 53, 136, 27);
+    constexpr int gap = 5, patternWidth = 138, patternGap = 8;
+    const int usable = getWidth() - patternWidth - patternGap - gap * 4;
+    const int commandWidth = usable / 5;
+    int px = 0;
+    for (int i = 0; i < 5; ++i) {
+        const int buttonWidth = i == 4 ? (getWidth() - patternWidth - patternGap - px) : commandWidth;
+        commands[static_cast<size_t>(i)].setBounds(px, 54, buttonWidth, 29);
+        px += buttonWidth + gap;
+    }
+    pattern.setBounds(getWidth() - patternWidth, 54, patternWidth, 29);
 }
 void GateGrid::paint(juce::Graphics& g) {
     const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);

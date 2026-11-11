@@ -1,7 +1,10 @@
 #include "ModeRow.h"
 #include "../PluginProcessor.h"
-ModeRow::ModeRow(SkellGlitchAudioProcessor& p) : processor(p),
-    modes{juce::TextButton("REVERSE"), juce::TextButton("GATE"), juce::TextButton("BOTH")} {
+ModeRow::ModeRow(SkellGlitchAudioProcessor& p, juce::TextButton& syncControl)
+    : processor(p), sync(syncControl),
+      modes{juce::TextButton("REVERSE"), juce::TextButton("GATE"), juce::TextButton("BOTH")} {
+    addAndMakeVisible(sync);
+    sync.setTooltip("Follow the host tempo for loop and gate timing.");
     for (int i = 0; i < 3; ++i) {
         addAndMakeVisible(modes[static_cast<size_t>(i)]);
         modes[static_cast<size_t>(i)].onClick = [this, i] {
@@ -22,11 +25,12 @@ ModeRow::ModeRow(SkellGlitchAudioProcessor& p) : processor(p),
     startTimerHz(20);
 }
 void ModeRow::resized() {
-    modes[0].setBounds(109, 0, 111, 42);
-    modes[1].setBounds(228, 0, 108, 42);
-    modes[2].setBounds(337, 0, 109, 42);
-    gateRate.setBounds(0, 7, 109, 31);
-    reverseStyle.setBounds(459, 7, 117, 31);
+    sync.setBounds(0, 2, 100, 40);
+    modes[0].setBounds(107, 1, 101, 41);
+    modes[1].setBounds(214, 1, 98, 41);
+    modes[2].setBounds(318, 1, 98, 41);
+    reverseStyle.setBounds(422, 7, 107, 32);
+    gateRate.setBounds(536, 7, 99, 32);
 }
 void ModeRow::paint(juce::Graphics&) {}
 void ModeRow::timerCallback() {

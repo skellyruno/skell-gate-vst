@@ -1,5 +1,12 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## v1.7.0 — vintage matte black, clean controls, one-word brand
+- New installs default to a darker, brushed-metal **Obsidian** appearance; the previous ivory reference finish is still available by clicking the SkellCore skull. Existing saved Studio skin preferences are respected.
+- Sync is part of the mode row immediately left of Reverse; the reverse-style and gate-rate selectors have separate positions even in BOTH mode.
+- Sample-rate/latency display and settings gear now sit next to the power switch. The visible title and JUCE plugin product name are **SkellGlitch** (one word), with original VST3 ID preserved for project compatibility.
+- Rebalanced step-command buttons and A/B preset buttons with consistent spacing and no collisions; continued darker, warm-machined treatment on knobs.
+- CI asserts the new black default and sync/reverse adjacency in addition to four UI sizes, audio/DSP and latency regressions.
+
 ## v1.6.5 — cap depth and four-knob reference fit
 - Replaced excessive concentric silver 'washer' outlines with a recessed bronze shoulder, warm metal gradients and one clean highlight. The raised center has a deeper cast shadow and matte champagne finish.
 - Enlarged and recentered Smooth/Mix controls to better match the reference; fade geometry and host automation positions remain unchanged.

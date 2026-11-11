@@ -9,27 +9,30 @@ public:
     Backplate() { setInterceptsMouseClicks(false, false); setBufferedToImage(true); }
     void paint(juce::Graphics& g) override {
         using namespace skell::theme;
-        const auto ivory = skell::theme::ivory();
+        const bool ivory = skell::theme::ivory();
+        const bool black = skell::theme::matteBlack();
         const auto base = colour(background);
-        const auto upper = ivory ? juce::Colour(0xffe9d8c1) : base.brighter(.12f);
-        const auto lower = ivory ? juce::Colour(0xffc8b094) : base.darker(.12f);
+        const auto upper = ivory ? juce::Colour(0xffe9d8c1)
+                           : black ? juce::Colour(0xff1a1d1b) : base.brighter(.12f);
+        const auto lower = ivory ? juce::Colour(0xffc8b094)
+                           : black ? juce::Colour(0xff090a0a) : base.darker(.12f);
         g.setGradientFill(juce::ColourGradient(upper,100.f,55.f,lower,870.f,720.f,false));
         g.fillAll();
         // Side and lower vignette reproduce the reference's patinated champagne
         // metal without a bitmap overlay that would hide interactive controls.
-        if (ivory) {
+        if (ivory || black) {
             g.setGradientFill(juce::ColourGradient(
-                juce::Colours::black.withAlpha(.075f),0.f,320.f,
+                juce::Colours::black.withAlpha(ivory ? .075f : .14f),0.f,320.f,
                 juce::Colours::black.withAlpha(0.f),480.f,320.f,false));
             g.fillAll();
             g.setGradientFill(juce::ColourGradient(
                 juce::Colours::black.withAlpha(0.f),0.f,310.f,
-                juce::Colours::black.withAlpha(.048f),0.f,708.f,false));
+                juce::Colours::black.withAlpha(ivory ? .048f : .20f),0.f,708.f,false));
             g.fillAll();
         }
         // Reproducible horizontal brush strokes: cached offscreen by JUCE,
         // not an expensive texture allocation in the audio process.
-        if (ivory) {
+        if (ivory || black) {
             juce::uint32 seed=0x1af0405u;
             for(int i=0;i<2200;++i) {
                 seed ^= seed<<13; seed ^= seed>>17; seed ^= seed<<5;
@@ -39,7 +42,7 @@ public:
                 seed ^= seed<<13; seed ^= seed>>17; seed ^= seed<<5;
                 const float len=5.f+static_cast<float>(seed%78);
                 g.setColour(((seed&1u)?juce::Colours::white:juce::Colours::black)
-                             .withAlpha(.018f+static_cast<float>(seed%5u)*.005f));
+                             .withAlpha((black ? .013f : .018f)+static_cast<float>(seed%5u)*(black ? .004f : .005f)));
                 g.drawLine(x,y,std::min(955.f,x+len),y,.43f);
             }
         }
@@ -48,7 +51,7 @@ public:
         g.drawRoundedRectangle(frame,23.f,3.f);
         g.setColour(colour(border).brighter(.22f));
         g.drawRoundedRectangle(frame.reduced(2.f),21.f,2.f);
-        g.setColour(juce::Colours::white.withAlpha(.62f));
+        g.setColour(juce::Colours::white.withAlpha(ivory ? .62f : .18f));
         g.drawRoundedRectangle(frame.reduced(4.f),19.f,1.f);
         g.setColour(juce::Colours::black.withAlpha(.18f));
         g.drawRoundedRectangle(frame.reduced(5.5f),18.f,1.f);
@@ -57,18 +60,18 @@ public:
         g.drawLine(168,139,431,139,.85f);
         g.drawLine(535,139,792,139,.85f);
         g.drawLine(196,583,759,583,1.1f);
-        g.setColour(juce::Colours::white.withAlpha(.35f));
+        g.setColour(juce::Colours::white.withAlpha(ivory ? .35f : .11f));
         g.drawLine(196,584,759,584,.75f);
         g.setFont(regular(14));
         g.setColour(colour(gray));
         g.drawText("LOOP LENGTH",426,120,110,24,juce::Justification::centred);
         g.drawText("FADE IN",45,340,120,26,juce::Justification::centred);
         g.drawText("FADE OUT",794,340,120,26,juce::Justification::centred);
-        g.drawText("MODE",141,494,70,25,juce::Justification::centred);
+        g.drawText("MODE",140,494,54,25,juce::Justification::centred);
         g.drawText("SMOOTH",43,676,120,24,juce::Justification::centred);
         g.drawText("MIX",793,676,120,24,juce::Justification::centred);
         g.setFont(mono(11.5f));
-        g.drawText("v1.6.5",724,681,74,16,juce::Justification::centredRight);
+        g.drawText("v1.7.0",724,681,74,16,juce::Justification::centredRight);
     }
 };
 
@@ -196,7 +199,7 @@ private:
 };
 
 SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudioProcessor& p)
-    : juce::AudioProcessorEditor(&p), processor(p), top(p), loops(p), waveform(p), gate(p), modes(p), presets(p), band(p) {
+    : juce::AudioProcessorEditor(&p), processor(p), top(p), loops(p), waveform(p), gate(p), modes(p, top.sync), presets(p), band(p) {
     setLookAndFeel(&look);
     canvas.setInterceptsMouseClicks(false, true);
     addAndMakeVisible(canvas);
@@ -209,7 +212,7 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     loops.setBounds(skell::theme::loops);
     waveform.setBounds(skell::theme::wave);
     gate.setBounds(skell::theme::gate);
-    modes.setBounds(skell::theme::modes);
+    modes.setBounds(197, 489, 640, 47);
     presets.setBounds(skell::theme::presets);
     band.setBounds(skell::theme::band);
     fadeIn.setBounds(34, 190, 141, 154);

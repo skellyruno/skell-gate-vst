@@ -1,7 +1,9 @@
 #include "LookAndFeel.h"
 #include <cmath>
 #include <algorithm>
-SkellLookAndFeel::SkellLookAndFeel() : sharedSkin(skellcore::ui::StudioSkinStore::load()) {
+SkellLookAndFeel::SkellLookAndFeel() : sharedSkin(skellcore::ui::StudioSkinStore::file().existsAsFile()
+        ? skellcore::ui::StudioSkinStore::load()
+        : skellcore::ui::StudioSkin::Obsidian) {
     setSkin(sharedSkin.skin());
 }
 void SkellLookAndFeel::setSkin(skellcore::ui::StudioSkin chosen) {
@@ -60,7 +62,8 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     const float angle = start + fraction * (end - start);
     const auto neon = skell::theme::colour(skell::theme::neon);
     const auto border = skell::theme::colour(skell::theme::border);
-    const auto bronze = skell::theme::colour(skell::theme::tile);
+    const auto bronze = skell::theme::matteBlack()
+        ? juce::Colour(0xff4c4b43) : skell::theme::colour(skell::theme::tile);
     const auto ink = skell::theme::colour(skell::theme::bone);
     const bool fade = slider.getName() == "FADE IN" || slider.getName() == "FADE OUT";
     const auto ellipse = [&](float radius) {
@@ -79,7 +82,7 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
         bronze.brighter(.42f),c.x-outer*.74f,c.y-outer*.9f,
         bronze.darker(.29f),c.x+outer*.84f,c.y+outer*.92f,false));
     g.fillEllipse(ellipse(outer-.9f));
-    g.setColour(juce::Colours::white.withAlpha(.56f));
+    g.setColour(juce::Colours::white.withAlpha(skell::theme::ivory() ? .56f : .25f));
     g.drawEllipse(ellipse(outer-2.5f),1.25f);
     // A single recessed bronze shoulder gives the knob its machined depth,
     // without the stack of thin 'washer' lines from the earlier renderer.
@@ -136,7 +139,7 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
         bronze.brighter(.48f),c.x-cap*.71f,c.y-cap*.81f,
         bronze.darker(.14f),c.x+cap*.71f,c.y+cap*.91f,false));
     g.fillEllipse(ellipse(cap-.8f));
-    g.setColour(juce::Colours::white.withAlpha(.59f));
+    g.setColour(juce::Colours::white.withAlpha(skell::theme::ivory() ? .59f : .31f));
     g.drawEllipse(ellipse(cap-2.0f),1.12f);
     g.setColour(border.withAlpha(.15f));
     g.drawEllipse(ellipse(cap-3.3f),.52f);
