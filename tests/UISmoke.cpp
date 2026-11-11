@@ -162,6 +162,17 @@ int main() {
         std::cerr << "UI_LAYOUT: header preset control/menu missing or incorrectly placed\n";
         return 27;
     }
+    // The rate/style row must never intrude into the four rotary controls.
+    // This caught an earlier 29-pixel downward shift that clipped MIX.
+    auto* modeButton = findButton(*editor, "REVERSE");
+    auto* knobMix = findNamed(*editor, "MIX");
+    auto* knobSmooth = findNamed(*editor, "SMOOTH");
+    if (!modeButton || !knobMix || !knobSmooth ||
+        modeButton->getParentComponent()->getBounds().intersects(knobMix->getBounds()) ||
+        modeButton->getParentComponent()->getBounds().intersects(knobSmooth->getBounds())) {
+        std::cerr << "UI_LAYOUT: mode buttons collide with lower rotary knobs\n";
+        return 28;
+    }
     auto* gateButton = findButton(*editor, "GATE");
     auto* loopButton = findButton(*editor, "1/16");
     auto* syncButton = findButton(*editor, "SYNC ON");

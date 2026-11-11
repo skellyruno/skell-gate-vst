@@ -95,7 +95,7 @@ inline const juce::Rectangle<int> top{0,0,width,59};
 inline const juce::Rectangle<int> loops{22,72,924,71};
 inline const juce::Rectangle<int> wave{207,152,546,233};
 inline const juce::Rectangle<int> gate{210,393,545,85};
-inline const juce::Rectangle<int> modes{197,518,640,47};
+inline const juce::Rectangle<int> modes{197,489,640,47};
 inline const juce::Rectangle<int> presets{328,10,300,39};
-inline const juce::Rectangle<int> band{233,586,496,85};
+inline const juce::Rectangle<int> band{233,562,496,85};
 }

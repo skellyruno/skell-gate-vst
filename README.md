@@ -3,7 +3,7 @@
 ## v1.7.3 — two clean lower rows and compact header presets
 - Removed the third bottom strip of eight preset-action buttons entirely. A single header preset dropdown and TOOLS popup preserve every action: Undo, Redo, Capture/Recall A/B, Save, and Open.
 - Refined the title to SKELLGLITCH (one uppercase word, green second half), placed CUT IT. FLIP IT. beneath it, moved the small version alongside the title, and grouped sample-rate/latency, Settings and Power.
-- Moved the bottom mode controls into the freed space, leaving just the gate commands and mode buttons; softened matte-black button bevels and darkened the four metal knob faces.
+- Kept the gate commands and mode controls as two clean contiguous rows, and raised the band section to fill the freed space without colliding with the Smooth/Mix knobs. Softened matte-black bevels and darkened the metal knob faces.
 - Preserved the SkellCore skull theme cycle and every existing DSP/automation parameter. The offscreen UI harness checks the new layout.
 
 ## v1.7.2 — matte-black theme readability polish
