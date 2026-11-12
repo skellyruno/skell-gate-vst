@@ -155,6 +155,7 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
     }
 }
 TopBar::TopBar(SkellGlitchAudioProcessor& p) : processor(p) {
+    setName("SKELL_HEADER");
     addAndMakeVisible(skull);
     addAndMakeVisible(power);
     addAndMakeVisible(settings);
