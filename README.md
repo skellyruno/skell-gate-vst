@@ -4,7 +4,7 @@
 - Replaced the flat gray-looking Obsidian surfaces with deeper machined graphite buttons, heavy knurled rotary edges, brushed metal knob faces, high-contrast legends and measured lime-green accent tracks. The existing shared SkellCore UI/skin store and official clickable skull remain in place.
 - Added deterministic wear, scuffed metal edges, subtle machining scratches, inset fasteners and a bottom-edge light accent to the cached chassis component; no frame allocations or painting are introduced into DSP callbacks.
 - Rebuilt the live slice display as recessed near-black glass, and refined the frequency rail with a brighter luminous inlay and metal end handles.
-- Cleaned the bottom lane: only SYNC ON, REVERSE, GATE and BOTH are visible, with equal-width buttons lined up beneath the step pattern. Reverse Style and Gate Rate are now in Engine Settings, retaining the same APVTS parameters, presets and automation IDs.
+- Cleaned the bottom lane: only SYNC ON, REVERSE, GATE and BOTH are visible, with equal-width buttons lined up beneath the step pattern. The former washed-out pattern selector is now a matching **PATTERNS** hardware popup button with all 13 pattern algorithms intact. Reverse Style and Gate Rate are now in Engine Settings, retaining the same APVTS parameters, presets and automation IDs.
 - Extends Windows UI smoke tests for the moved advanced controls and value automation. All four renderer sizes, DSP/latency, and host test checks must pass before release.
 - The hardware target is a visual direction, not a claim of pixel-exact equivalence; released screenshots must come from the actual JUCE editor.
 
