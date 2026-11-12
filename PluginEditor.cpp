@@ -106,22 +106,39 @@ public:
             g.fillRoundedRectangle(351.f,700.f,258.f,3.1f,1.5f);
             g.setColour(neonLight.withAlpha(.42f));
             g.drawLine(390.f,699.f,570.f,699.f,1.25f);
-            // Protective corner fasteners with a recessed shaft and cross slot.
-            for (const auto& loc : {juce::Point<float>{20.f,110.f},
-                                    juce::Point<float>{940.f,110.f},
-                                    juce::Point<float>{20.f,692.f},
-                                    juce::Point<float>{940.f,692.f}}) {
-                g.setColour(juce::Colours::black.withAlpha(.85f));
-                g.fillEllipse(loc.x-8.f,loc.y-6.1f,16.f,16.f);
+            // Small, flush six-sided socket fasteners. The old bright X
+            // heads overlapped the loop buttons, so mount these below the
+            // loop section and in the free lower chassis margins.
+            for (const auto& loc : {juce::Point<float>{17.f,157.f},
+                                    juce::Point<float>{943.f,157.f},
+                                    juce::Point<float>{17.f,697.f},
+                                    juce::Point<float>{943.f,697.f}}) {
+                constexpr float headR = 5.25f;
+                g.setColour(juce::Colours::black.withAlpha(.71f));
+                g.fillEllipse(loc.x-headR-1.f,loc.y-headR,2.f*(headR+1.f),2.f*(headR+1.f));
                 g.setGradientFill(juce::ColourGradient(
-                    juce::Colour(0xff829384),loc.x-7.f,loc.y-7.f,
-                    juce::Colour(0xff1c2920),loc.x+7.f,loc.y+7.f,false));
-                g.fillEllipse(loc.x-6.5f,loc.y-6.5f,13.f,13.f);
-                g.setColour(juce::Colours::black.withAlpha(.8f));
-                g.fillEllipse(loc.x-4.2f,loc.y-4.2f,8.4f,8.4f);
-                g.setColour(juce::Colour(0xffd4e7cc).withAlpha(.7f));
-                g.drawLine(loc.x-2.1f,loc.y-2.1f,loc.x+2.1f,loc.y+2.1f,1.2f);
-                g.drawLine(loc.x+2.1f,loc.y-2.1f,loc.x-2.1f,loc.y+2.1f,1.2f);
+                    juce::Colour(0xff728171),loc.x-headR,loc.y-headR,
+                    juce::Colour(0xff1c291e),loc.x+headR,loc.y+headR,false));
+                g.fillEllipse(loc.x-headR,loc.y-headR,headR*2.f,headR*2.f);
+                g.setColour(juce::Colour(0xffa2b4a2).withAlpha(.41f));
+                g.drawEllipse(loc.x-headR+.7f,loc.y-headR+.7f,
+                              (headR-.7f)*2.f,(headR-.7f)*2.f,.65f);
+                juce::Path socket;
+                for(int n=0;n<6;++n) {
+                    const float angle=juce::MathConstants<float>::twoPi*n/6.f+
+                                      juce::MathConstants<float>::pi/6.f;
+                    const float x=loc.x+2.55f*std::cos(angle);
+                    const float y=loc.y+2.55f*std::sin(angle);
+                    if(n==0) socket.startNewSubPath(x,y);
+                    else socket.lineTo(x,y);
+                }
+                socket.closeSubPath();
+                g.setColour(juce::Colour(0xff080d08));
+                g.fillPath(socket);
+                g.setColour(juce::Colour(0xff91a591).withAlpha(.67f));
+                g.strokePath(socket,juce::PathStrokeType(.68f));
+                g.setColour(juce::Colour(0xff425c45).withAlpha(.62f));
+                g.fillEllipse(loc.x-1.f,loc.y-1.f,2.f,2.f);
             }
         }
         auto frame=juce::Rectangle<float>(2,2,956,716);
@@ -145,7 +162,8 @@ public:
         g.drawText("LOOP LENGTH",426,120,110,24,juce::Justification::centred);
         g.drawText("FADE IN",45,340,120,26,juce::Justification::centred);
         g.drawText("FADE OUT",794,340,120,26,juce::Justification::centred);
-        g.drawText("MODE",139,494,54,24,juce::Justification::centred);
+        // The five aligned performance controls explain themselves;
+        // removing the isolated MODE engraving restores visual balance.
         g.drawText("SMOOTH",43,676,120,24,juce::Justification::centred);
         g.drawText("MIX",793,676,120,24,juce::Justification::centred);
         // The version is engraved alongside the brand in the header.
