@@ -13,9 +13,9 @@ public:
         const bool black = skell::theme::matteBlack();
         const auto base = colour(background);
         const auto upper = ivory ? juce::Colour(0xffe9d8c1)
-                           : black ? juce::Colour(0xff1a1d1b) : base.brighter(.12f);
+                           : black ? juce::Colour(0xff172438) : base.brighter(.12f);
         const auto lower = ivory ? juce::Colour(0xffc8b094)
-                           : black ? juce::Colour(0xff090a0a) : base.darker(.12f);
+                           : black ? juce::Colour(0xff060c1a) : base.darker(.12f);
         g.setGradientFill(juce::ColourGradient(upper,100.f,55.f,lower,870.f,720.f,false));
         g.fillAll();
         // Side and lower vignette reproduce the reference's patinated champagne
@@ -61,7 +61,7 @@ public:
                 const float length=4.f+static_cast<float>(step()%76u);
                 const float slope=(static_cast<int>(step()%19u)-9)*.27f;
                 const bool metallic=(step()%7u)<2u;
-                g.setColour((metallic ? juce::Colour(0xffa4a18e)
+                g.setColour((metallic ? juce::Colour(0xff7895b5)
                                       : juce::Colours::black)
                                       .withAlpha(metallic ? .055f : .105f));
                 g.drawLine(x,y,std::min(943.f,x+length),y+slope,metallic?.52f:.7f);
@@ -74,7 +74,7 @@ public:
                 const bool nearBottom=(step()&1u)!=0;
                 const float y=nearBottom ? 700.f-jitter : 63.f+jitter;
                 const float len=1.5f+static_cast<float>(step()%17u);
-                g.setColour(juce::Colour(0xff9c9380).withAlpha(.06f+float(step()%4u)*.021f));
+                g.setColour(juce::Colour(0xff819bb4).withAlpha(.06f+float(step()%4u)*.021f));
                 g.drawLine(along,y,std::min(951.f,along+len),y-.8f,.75f);
             }
             // Edge wear is directional, with occasional exposed brushed
@@ -87,7 +87,7 @@ public:
                 const float y = 170.f + float(step() % 505u);
                 const float len = 8.f + float(step() % 39u);
                 const float dy = -3.f - float(step() % 13u);
-                const auto metal = juce::Colour(0xffa99f88);
+                const auto metal = juce::Colour(0xff799cb7);
                 g.setColour(metal.withAlpha(.075f + float(step() % 4u)*.022f));
                 g.drawLine(x,y,std::min(948.f,x+len),y+dy,.55f);
             }
@@ -95,7 +95,7 @@ public:
                 const float x = 140.f + float(step() % 680u);
                 const float y = 677.f + float(step() % 23u);
                 const float len = 8.f + float(step() % 62u);
-                g.setColour(juce::Colour(0xffb9aa8f)
+                g.setColour(juce::Colour(0xff8bafc9)
                     .withAlpha(.075f + float(step()%3u)*.025f));
                 g.drawLine(x,y,std::min(943.f,x+len),y-2.0f,.7f);
             }
@@ -114,12 +114,12 @@ public:
                 g.setColour(juce::Colours::black.withAlpha(.85f));
                 g.fillEllipse(loc.x-8.f,loc.y-6.1f,16.f,16.f);
                 g.setGradientFill(juce::ColourGradient(
-                    juce::Colour(0xff889088),loc.x-7.f,loc.y-7.f,
-                    juce::Colour(0xff222722),loc.x+7.f,loc.y+7.f,false));
+                    juce::Colour(0xff8295af),loc.x-7.f,loc.y-7.f,
+                    juce::Colour(0xff1c2a3e),loc.x+7.f,loc.y+7.f,false));
                 g.fillEllipse(loc.x-6.5f,loc.y-6.5f,13.f,13.f);
                 g.setColour(juce::Colours::black.withAlpha(.8f));
                 g.fillEllipse(loc.x-4.2f,loc.y-4.2f,8.4f,8.4f);
-                g.setColour(juce::Colour(0xffb3b9a9).withAlpha(.7f));
+                g.setColour(juce::Colour(0xffc2d9ed).withAlpha(.7f));
                 g.drawLine(loc.x-2.1f,loc.y-2.1f,loc.x+2.1f,loc.y+2.1f,1.2f);
                 g.drawLine(loc.x+2.1f,loc.y-2.1f,loc.x-2.1f,loc.y+2.1f,1.2f);
             }
