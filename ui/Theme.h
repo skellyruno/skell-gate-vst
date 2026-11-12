@@ -32,17 +32,17 @@ inline juce::Colour colour(juce::uint32 token) {
         // Charcoal graphite Obsidian with deep neon-green signal illumination.
         // The saved shared skin index and the other three skins are untouched.
         switch (token) {
-            case background: return C(0xff090d0b);
-            case tile: return C(0xff19211c);
-            case deep: return C(0xff27332b);
-            case border: return C(0xff5b7260);
+            case background: return C(0xff050605);
+            case tile: return C(0xff111712);
+            case deep: return C(0xff202920);
+            case border: return C(0xff4f6553);
             case neon: return C(0xff46de53);
             case pale: return C(0xffb5f4b4);
             case dim: return C(0xff247e39);
             case magenta: return C(0xffb98fc6);
             case cyan: return C(0xff60c985);
             case bone: return C(0xffeff8ec);
-            case gray: return C(0xffadbdaf);
+            case gray: return C(0xffa8b5a9);
         }
     }
     const auto p = skellcore::ui::studioPalette(skin());
