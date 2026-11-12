@@ -46,12 +46,68 @@ public:
                 g.drawLine(x,y,std::min(955.f,x+len),y,.43f);
             }
         }
+        // Chipped graphite paint and directional scratches are all drawn on
+        // the cached chassis layer. No bitmap, allocation or rendering from
+        // processBlock(), and the scratches remain subtle at the 50% UI size.
+        if (black) {
+            juce::uint32 grit=0x9f7c4b2du;
+            const auto step=[&]() -> juce::uint32 {
+                grit ^= grit << 13; grit ^= grit >> 17; grit ^= grit << 5;
+                return grit;
+            };
+            for (int i=0;i<340;++i) {
+                const float x=14.f + static_cast<float>(step()%920u);
+                const float y=85.f + static_cast<float>(step()%604u);
+                const float length=4.f+static_cast<float>(step()%76u);
+                const float slope=(static_cast<int>(step()%19u)-9)*.27f;
+                const bool metallic=(step()%7u)<2u;
+                g.setColour((metallic ? juce::Colour(0xffa4a18e)
+                                      : juce::Colours::black)
+                                      .withAlpha(metallic ? .055f : .105f));
+                g.drawLine(x,y,std::min(943.f,x+length),y+slope,metallic?.52f:.7f);
+            }
+            // Exposed steel is concentrated on the outer edges and corners,
+            // rather than covering the whole plate with distracting grime.
+            for (int i=0;i<165;++i) {
+                const float along=8.f+static_cast<float>(step()%940u);
+                const float jitter=static_cast<float>(step()%14u);
+                const bool lower=(step()&1u)!=0;
+                const float y=lower ? 700.f-jitter : 63.f+jitter;
+                const float len=1.5f+static_cast<float>(step()%17u);
+                g.setColour(juce::Colour(0xff9c9380).withAlpha(.06f+float(step()%4u)*.021f));
+                g.drawLine(along,y,std::min(951.f,along+len),y-.8f,.75f);
+            }
+            const auto neonLight=colour(neon);
+            g.setGradientFill(juce::ColourGradient(
+                neonLight.withAlpha(.18f),480.f,699.f,
+                neonLight.withAlpha(0.f),480.f,660.f,false));
+            g.fillRoundedRectangle(351.f,700.f,258.f,3.1f,1.5f);
+            g.setColour(neonLight.withAlpha(.42f));
+            g.drawLine(390.f,699.f,570.f,699.f,1.25f);
+            // Protective corner fasteners with a recessed shaft and cross slot.
+            for (const auto& loc : {juce::Point<float>{20.f,110.f},
+                                    juce::Point<float>{940.f,110.f},
+                                    juce::Point<float>{20.f,692.f},
+                                    juce::Point<float>{940.f,692.f}}) {
+                g.setColour(juce::Colours::black.withAlpha(.85f));
+                g.fillEllipse(loc.x-8.f,loc.y-6.1f,16.f,16.f);
+                g.setGradientFill(juce::ColourGradient(
+                    juce::Colour(0xff889088),loc.x-7.f,loc.y-7.f,
+                    juce::Colour(0xff222722),loc.x+7.f,loc.y+7.f,false));
+                g.fillEllipse(loc.x-6.5f,loc.y-6.5f,13.f,13.f);
+                g.setColour(juce::Colours::black.withAlpha(.8f));
+                g.fillEllipse(loc.x-4.2f,loc.y-4.2f,8.4f,8.4f);
+                g.setColour(juce::Colour(0xffb3b9a9).withAlpha(.7f));
+                g.drawLine(loc.x-2.1f,loc.y-2.1f,loc.x+2.1f,loc.y+2.1f,1.2f);
+                g.drawLine(loc.x+2.1f,loc.y-2.1f,loc.x-2.1f,loc.y+2.1f,1.2f);
+            }
+        }
         auto frame=juce::Rectangle<float>(2,2,956,716);
         g.setColour(juce::Colours::black.withAlpha(.62f));
         g.drawRoundedRectangle(frame,23.f,3.f);
-        g.setColour(colour(border).brighter(.22f));
+        g.setColour(black ? juce::Colour(0xff67726b) : colour(border).brighter(.22f));
         g.drawRoundedRectangle(frame.reduced(2.f),21.f,2.f);
-        g.setColour(juce::Colours::white.withAlpha(ivory ? .62f : .18f));
+        g.setColour(juce::Colours::white.withAlpha(ivory ? .62f : black ? .20f : .18f));
         g.drawRoundedRectangle(frame.reduced(4.f),19.f,1.f);
         g.setColour(juce::Colours::black.withAlpha(.18f));
         g.drawRoundedRectangle(frame.reduced(5.5f),18.f,1.f);
