@@ -179,7 +179,7 @@ int main() {
     auto* fadeInKnob = dynamic_cast<juce::Slider*>(findNamed(*editor, "FADE IN"));
     auto* fadeParameter = findParameter("Fade in");
     if (!fadeInKnob || !fadeParameter) {
-        std::cerr << "UI_CONTROL: fade-in knob or host parameter missing\\n";
+        std::cerr << "UI_CONTROL: fade-in knob or host parameter missing\n";
         return 29;
     }
     // Verify the hardware dial responds to real user-level slider changes,
@@ -195,11 +195,11 @@ int main() {
             if (dialBefore.getPixelAt(x, y) != dialAfter.getPixelAt(x, y))
                 ++dialChangedPixels;
     if (std::abs(fadeParameter->getValue() - .2f) > .005f || dialChangedPixels < 50) {
-        std::cerr << "UI_CONTROL: rotary dial didn't automate or update its indicator\\n";
+        std::cerr << "UI_CONTROL: rotary dial didn't automate or update its indicator\n";
         return 30;
     }
     fadeInKnob->setValue(0.0, juce::sendNotificationSync);
-    std::cout << "UI_CONTROL: knob automation and live rotary rendering passed\\n";
+    std::cout << "UI_CONTROL: knob automation and live rotary rendering passed\n";
     if (!modeButton || !knobMix || !knobSmooth ||
         modeButton->getParentComponent()->getBounds().intersects(knobMix->getBounds()) ||
         modeButton->getParentComponent()->getBounds().intersects(knobSmooth->getBounds())) {
