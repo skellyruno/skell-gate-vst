@@ -106,9 +106,20 @@ static void sliceTest() {
                .5f * gain, 1e-5, "stutter repeat accent missing on left channel");
         approx(reverse.sample(constant, 1, phase, Reverser::Stutter, 0, 0.f, 48000),
                -.5f * gain, 1e-5, "stutter repeat accent changed stereo gain");
-        const auto pitched = reverse.sample(constant, 0, phase, Reverser::Stutter, 0, 7.f, 48000);
-        check(std::isfinite(pitched) && std::abs(pitched) <= .5f * gain + 1e-5f,
-              "pitched stutter exceeds bounded repeat accent");
+        for (const int sampleRate : {44100, 48000, 96000, 192000}) {
+            for (const float shift : {-12.f, 0.f, 7.f, 12.f}) {
+                const auto context = Reverser::makePitchContext(shift, sampleRate);
+                const float pitchedLeft = reverse.samplePrepared(constant, 0, phase,
+                    Reverser::Stutter, 0, context);
+                const float pitchedRight = reverse.samplePrepared(constant, 1, phase,
+                    Reverser::Stutter, 0, context);
+                check(std::isfinite(pitchedLeft) && std::isfinite(pitchedRight) &&
+                      std::abs(pitchedLeft) <= .5f * gain + 1e-5f &&
+                      std::abs(pitchedRight) <= .5f * gain + 1e-5f &&
+                      std::abs(pitchedLeft + pitchedRight) <= 1e-5f,
+                      "pitched stereo stutter exceeded headroom or lost channel coherence");
+            }
+        }
     }
     b.clear();
     check(b.length() == 0 && b.readFinished(0, 200) == 0.f, "seek exposed stale audio");
