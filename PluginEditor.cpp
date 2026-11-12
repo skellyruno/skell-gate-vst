@@ -174,7 +174,7 @@ private:
 class SettingsPanel final : public juce::Component {
 public:
     SettingsPanel(SkellGlitchAudioProcessor& p, std::function<void(int)> sizeCallback) : processor(p), resizeEditor(std::move(sizeCallback)),
-        trigger(p.apvts, "trigger", "TRIGGER"), freeze(p.apvts, "freeze", "HOLD FREEZE") {
+        trigger(p.apvts, "trigger", "TRIGGER") {
         setAlwaysOnTop(true);
         setVisible(false);
         addAndMakeVisible(close);
@@ -203,7 +203,7 @@ public:
             toggleAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.apvts, param, *t));
             toggles.push_back(std::move(t));
         }
-        addAndMakeVisible(trigger); addAndMakeVisible(freeze);
+        addAndMakeVisible(trigger);
         manualCopy.setButtonText("GATE > REVERSE");
         manualCopy.setClickingTogglesState(true);
         manualCopy.setToggleState(p.gateFirst.load(), juce::dontSendNotification);
@@ -254,8 +254,7 @@ public:
             toggles[i]->setBounds(15 + static_cast<int>(i) * 124, 444, 120, 29);
         manualCopy.setBounds(15, 478, 173, 29);
         jitter.setBounds(194, 478, 175, 29);
-        trigger.setBounds(15, 512, 173, 29);
-        freeze.setBounds(194, 512, 175, 29);
+        trigger.setBounds(15, 512, 355, 29);
         size.setBounds(145, 547, 135, 26);
         randomSeed.setBounds(286, 547, 94, 26);
     }
@@ -271,7 +270,7 @@ private:
     SkellGlitchAudioProcessor& processor;
     std::function<void(int)> resizeEditor;
     juce::TextButton close{"✕"}, manualCopy, jitter, randomSeed;
-    MomentaryButton trigger, freeze;
+    MomentaryButton trigger;
     juce::ComboBox size;
     juce::StringArray labels;
     std::vector<std::unique_ptr<juce::Slider>> sliders;
@@ -296,7 +295,7 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     loops.setBounds(skell::theme::loops);
     waveform.setBounds(skell::theme::wave);
     gate.setBounds(skell::theme::gate);
-    modes.setBounds(210, 489, 545, 47);
+    modes.setBounds(210, 477, 545, 40);
     // The preset bar is now a single header control; no third bottom row.
     presets.setBounds(318, 11, 322, 37);
     band.setBounds(skell::theme::band);
