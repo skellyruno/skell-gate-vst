@@ -155,6 +155,15 @@ int main() {
     };
     auto* headerPreset = findNamed(*editor, "HEADER_PRESET_BAR");
     auto* presetTools = findNamed(*editor, "PRESET_TOOLS_MENU");
+    auto* editMenu = findNamed(*editor, "PATTERN_EDIT_MENU");
+    auto* patternSelector = findNamed(*editor, "PATTERN_SELECTOR");
+    if (!editMenu || !patternSelector ||
+        editMenu->getParentComponent() != patternSelector->getParentComponent() ||
+        editMenu->getRight() >= patternSelector->getX() ||
+        editMenu->getY() != patternSelector->getY()) {
+        std::cerr << "UI_LAYOUT: compact pattern-edit menu missing or misaligned\n";
+        return 26;
+    }
     if (!headerPreset || !presetTools || !presetTools->isVisible() ||
         headerPreset->getY() >= 59 || headerPreset->getHeight() > 59 ||
         headerPreset->getWidth() < 250 ||
@@ -167,6 +176,30 @@ int main() {
     auto* modeButton = findButton(*editor, "REVERSE");
     auto* knobMix = findNamed(*editor, "MIX");
     auto* knobSmooth = findNamed(*editor, "SMOOTH");
+    auto* fadeInKnob = dynamic_cast<juce::Slider*>(findNamed(*editor, "FADE IN"));
+    auto* fadeParameter = findParameter("Fade in");
+    if (!fadeInKnob || !fadeParameter) {
+        std::cerr << "UI_CONTROL: fade-in knob or host parameter missing\n";
+        return 29;
+    }
+    // Verify the hardware dial responds to real user-level slider changes,
+    // that its APVTS attachment writes the host parameter, and that its
+    // rendered value/pointer actually moves at the design size.
+    editor->setSize(960, 720);
+    const auto dialBefore = editor->createComponentSnapshot(editor->getLocalBounds(), true);
+    fadeInKnob->setValue(100.0, juce::sendNotificationSync);
+    const auto dialAfter = editor->createComponentSnapshot(editor->getLocalBounds(), true);
+    int dialChangedPixels = 0;
+    for (int y = 190; y < 344; y += 2)
+        for (int x = 34; x < 175; x += 2)
+            if (dialBefore.getPixelAt(x, y) != dialAfter.getPixelAt(x, y))
+                ++dialChangedPixels;
+    if (std::abs(fadeParameter->getValue() - .2f) > .005f || dialChangedPixels < 50) {
+        std::cerr << "UI_CONTROL: rotary dial didn't automate or update its indicator\n";
+        return 30;
+    }
+    fadeInKnob->setValue(0.0, juce::sendNotificationSync);
+    std::cout << "UI_CONTROL: knob automation and live rotary rendering passed\n";
     if (!modeButton || !knobMix || !knobSmooth ||
         modeButton->getParentComponent()->getBounds().intersects(knobMix->getBounds()) ||
         modeButton->getParentComponent()->getBounds().intersects(knobSmooth->getBounds())) {

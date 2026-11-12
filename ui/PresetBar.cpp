@@ -10,6 +10,7 @@ PresetBar::PresetBar(SkellGlitchAudioProcessor& p) : processor(p),
     presets.onChange = [this] { if (presets.getSelectedId() > 0) processor.loadFactoryPreset(presets.getSelectedId() - 1); };
     presets.setTooltip("Choose a factory preset");
     addAndMakeVisible(presets);
+    tools.setButtonText("...");
     tools.setName("PRESET_TOOLS_MENU");
     tools.setTooltip("Undo, redo, snapshots A/B, save and open preset");
     tools.onClick = [this] { showToolsMenu(); };
@@ -49,7 +50,7 @@ PresetBar::PresetBar(SkellGlitchAudioProcessor& p) : processor(p),
     };
 }
 void PresetBar::resized() {
-    constexpr int gap = 7, toolsWidth = 60;
+    constexpr int gap = 5, toolsWidth = 39;
     presets.setBounds(0, 0, getWidth() - toolsWidth - gap, getHeight());
     tools.setBounds(getWidth() - toolsWidth, 0, toolsWidth, getHeight());
 }
