@@ -381,6 +381,15 @@ void SkellGlitchAudioProcessorEditor::paint(juce::Graphics& g) {
     g.fillAll(skell::theme::colour(skell::theme::background));
 }
 void SkellGlitchAudioProcessorEditor::timerCallback() {
+    // Rare, bounded UI-only interference. No host parameter or audio engine
+    // changes; the full backplate stays cached instead of repainting at 30 Hz.
+    visualPulse.tick();
+    const int pulse = visualPulse.intensity();
+    if (pulse > 0 || lastPulseIntensity > 0) {
+        top.setGlitchBurst(pulse, visualPulse.visualSeed());
+        gate.setGlitchBurst(pulse, visualPulse.visualSeed());
+    }
+    lastPulseIntensity = pulse;
     const bool on = processor.apvts.getRawParameterValue("sync")->load() >= .5f;
     const auto label = on ? juce::String("SYNC ON") : juce::String("SYNC OFF");
     if (top.sync.getButtonText() != label) top.sync.setButtonText(label);
