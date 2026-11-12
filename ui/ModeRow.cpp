@@ -14,21 +14,35 @@ ModeRow::ModeRow(SkellGlitchAudioProcessor& p, juce::TextButton& syncControl)
             }
         };
     }
-    timerCallback(); // Correct active mode and associated combo on first paint.
+    freeze.setName("PERFORMANCE_FREEZE");
+    freeze.setTooltip("Hold the captured slice until Freeze is switched off");
+    freeze.setClickingTogglesState(true);
+    addAndMakeVisible(freeze);
+    freezeAttach = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        processor.apvts, "freeze", freeze);
+    timerCallback(); // Correct active mode on first paint.
     startTimerHz(20);
 }
 void ModeRow::resized() {
-    // Four hardware switches align with the 545px step-sequencer lane.
-    constexpr int gap = 10;
-    const int itemWidth = (getWidth() - 3 * gap) / 4;
-    sync.setBounds(0, 2, itemWidth, 41);
+    constexpr int gap = 8;
+    constexpr int count = 5;
+    const int w = (getWidth() - gap * (count - 1)) / count;
+    const int start = (getWidth() - (count * w + gap * (count - 1))) / 2;
+    sync.setBounds(start, 2, w, 34);
     for (int i = 0; i < 3; ++i)
-        modes[static_cast<size_t>(i)].setBounds((i + 1) * (itemWidth + gap), 2, itemWidth, 41);
+        modes[static_cast<size_t>(i)].setBounds(start+(i+1)*(w+gap), 2, w, 34);
+    freeze.setBounds(start+4*(w+gap), 2, w, 34);
 }
 void ModeRow::paint(juce::Graphics&) {}
 void ModeRow::timerCallback() {
     const int mode = static_cast<int>(processor.apvts.getRawParameterValue("mode")->load());
-    if (mode == displayedMode) return;
+    if (mode == displayedMode) {
+        for (auto& button : modes)
+            if (button.getToggleState()) button.repaint();
+        if (sync.getToggleState()) sync.repaint();
+        if (freeze.getToggleState()) freeze.repaint();
+        return;
+    }
     displayedMode = mode;
     for (int i = 0; i < 3; ++i) modes[static_cast<size_t>(i)].setToggleState(i == mode, juce::dontSendNotification);
 }
