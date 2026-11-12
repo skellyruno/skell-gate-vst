@@ -67,7 +67,7 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     const auto border = skell::theme::colour(skell::theme::border);
     const bool darkSkin = skell::theme::matteBlack();
     const auto bronze = darkSkin
-        ? juce::Colour(0xff233349) : skell::theme::colour(skell::theme::tile);
+        ? juce::Colour(0xff29372b) : skell::theme::colour(skell::theme::tile);
     const auto ink = skell::theme::colour(skell::theme::bone);
     const bool fade = slider.getName() == "FADE IN" || slider.getName() == "FADE OUT";
     const auto ellipse = [&](float radius) {
@@ -82,7 +82,7 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     if (darkSkin) {
         g.setColour(juce::Colours::black.withAlpha(.36f));
         g.fillEllipse(ellipse(outer+1.1f).translated(.8f,5.f));
-        g.setColour(juce::Colour(0xff07111e));
+        g.setColour(juce::Colour(0xff0a140c));
         g.fillEllipse(ellipse(outer+.8f).translated(.3f,2.f));
     }
     // Multi-depth steel barrel: a dark chassis inset, knurled side grip,
@@ -102,7 +102,7 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
             const auto inner=c.getPointOnCircumference(outer-6.6f,a);
             const auto outerPoint=c.getPointOnCircumference(outer-1.6f,a+.009f);
             const float lit=std::sin(a+1.1f)*.5f+.5f;
-            g.setColour((tooth%2 ? juce::Colours::black : juce::Colour(0xffb9d7ea))
+            g.setColour((tooth%2 ? juce::Colours::black : juce::Colour(0xffc1d9b7))
                          .withAlpha(tooth%2 ? .50f : .15f+.16f*lit));
             g.drawLine(inner.x,inner.y,outerPoint.x,outerPoint.y,
                        tooth%2 ? 1.6f : .9f);
@@ -115,7 +115,7 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
         rimHighlight.addCentredArc(c.x,c.y,outer-2.3f,outer-2.3f,0.f,
               juce::MathConstants<float>::pi*1.03f,
               juce::MathConstants<float>::pi*1.79f,true);
-        g.setColour(juce::Colour(0xffa9d7f3).withAlpha(.55f));
+        g.setColour(juce::Colour(0xffb1e0ae).withAlpha(.55f));
         g.strokePath(rimHighlight,juce::PathStrokeType(1.25f));
         juce::Path lowRim;
         lowRim.addCentredArc(c.x,c.y,outer-2.9f,outer-2.9f,0.f,
@@ -125,12 +125,12 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     }
     // A single recessed bronze shoulder gives the knob its machined depth,
     // without the stack of thin 'washer' lines from the earlier renderer.
-    g.setColour(darkSkin ? juce::Colour(0xff101b2e) : border.darker(.32f));
+    g.setColour(darkSkin ? juce::Colour(0xff162319) : border.darker(.32f));
     g.fillEllipse(ellipse(outer-5.2f));
     g.setGradientFill(juce::ColourGradient(
-        darkSkin ? juce::Colour(0xff768da5) : bronze.brighter(.34f),
+        darkSkin ? juce::Colour(0xff8c9c87) : bronze.brighter(.34f),
         c.x-outer*.61f, c.y-outer*.71f,
-        darkSkin ? juce::Colour(0xff0c1424) : bronze.darker(.30f),
+        darkSkin ? juce::Colour(0xff111b14) : bronze.darker(.30f),
         c.x+outer*.69f, c.y+outer*.86f, false));
     g.fillEllipse(ellipse(outer-7.0f));
 
@@ -153,7 +153,7 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
                                         juce::PathStrokeType::rounded);
     // The dark unlit track has the deep olive / bronze treatment in the
     // reference, rather than an oversized gray band.
-    g.setColour(darkSkin ? juce::Colour(0xff030c18) : border.darker(.67f));
+    g.setColour(darkSkin ? juce::Colour(0xff071308) : border.darker(.67f));
     g.strokePath(track,roundTrack);
     g.setColour(skell::theme::colour(skell::theme::dim).darker(.15f).withAlpha(.82f));
     g.strokePath(track,juce::PathStrokeType(3.5f,juce::PathStrokeType::curved,
@@ -182,17 +182,17 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     g.setColour(juce::Colours::black.withAlpha(darkSkin ? .76f : .33f));
     g.fillEllipse(ellipse(cap+3.f).translated(1.5f,3.7f));
     if (darkSkin) {
-        g.setColour(juce::Colour(0xff091424));
+        g.setColour(juce::Colour(0xff111e12));
         g.fillEllipse(ellipse(cap+2.0f));
     }
     g.setColour(border.darker(.37f));
     g.fillEllipse(ellipse(cap+1.f));
-    g.setColour(darkSkin ? juce::Colour(0xff778fa7) : bronze.brighter(.32f));
+    g.setColour(darkSkin ? juce::Colour(0xff91a18b) : bronze.brighter(.32f));
     g.fillEllipse(ellipse(cap));
     g.setGradientFill(juce::ColourGradient(
-        darkSkin ? juce::Colour(0xff8aa6c2) : bronze.brighter(.48f),
+        darkSkin ? juce::Colour(0xffa3b5a1) : bronze.brighter(.48f),
         c.x-cap*.77f,c.y-cap*.86f,
-        darkSkin ? juce::Colour(0xff162338) : bronze.darker(.14f),
+        darkSkin ? juce::Colour(0xff1a2b1e) : bronze.darker(.14f),
         c.x+cap*.74f,c.y+cap*.94f,false));
     g.fillEllipse(ellipse(cap-.8f));
     if (darkSkin) {
@@ -219,6 +219,20 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     g.drawEllipse(ellipse(cap-2.0f),1.12f);
     g.setColour(border.withAlpha(.15f));
     g.drawEllipse(ellipse(cap-3.3f),.52f);
+    if (darkSkin) {
+        // Sculpt the cap edge using two short metal reflections, not a
+        // second thick neon ring. This preserves the existing weight while
+        // adding believable curvature and a recessed lower shoulder.
+        juce::Path upperSpecular, lowerShadow;
+        upperSpecular.addCentredArc(c.x,c.y,cap-4.2f,cap-4.2f,0.f,
+                3.60f,5.16f,true);
+        lowerShadow.addCentredArc(c.x,c.y,cap-3.1f,cap-3.1f,0.f,
+                .18f,2.28f,true);
+        g.setColour(juce::Colour(0xffe5f3d7).withAlpha(.19f));
+        g.strokePath(upperSpecular,juce::PathStrokeType(1.05f));
+        g.setColour(juce::Colours::black.withAlpha(.37f));
+        g.strokePath(lowerShadow,juce::PathStrokeType(1.55f));
+    }
     // The inlaid pointer rotates with the actual value. Its direction
     // matches the ring marker, so the dial never appears lopsided or fake.
     const auto pointerStart = c.getPointOnCircumference(cap * .56f, angle);
@@ -247,8 +261,8 @@ void SkellLookAndFeel::drawComboBox(juce::Graphics& g, int w, int h, bool isDown
         g.setColour(juce::Colours::black.withAlpha(.70f));
         g.fillRoundedRectangle(bounds.translated(0,2.f),7.f);
         g.setGradientFill(juce::ColourGradient(
-            juce::Colour(0xff253d56),0.f,0.f,
-            juce::Colour(0xff0a1425),0.f,float(h),false));
+            juce::Colour(0xff2d4632),0.f,0.f,
+            juce::Colour(0xff0d170f),0.f,float(h),false));
         g.fillRoundedRectangle(bounds,7.f);
         g.setColour(skell::theme::colour(skell::theme::border));
         g.drawRoundedRectangle(bounds.reduced(.65f),7.f,1.f);

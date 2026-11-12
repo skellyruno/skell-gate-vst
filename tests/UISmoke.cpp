@@ -32,15 +32,15 @@ int main() {
             std::cerr << "Invalid snapshot dimensions at " << width << "x" << height << "\n";
             return 4;
         }
-        int cyan = 0;
+        int green = 0;
         for (int y = 0; y < height; y += 6)
             for (int x = 0; x < width; x += 6) {
                 const auto px = frame.getPixelAt(x, y);
-                if (px.getGreen() > 110 && px.getBlue() > 145
-                    && px.getBlue() > px.getRed() + 65) ++cyan;
+                if (px.getGreen() > 115 && px.getGreen() > px.getRed() + 50
+                    && px.getGreen() > px.getBlue() + 35) ++green;
             }
-        if (cyan < 10) {
-            std::cerr << "Blank or missing cyan highlights at " << width << "x" << height << "\n";
+        if (green < 10) {
+            std::cerr << "Blank or missing green highlights at " << width << "x" << height << "\n";
             return 5;
         }
         if (width == 960) {
@@ -58,14 +58,21 @@ int main() {
             for (int yy = 197; yy <= 333; ++yy)
                 for (int xx = 43; xx <= 170; ++xx) {
                     const auto pixel = frame.getPixelAt(xx, yy);
-                    if (pixel.getBlue() > 165 && pixel.getGreen() > 130
-                        && pixel.getBlue() > pixel.getRed() + 85) ++illuminated;
+                    if (pixel.getGreen() > 165 && pixel.getGreen() > pixel.getRed() + 75
+                        && pixel.getGreen() > pixel.getBlue() + 45) ++illuminated;
                 }
             if (illuminated < 110) {
-                std::cerr << "UI_REFERENCE: fade bezel lacks cyan illumination\n";
+                std::cerr << "UI_REFERENCE: fade bezel lacks green illumination\n";
                 return 24;
             }
             std::cout << "UI_REFERENCE: fade illuminated pixels=" << illuminated << "\n";
+            // Black-green Obsidian must not regress into the previous
+            // blue/cyan panel. Check the actual rendered chassis midtone.
+            const auto chassis = frame.getPixelAt(80, 172);
+            if (chassis.getBlue() > chassis.getGreen() + 15) {
+                std::cerr << "UI_THEME: blue chassis leaked into green skin\n";
+                return 41;
+            }
         }
         const auto output = directory.getChildFile(
             "Skell-Glitch-" + juce::String(width) + "x" + juce::String(height) + ".png");
@@ -75,7 +82,7 @@ int main() {
             return 6;
         }
         std::cout << "UI_SMOKE: " << width << "x" << height
-                  << " valid, cyan samples=" << cyan << "\n";
+                  << " valid, green samples=" << green << "\n";
     }
     const auto findParameter = [&](const juce::String& name) -> juce::AudioProcessorParameter* {
         for (auto* p : processor->getParameters())

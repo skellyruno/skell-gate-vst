@@ -1,3 +1,12 @@
+## Dark neon-green hardware refinement — review build
+- Returns the default SkellCore Obsidian UI to a deep charcoal/graphite chassis with darker neon-green accents (replacing midnight cyan), while preserving the other Studio skins.
+- Keeps the existing weighted steel knobs and true host-automation pointers; gently sculpts their center-cap reflections without adding permanent knob-face numbers.
+- Replaces all four X-headed screws with small, flush six-sided socket bolts in unobstructed chassis margins.
+- Removes the unbalanced MODE label beside the five self-explanatory performance switches.
+- Removes the straight highlight and underline from selected buttons; their active state now reads as a clean breathing green perimeter glow and raised-face contrast.
+- Glitch-customizes the **existing SkellCore skull** with two narrow displaced scan slices and pixel fragments, all clipped inside its badge. The skull now follows the active plugin accent, not a hard-coded different color.
+- Updates the Windows offscreen UI checks for true green accents and blue-material regressions. The audio engine, parameter IDs and latency behavior are unchanged. Confirm real rendered screenshots and four-size Windows VST3 + DSP checks before release.
+
 # Skell-Glitch — CUT IT. FLIP IT.
 
 ## Midnight-cyan performance UI — current review

@@ -3,11 +3,12 @@
 #include <cmath>
 void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
     const auto r=getLocalBounds().toFloat().reduced(2.f);
-    const auto neon=(icon==Kind::Skull && skell::theme::matteBlack())
-        ? juce::Colour(0xff65f532) : skell::theme::colour(skell::theme::neon);
+    // Plugin-specific glitch treatment inherits the active SkellCore skin
+    // accent; no separate green/cyan hard-code for the skull.
+    const auto neon=skell::theme::colour(skell::theme::neon);
     const auto border=skell::theme::colour(skell::theme::border);
     const auto bronze=skell::theme::matteBlack()
-        ? juce::Colour(0xff2c3c52) : skell::theme::colour(skell::theme::tile);
+        ? juce::Colour(0xff2f3e32) : skell::theme::colour(skell::theme::tile);
     const auto c=r.getCentre();
     const float radius=std::min(r.getWidth(),r.getHeight())*.49f;
     const auto ellipse=[&](float rad) {
@@ -17,8 +18,8 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
     g.fillEllipse(ellipse(radius+1.f).translated(.7f,2.5f));
     g.setColour(border.darker(.38f));
     g.fillEllipse(ellipse(radius));
-    // Reference gear and power buttons are warm inset brass, not
-    // neon-ringed badges; only the skull identity badge has a green rim.
+    // Recessed hardware buttons share the same green/graphite material
+    // language. The glitching skull remains a separate identity medallion.
     g.setGradientFill(juce::ColourGradient(
          bronze.brighter(.34f),c.x-radius*.7f,c.y-radius*.8f,
          bronze.darker(.24f),c.x+radius*.78f,c.y+radius*.95f,false));
@@ -51,6 +52,29 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
             g.setColour(neon);
             g.fillRoundedRectangle(c.x+t*2.6f-.55f,c.y+5.8f,1.15f,3.2f,.5f);
         }
+        // Two displaced scan slices + broken digital trails: recognizable
+        // official SkellCore skull silhouette with a Glitch-specific overlay.
+        // The displacement is clipped to the medallion; no new skull asset
+        // is installed globally for other plugins.
+        for(int stripe=0;stripe<2;++stripe) {
+            const float y = c.y + (stripe==0 ? -7.0f : 1.5f);
+            const float dx = stripe==0 ? 2.8f : -2.25f;
+            g.setColour(juce::Colours::black.withAlpha(.91f));
+            g.fillRect(juce::Rectangle<float>(c.x-11.8f,y,23.6f,2.6f));
+            {
+                juce::Graphics::ScopedSaveState slice(g);
+                g.reduceClipRegion(juce::Rectangle<int>(
+                    juce::roundToInt(c.x-12.5f),juce::roundToInt(y),
+                    26,3));
+                skellcore::ui::drawSkullKeyMark(g,sx+dx,sy,
+                    neon.withAlpha(.84f),juce::Colours::black);
+            }
+            g.setColour(neon.withAlpha(.77f));
+            g.fillRect(c.x+(stripe==0 ? 10.4f : -14.4f),y+.65f,4.3f,1.15f);
+        }
+        g.setColour(neon.withAlpha(.58f));
+        g.fillRect(c.x-14.1f,c.y-12.2f,4.1f,1.05f);
+        g.fillRect(c.x+9.3f,c.y+10.3f,4.2f,1.1f);
     } else if(icon==Kind::Settings) {
         // Eight real gear teeth, not the old radial sunburst. Geometry is
         // proportional to the smaller SkellCore control and stays legible.

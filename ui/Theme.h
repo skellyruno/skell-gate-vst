@@ -1,5 +1,5 @@
 #pragma once
-// SkellGlitch SkellCore skins: deep midnight-cyan Obsidian is the default.
+// SkellGlitch SkellCore skins: graphite and deep neon green Obsidian is the default.
 // UI-only; no painting or file I/O from the audio callback.
 #include <JuceHeader.h>
 #include <SkellCore/StudioUI.h>
@@ -29,20 +29,20 @@ inline juce::Colour colour(juce::uint32 token) {
     using C = juce::Colour;
     if (ivory()) return C(token);
     if (matteBlack()) {
-        // Midnight-ocean blue variant of SkellCore Obsidian with bright cyan signal lighting.
+        // Charcoal graphite Obsidian with deep neon-green signal illumination.
         // The saved shared skin index and the other three skins are untouched.
         switch (token) {
-            case background: return C(0xff080d19);
-            case tile: return C(0xff121e30);
-            case deep: return C(0xff1a2c42);
-            case border: return C(0xff516b84);
-            case neon: return C(0xff40e7ff);
-            case pale: return C(0xffb4f6ff);
-            case dim: return C(0xff197f9f);
-            case magenta: return C(0xffd18be5);
-            case cyan: return C(0xff48d9db);
-            case bone: return C(0xffecf8ff);
-            case gray: return C(0xffa7c0d5);
+            case background: return C(0xff090d0b);
+            case tile: return C(0xff19211c);
+            case deep: return C(0xff27332b);
+            case border: return C(0xff5b7260);
+            case neon: return C(0xff46de53);
+            case pale: return C(0xffb5f4b4);
+            case dim: return C(0xff247e39);
+            case magenta: return C(0xffb98fc6);
+            case cyan: return C(0xff60c985);
+            case bone: return C(0xffeff8ec);
+            case gray: return C(0xffadbdaf);
         }
     }
     const auto p = skellcore::ui::studioPalette(skin());
@@ -81,37 +81,31 @@ inline void raised(juce::Graphics& g, juce::Rectangle<float> bounds, float radiu
         g.fillRoundedRectangle(bounds.translated(0, 2.f), radius);
         g.setGradientFill(juce::ColourGradient(
             edge.brighter(.36f), bounds.getX(), bounds.getY(),
-            juce::Colour(0xff09101e), bounds.getRight(), bounds.getBottom(), false));
+            juce::Colour(0xff0b130e), bounds.getRight(), bounds.getBottom(), false));
         g.fillRoundedRectangle(bounds, radius);
         auto face = bounds.reduced(2.6f, 2.8f);
         g.setGradientFill(juce::ColourGradient(
-            pressed ? juce::Colour(0xff10233a) : metal.brighter(selected ? .33f : .13f),
+            pressed ? juce::Colour(0xff18321b) : metal.brighter(selected ? .30f : .13f),
             face.getCentreX(), face.getY(),
-            selected ? juce::Colour(0xff10354a) : juce::Colour(0xff0a1220),
+            selected ? juce::Colour(0xff17351d) : juce::Colour(0xff0d140f),
             face.getCentreX(), face.getBottom(), false));
         g.fillRoundedRectangle(face, std::max(2.f, radius-2.f));
-        g.setColour(juce::Colours::white.withAlpha(.23f));
-        g.drawLine(face.getX()+radius*.55f, face.getY()+1.4f,
-                   face.getRight()-radius*.55f, face.getY()+1.4f, .9f);
+        // Keep a clear machined face. No horizontal glints or light
+        // underline on selected buttons: selected state is the perimeter
+        // halo and dimensional fill only.
         g.setColour(selected ? accent : edge.withAlpha(.64f));
         g.drawRoundedRectangle(bounds.reduced(.8f), radius, selected ? 1.7f : .85f);
         if (selected) {
             // Breathes at a calm ~2 second cycle, using UI paint time only.
             const float pulse = .65f + .35f * std::sin(
                 float(juce::Time::getMillisecondCounterHiRes() * .0031));
-            // Diffuse edge bloom + sharp cyan optical seam: only selected
-            // buttons emit light, never an all-button wash.
+            // Smooth, green perimeter illumination without underlines or
+            // decorative strokes across the face.
             g.setColour(accent.withAlpha(.07f + .035f*pulse));
             g.fillRoundedRectangle(face, std::max(2.f, radius-2.f));
             g.setColour(accent.withAlpha(.16f + .12f*pulse));
             g.drawRoundedRectangle(bounds.expanded(1.6f), radius+1.f, 2.6f);
-            g.setColour(accent.withAlpha(.65f + .30f*pulse));
-            g.fillRoundedRectangle(face.getX()+8.f,face.getBottom()-2.1f,
-                std::max(0.f,face.getWidth()-16.f),1.5f,.75f);
-        } else {
-            g.setColour(juce::Colours::black.withAlpha(.40f));
-            g.drawLine(face.getX()+radius*.55f,face.getBottom()-1.2f,
-                face.getRight()-radius*.55f,face.getBottom()-1.2f,1.f);
+
         }
         return;
     }

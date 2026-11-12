@@ -32,15 +32,15 @@ void WaveDisplay::paint(juce::Graphics& g) {
     g.fillRoundedRectangle(bounds.translated(0, 4.0f), 18.f);
     if (black) {
         g.setGradientFill(juce::ColourGradient(
-            juce::Colour(0xff829bb8), bounds.getX(),bounds.getY(),
-            juce::Colour(0xff20334b),bounds.getRight(),bounds.getBottom(),false));
+            juce::Colour(0xff809b84), bounds.getX(),bounds.getY(),
+            juce::Colour(0xff203524),bounds.getRight(),bounds.getBottom(),false));
         g.fillRoundedRectangle(bounds,18.f);
-        g.setColour(juce::Colour(0xff050c19));
+        g.setColour(juce::Colour(0xff070f08));
         g.fillRoundedRectangle(bounds.reduced(3.f),16.f);
         const auto glass=inside.reduced(2.2f);
         g.setGradientFill(juce::ColourGradient(
-            juce::Colour(0xff061421),glass.getCentreX(),glass.getY(),
-            juce::Colour(0xff10263d),glass.getCentreX(),glass.getBottom(),false));
+            juce::Colour(0xff07160b),glass.getCentreX(),glass.getY(),
+            juce::Colour(0xff102817),glass.getCentreX(),glass.getBottom(),false));
         g.fillRoundedRectangle(glass,12.f);
         g.setColour(colour(neon).withAlpha(.70f));
         g.drawRoundedRectangle(glass.reduced(.7f),12.f,1.2f);

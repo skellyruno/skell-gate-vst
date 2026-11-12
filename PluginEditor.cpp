@@ -13,9 +13,9 @@ public:
         const bool black = skell::theme::matteBlack();
         const auto base = colour(background);
         const auto upper = ivory ? juce::Colour(0xffe9d8c1)
-                           : black ? juce::Colour(0xff172438) : base.brighter(.12f);
+                           : black ? juce::Colour(0xff202c22) : base.brighter(.12f);
         const auto lower = ivory ? juce::Colour(0xffc8b094)
-                           : black ? juce::Colour(0xff060c1a) : base.darker(.12f);
+                           : black ? juce::Colour(0xff090e0a) : base.darker(.12f);
         g.setGradientFill(juce::ColourGradient(upper,100.f,55.f,lower,870.f,720.f,false));
         g.fillAll();
         // Side and lower vignette reproduce the reference's patinated champagne
@@ -61,7 +61,7 @@ public:
                 const float length=4.f+static_cast<float>(step()%76u);
                 const float slope=(static_cast<int>(step()%19u)-9)*.27f;
                 const bool metallic=(step()%7u)<2u;
-                g.setColour((metallic ? juce::Colour(0xff7895b5)
+                g.setColour((metallic ? juce::Colour(0xff8ba28c)
                                       : juce::Colours::black)
                                       .withAlpha(metallic ? .055f : .105f));
                 g.drawLine(x,y,std::min(943.f,x+length),y+slope,metallic?.52f:.7f);
@@ -74,7 +74,7 @@ public:
                 const bool nearBottom=(step()&1u)!=0;
                 const float y=nearBottom ? 700.f-jitter : 63.f+jitter;
                 const float len=1.5f+static_cast<float>(step()%17u);
-                g.setColour(juce::Colour(0xff819bb4).withAlpha(.06f+float(step()%4u)*.021f));
+                g.setColour(juce::Colour(0xff8eaa8e).withAlpha(.06f+float(step()%4u)*.021f));
                 g.drawLine(along,y,std::min(951.f,along+len),y-.8f,.75f);
             }
             // Edge wear is directional, with occasional exposed brushed
@@ -87,7 +87,7 @@ public:
                 const float y = 170.f + float(step() % 505u);
                 const float len = 8.f + float(step() % 39u);
                 const float dy = -3.f - float(step() % 13u);
-                const auto metal = juce::Colour(0xff799cb7);
+                const auto metal = juce::Colour(0xff769d78);
                 g.setColour(metal.withAlpha(.075f + float(step() % 4u)*.022f));
                 g.drawLine(x,y,std::min(948.f,x+len),y+dy,.55f);
             }
@@ -95,7 +95,7 @@ public:
                 const float x = 140.f + float(step() % 680u);
                 const float y = 677.f + float(step() % 23u);
                 const float len = 8.f + float(step() % 62u);
-                g.setColour(juce::Colour(0xff8bafc9)
+                g.setColour(juce::Colour(0xff91aa88)
                     .withAlpha(.075f + float(step()%3u)*.025f));
                 g.drawLine(x,y,std::min(943.f,x+len),y-2.0f,.7f);
             }
@@ -106,28 +106,45 @@ public:
             g.fillRoundedRectangle(351.f,700.f,258.f,3.1f,1.5f);
             g.setColour(neonLight.withAlpha(.42f));
             g.drawLine(390.f,699.f,570.f,699.f,1.25f);
-            // Protective corner fasteners with a recessed shaft and cross slot.
-            for (const auto& loc : {juce::Point<float>{20.f,110.f},
-                                    juce::Point<float>{940.f,110.f},
-                                    juce::Point<float>{20.f,692.f},
-                                    juce::Point<float>{940.f,692.f}}) {
-                g.setColour(juce::Colours::black.withAlpha(.85f));
-                g.fillEllipse(loc.x-8.f,loc.y-6.1f,16.f,16.f);
+            // Small, flush six-sided socket fasteners. The old bright X
+            // heads overlapped the loop buttons, so mount these below the
+            // loop section and in the free lower chassis margins.
+            for (const auto& loc : {juce::Point<float>{17.f,157.f},
+                                    juce::Point<float>{943.f,157.f},
+                                    juce::Point<float>{17.f,697.f},
+                                    juce::Point<float>{943.f,697.f}}) {
+                constexpr float headR = 5.25f;
+                g.setColour(juce::Colours::black.withAlpha(.71f));
+                g.fillEllipse(loc.x-headR-1.f,loc.y-headR,2.f*(headR+1.f),2.f*(headR+1.f));
                 g.setGradientFill(juce::ColourGradient(
-                    juce::Colour(0xff8295af),loc.x-7.f,loc.y-7.f,
-                    juce::Colour(0xff1c2a3e),loc.x+7.f,loc.y+7.f,false));
-                g.fillEllipse(loc.x-6.5f,loc.y-6.5f,13.f,13.f);
-                g.setColour(juce::Colours::black.withAlpha(.8f));
-                g.fillEllipse(loc.x-4.2f,loc.y-4.2f,8.4f,8.4f);
-                g.setColour(juce::Colour(0xffc2d9ed).withAlpha(.7f));
-                g.drawLine(loc.x-2.1f,loc.y-2.1f,loc.x+2.1f,loc.y+2.1f,1.2f);
-                g.drawLine(loc.x+2.1f,loc.y-2.1f,loc.x-2.1f,loc.y+2.1f,1.2f);
+                    juce::Colour(0xff728171),loc.x-headR,loc.y-headR,
+                    juce::Colour(0xff1c291e),loc.x+headR,loc.y+headR,false));
+                g.fillEllipse(loc.x-headR,loc.y-headR,headR*2.f,headR*2.f);
+                g.setColour(juce::Colour(0xffa2b4a2).withAlpha(.41f));
+                g.drawEllipse(loc.x-headR+.7f,loc.y-headR+.7f,
+                              (headR-.7f)*2.f,(headR-.7f)*2.f,.65f);
+                juce::Path socket;
+                for(int n=0;n<6;++n) {
+                    const float angle=juce::MathConstants<float>::twoPi*n/6.f+
+                                      juce::MathConstants<float>::pi/6.f;
+                    const float x=loc.x+2.55f*std::cos(angle);
+                    const float y=loc.y+2.55f*std::sin(angle);
+                    if(n==0) socket.startNewSubPath(x,y);
+                    else socket.lineTo(x,y);
+                }
+                socket.closeSubPath();
+                g.setColour(juce::Colour(0xff080d08));
+                g.fillPath(socket);
+                g.setColour(juce::Colour(0xff91a591).withAlpha(.67f));
+                g.strokePath(socket,juce::PathStrokeType(.68f));
+                g.setColour(juce::Colour(0xff425c45).withAlpha(.62f));
+                g.fillEllipse(loc.x-1.f,loc.y-1.f,2.f,2.f);
             }
         }
         auto frame=juce::Rectangle<float>(2,2,956,716);
         g.setColour(juce::Colours::black.withAlpha(.62f));
         g.drawRoundedRectangle(frame,23.f,3.f);
-        g.setColour(black ? juce::Colour(0xff67726b) : colour(border).brighter(.22f));
+        g.setColour(black ? juce::Colour(0xff687e69) : colour(border).brighter(.22f));
         g.drawRoundedRectangle(frame.reduced(2.f),21.f,2.f);
         g.setColour(juce::Colours::white.withAlpha(ivory ? .62f : black ? .20f : .18f));
         g.drawRoundedRectangle(frame.reduced(4.f),19.f,1.f);
@@ -145,7 +162,8 @@ public:
         g.drawText("LOOP LENGTH",426,120,110,24,juce::Justification::centred);
         g.drawText("FADE IN",45,340,120,26,juce::Justification::centred);
         g.drawText("FADE OUT",794,340,120,26,juce::Justification::centred);
-        g.drawText("MODE",139,494,54,24,juce::Justification::centred);
+        // The five aligned performance controls explain themselves;
+        // removing the isolated MODE engraving restores visual balance.
         g.drawText("SMOOTH",43,676,120,24,juce::Justification::centred);
         g.drawText("MIX",793,676,120,24,juce::Justification::centred);
         // The version is engraved alongside the brand in the header.
