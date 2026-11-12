@@ -77,6 +77,28 @@ public:
                 g.setColour(juce::Colour(0xff9c9380).withAlpha(.06f+float(step()%4u)*.021f));
                 g.drawLine(along,y,std::min(951.f,along+len),y-.8f,.75f);
             }
+            // Edge wear is directional, with occasional exposed brushed
+            // metal. This is a small, deterministic paint-only detail rather
+            // than a moving/noisy shader over the interactive controls.
+            for (int i = 0; i < 115; ++i) {
+                const bool right = (step() & 1u) != 0;
+                const float x = right ? 782.f + float(step() % 146u)
+                                      : 25.f + float(step() % 151u);
+                const float y = 170.f + float(step() % 505u);
+                const float len = 8.f + float(step() % 39u);
+                const float dy = -3.f - float(step() % 13u);
+                const auto metal = juce::Colour(0xffa99f88);
+                g.setColour(metal.withAlpha(.075f + float(step() % 4u)*.022f));
+                g.drawLine(x,y,std::min(948.f,x+len),y+dy,.55f);
+            }
+            for (int i = 0; i < 65; ++i) {
+                const float x = 140.f + float(step() % 680u);
+                const float y = 677.f + float(step() % 23u);
+                const float len = 8.f + float(step() % 62u);
+                g.setColour(juce::Colour(0xffb9aa8f)
+                    .withAlpha(.075f + float(step()%3u)*.025f));
+                g.drawLine(x,y,std::min(943.f,x+len),y-2.0f,.7f);
+            }
             const auto neonLight=colour(neon);
             g.setGradientFill(juce::ColourGradient(
                 neonLight.withAlpha(.18f),480.f,699.f,
