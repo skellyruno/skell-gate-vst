@@ -52,29 +52,52 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
             g.setColour(neon);
             g.fillRoundedRectangle(c.x+t*2.6f-.55f,c.y+5.8f,1.15f,3.2f,.5f);
         }
-        // Two displaced scan slices + broken digital trails: recognizable
-        // official SkellCore skull silhouette with a Glitch-specific overlay.
-        // The displacement is clipped to the medallion; no new skull asset
-        // is installed globally for other plugins.
-        for(int stripe=0;stripe<2;++stripe) {
-            const float y = c.y + (stripe==0 ? -7.0f : 1.5f);
-            const float dx = stripe==0 ? 2.8f : -2.25f;
-            g.setColour(juce::Colours::black.withAlpha(.91f));
-            g.fillRect(juce::Rectangle<float>(c.x-11.8f,y,23.6f,2.6f));
+        // The official SkellCore skull remains recognizable; displaced
+        // horizontal scan bands are composited only inside this icon.
+        // Static micro-fractures make its glitch identity obvious even
+        // between rare, stronger UI-interference bursts.
+        constexpr float bandY[] = {-10.3f, -3.9f, 2.4f, 8.5f, -6.8f};
+        constexpr float bandDx[] = {3.5f, -2.8f, 2.5f, -2.0f, 5.6f};
+        const int bandCount = glitchIntensity > 0 ? 5 : 4;
+        for(int stripe=0;stripe<bandCount;++stripe) {
+            const float y = c.y + bandY[stripe]
+                + (glitchIntensity > 0 ? float((glitchVariant >> (stripe*3)) & 3u)-1.f : 0.f);
+            const float dx = bandDx[stripe] +
+                (glitchIntensity > 0
+                    ? float(glitchIntensity)*float((glitchVariant >> (stripe*4)) & 1u ? 1.1f : -1.1f)
+                    : 0.f);
+            const float h = (stripe%2 == 0 ? 2.6f : 1.9f);
+            g.setColour(juce::Colours::black.withAlpha(.94f));
+            g.fillRect(juce::Rectangle<float>(c.x-13.0f,y,26.f,h));
             {
                 juce::Graphics::ScopedSaveState slice(g);
                 g.reduceClipRegion(juce::Rectangle<int>(
-                    juce::roundToInt(c.x-12.5f),juce::roundToInt(y),
-                    26,3));
-                skellcore::ui::drawSkullKeyMark(g,sx+dx,sy,
-                    neon.withAlpha(.84f),juce::Colours::black);
+                    juce::roundToInt(c.x-13.f),
+                    juce::roundToInt(y),26,juce::roundToInt(h)+1));
+                skellcore::ui::drawSkullKeyMark(
+                    g,sx+dx,sy,neon.withAlpha(.90f),juce::Colours::black);
             }
-            g.setColour(neon.withAlpha(.77f));
-            g.fillRect(c.x+(stripe==0 ? 10.4f : -14.4f),y+.65f,4.3f,1.15f);
+            g.setColour(neon.withAlpha(.52f + .14f*(stripe%2)));
+            const float tailX=(stripe%2 == 0 ? c.x+10.5f : c.x-15.3f);
+            g.fillRect(tailX,y+.45f,2.9f+float(stripe%3)*1.4f,.9f);
         }
-        g.setColour(neon.withAlpha(.58f));
-        g.fillRect(c.x-14.1f,c.y-12.2f,4.1f,1.05f);
-        g.fillRect(c.x+9.3f,c.y+10.3f,4.2f,1.1f);
+        // Fine broken pixels around the eye and jaw edges: no cyan
+        // chromatic aberration; the same Skell-green accent is used.
+        g.setColour(neon.withAlpha(.75f));
+        g.fillRect(c.x-14.8f,c.y-12.9f,4.7f,1.0f);
+        g.fillRect(c.x+9.9f,c.y+10.1f,4.3f,1.0f);
+        g.fillRect(c.x-10.8f,c.y+12.9f,2.0f,.9f);
+        if (glitchIntensity > 0) {
+            std::uint32_t noise=glitchVariant ^ 0x51f15a3du;
+            for(int i=0;i<6+glitchIntensity*2;++i) {
+                noise ^= noise<<13; noise ^= noise>>17; noise ^= noise<<5;
+                const float x=c.x-14.5f+float(noise%29u);
+                noise ^= noise<<13; noise ^= noise>>17; noise ^= noise<<5;
+                const float y=c.y-12.f+float(noise%26u);
+                g.setColour(neon.withAlpha(i%2 ? .56f : .96f));
+                g.fillRect(x,y,1.0f+float(i%3),.8f);
+            }
+        }
     } else if(icon==Kind::Settings) {
         // Eight real gear teeth, not the old radial sunburst. Geometry is
         // proportional to the smaller SkellCore control and stays legible.
@@ -172,6 +195,28 @@ void TopBar::paint(juce::Graphics& g) {
         g.drawText("GLITCH",138,8,102,30,juce::Justification::centredLeft);
         g.setColour(green);
         g.drawText("GLITCH",137,7,102,30,juce::Justification::centredLeft);
+    }
+    if (glitchIntensity > 0 && skell::theme::matteBlack()) {
+        // Tiny occasional displacement of the title's green signal and a
+        // few packet-loss bars. This is visual only, not a color/theme switch.
+        juce::Graphics::ScopedSaveState burst(g);
+        const float y=11.f+float(glitchVariant%19u);
+        g.reduceClipRegion(juce::Rectangle<int>(132,juce::roundToInt(y),123,4));
+        g.setColour(green.brighter(.27f).withAlpha(.80f));
+        g.setFont(skell::theme::display(25.5f));
+        const float dx=float(glitchIntensity)*1.8f;
+        g.drawText("GLITCH",juce::roundToInt(137.f+dx),7,102,30,
+                   juce::Justification::centredLeft);
+    }
+    if (glitchIntensity > 0 && skell::theme::matteBlack()) {
+        std::uint32_t bits=glitchVariant ^ 0xd3c4f2a1u;
+        for (int i=0;i<5;++i) {
+            bits ^= bits<<13; bits ^= bits>>17; bits ^= bits<<5;
+            const float x=105.f+float(bits%156u);
+            const float y=5.f+float((bits>>8)%45u);
+            g.setColour(green.withAlpha(.32f+.11f*glitchIntensity));
+            g.fillRect(x,y,5.f+float((bits>>16)%19u),.9f);
+        }
     }
     g.setColour(skell::theme::colour(skell::theme::gray));
     g.setFont(skell::theme::regular(10.5f));
