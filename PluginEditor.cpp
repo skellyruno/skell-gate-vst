@@ -13,21 +13,21 @@ public:
         const bool black = skell::theme::matteBlack();
         const auto base = colour(background);
         const auto upper = ivory ? juce::Colour(0xffe9d8c1)
-                           : black ? juce::Colour(0xff202c22) : base.brighter(.12f);
+                           : black ? juce::Colour(0xff0d100e) : base.brighter(.12f);
         const auto lower = ivory ? juce::Colour(0xffc8b094)
-                           : black ? juce::Colour(0xff090e0a) : base.darker(.12f);
+                           : black ? juce::Colour(0xff030403) : base.darker(.12f);
         g.setGradientFill(juce::ColourGradient(upper,100.f,55.f,lower,870.f,720.f,false));
         g.fillAll();
         // Side and lower vignette reproduce the reference's patinated champagne
         // metal without a bitmap overlay that would hide interactive controls.
         if (ivory || black) {
             g.setGradientFill(juce::ColourGradient(
-                juce::Colours::black.withAlpha(ivory ? .075f : .14f),0.f,320.f,
+                juce::Colours::black.withAlpha(ivory ? .075f : .07f),0.f,320.f,
                 juce::Colours::black.withAlpha(0.f),480.f,320.f,false));
             g.fillAll();
             g.setGradientFill(juce::ColourGradient(
                 juce::Colours::black.withAlpha(0.f),0.f,310.f,
-                juce::Colours::black.withAlpha(ivory ? .048f : .20f),0.f,708.f,false));
+                juce::Colours::black.withAlpha(ivory ? .048f : .15f),0.f,708.f,false));
             g.fillAll();
         }
         // Reproducible horizontal brush strokes: cached offscreen by JUCE,
@@ -381,6 +381,15 @@ void SkellGlitchAudioProcessorEditor::paint(juce::Graphics& g) {
     g.fillAll(skell::theme::colour(skell::theme::background));
 }
 void SkellGlitchAudioProcessorEditor::timerCallback() {
+    // Rare, bounded UI-only interference. No host parameter or audio engine
+    // changes; the full backplate stays cached instead of repainting at 30 Hz.
+    visualPulse.tick();
+    const int pulse = visualPulse.intensity();
+    if (pulse > 0 || lastPulseIntensity > 0) {
+        top.setGlitchBurst(pulse, visualPulse.visualSeed());
+        gate.setGlitchBurst(pulse, visualPulse.visualSeed());
+    }
+    lastPulseIntensity = pulse;
     const bool on = processor.apvts.getRawParameterValue("sync")->load() >= .5f;
     const auto label = on ? juce::String("SYNC ON") : juce::String("SYNC OFF");
     if (top.sync.getButtonText() != label) top.sync.setButtonText(label);

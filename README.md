@@ -1,3 +1,11 @@
+## SkellGlitch true-black / rare visual glitch polish
+- Darkens the default Obsidian chassis from green-charcoal to **near-true black**, while keeping all green button, meter, pattern, and knob accents readable. Other SkellCore skins are unchanged.
+- Keeps the premium 3D knob proportions and automation positions, refining the cap lighting, brushed highlights and needle-pin relief without adding extra readouts.
+- Gives the shared SkellCore skull a stronger plugin-specific sliced/displaced raster treatment. The base skull mark is still used; extra slices are clipped to its medallion.
+- Adds short, randomly spaced **visual-only** green packet-loss bursts across the skull, title and sequencer. The scheduler ticks at 30Hz on the JUCE UI thread: roughly one brief 100–167ms burst after 5.5–12s of quiet, without audio changes, allocations or extra processing inside `processBlock()`.
+- Includes deterministic 90-second pulse-frequency regression checks and visual before/after snapshot assertions for the real UI. The UI test also produces `Skell-Glitch-Burst-960x720.png` alongside the four normal screenshot sizes.
+- This is not a change to time signatures, gate patterns, glitch DSP, MIDI, saved parameters, latency, presets, or plug-in state; intermittent visual glitch effects do not cause audio artifacts.
+
 ## Dark neon-green hardware refinement — review build
 - Returns the default SkellCore Obsidian UI to a deep charcoal/graphite chassis with darker neon-green accents (replacing midnight cyan), while preserving the other Studio skins.
 - Keeps the existing weighted steel knobs and true host-automation pointers; gently sculpts their center-cap reflections without adding permanent knob-face numbers.
