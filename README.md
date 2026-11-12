@@ -1,5 +1,12 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## UI / DSP refinement — pending full Windows VST3 validation
+- Replaced the five wide sequencer command buttons with one **EDIT** popup (Randomize, Shift Left/Right, Invert, Clear); retained the **PATTERNS** selector on the same row and **SYNC / REVERSE / GATE / BOTH** row below it.
+- Centered the top preset picker and moved Undo/Redo, A/B and user-preset actions behind a compact tools overflow; moved Settings directly beside Power and refined button text/contrast in the Obsidian skin.
+- Made the metal knob faces darker, added subtle machining and value-following pointers, retained real automation and the SkellCore skin cycle. The on-panel edition mark reads **v1.7.s** as requested; the project's CMake version remains **1.7.3**.
+- Fixed a DSP stutter bug: each of four repeated sub-slices now receives its intended 100%, 80%, 64%, 51.2% gain instead of all repeats receiving 100%. Added stereo, pitch and native stress checks.
+- Expanded JUCE UI smoke checks to assert the compact menu geometry, actual knob automation and rendered pointer updates. Full Windows builds/screenshots are required before release.
+
 ## v1.7.3 — two clean lower rows and compact header presets
 - Removed the third bottom strip of eight preset-action buttons entirely. A single header preset dropdown and TOOLS popup preserve every action: Undo, Redo, Capture/Recall A/B, Save, and Open.
 - Refined the title to SKELLGLITCH (one uppercase word, green second half) with no glyph collision, placed CUT IT. FLIP IT. beneath it, moved the small version alongside the title, and grouped sample-rate/latency, Settings and Power. The dark header has restrained matte highlights.
