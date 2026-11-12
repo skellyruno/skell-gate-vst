@@ -96,13 +96,16 @@ inline void raised(juce::Graphics& g, juce::Rectangle<float> bounds, float radiu
         g.setColour(selected ? accent : edge.withAlpha(.64f));
         g.drawRoundedRectangle(bounds.reduced(.8f), radius, selected ? 1.7f : .85f);
         if (selected) {
+            // Breathes at a calm ~2 second cycle, using UI paint time only.
+            const float pulse = .65f + .35f * std::sin(
+                float(juce::Time::getMillisecondCounterHiRes() * .0031));
             // Diffuse edge bloom + sharp cyan optical seam: only selected
             // buttons emit light, never an all-button wash.
-            g.setColour(accent.withAlpha(.085f));
+            g.setColour(accent.withAlpha(.07f + .035f*pulse));
             g.fillRoundedRectangle(face, std::max(2.f, radius-2.f));
-            g.setColour(accent.withAlpha(.20f));
+            g.setColour(accent.withAlpha(.16f + .12f*pulse));
             g.drawRoundedRectangle(bounds.expanded(1.6f), radius+1.f, 2.6f);
-            g.setColour(accent.withAlpha(.72f));
+            g.setColour(accent.withAlpha(.65f + .30f*pulse));
             g.fillRoundedRectangle(face.getX()+8.f,face.getBottom()-2.1f,
                 std::max(0.f,face.getWidth()-16.f),1.5f,.75f);
         } else {
