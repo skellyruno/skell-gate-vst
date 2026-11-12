@@ -219,6 +219,20 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     g.drawEllipse(ellipse(cap-2.0f),1.12f);
     g.setColour(border.withAlpha(.15f));
     g.drawEllipse(ellipse(cap-3.3f),.52f);
+    if (darkSkin) {
+        // Sculpt the cap edge using two short metal reflections, not a
+        // second thick neon ring. This preserves the existing weight while
+        // adding believable curvature and a recessed lower shoulder.
+        juce::Path upperSpecular, lowerShadow;
+        upperSpecular.addCentredArc(c.x,c.y,cap-4.2f,cap-4.2f,0.f,
+                3.60f,5.16f,true);
+        lowerShadow.addCentredArc(c.x,c.y,cap-3.1f,cap-3.1f,0.f,
+                .18f,2.28f,true);
+        g.setColour(juce::Colour(0xffe5f3d7).withAlpha(.19f));
+        g.strokePath(upperSpecular,juce::PathStrokeType(1.05f));
+        g.setColour(juce::Colours::black.withAlpha(.37f));
+        g.strokePath(lowerShadow,juce::PathStrokeType(1.55f));
+    }
     // The inlaid pointer rotates with the actual value. Its direction
     // matches the ring marker, so the dial never appears lopsided or fake.
     const auto pointerStart = c.getPointOnCircumference(cap * .56f, angle);
@@ -247,8 +261,8 @@ void SkellLookAndFeel::drawComboBox(juce::Graphics& g, int w, int h, bool isDown
         g.setColour(juce::Colours::black.withAlpha(.70f));
         g.fillRoundedRectangle(bounds.translated(0,2.f),7.f);
         g.setGradientFill(juce::ColourGradient(
-            juce::Colour(0xff253d56),0.f,0.f,
-            juce::Colour(0xff0a1425),0.f,float(h),false));
+            juce::Colour(0xff2d4632),0.f,0.f,
+            juce::Colour(0xff0d170f),0.f,float(h),false));
         g.fillRoundedRectangle(bounds,7.f);
         g.setColour(skell::theme::colour(skell::theme::border));
         g.drawRoundedRectangle(bounds.reduced(.65f),7.f,1.f);
