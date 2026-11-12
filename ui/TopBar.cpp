@@ -140,9 +140,9 @@ void TopBar::paint(juce::Graphics& g) {
         g.setColour(dark);
         g.drawText("SKELL",62,7,83,30,juce::Justification::centredLeft);
         g.setColour(green.darker(.32f));
-        g.drawText("GLITCH",148,8,102,30,juce::Justification::centredLeft);
+        g.drawText("GLITCH",138,8,102,30,juce::Justification::centredLeft);
         g.setColour(green);
-        g.drawText("GLITCH",147,7,102,30,juce::Justification::centredLeft);
+        g.drawText("GLITCH",137,7,102,30,juce::Justification::centredLeft);
     }
     g.setColour(skell::theme::colour(skell::theme::gray));
     g.setFont(skell::theme::regular(10.5f));
