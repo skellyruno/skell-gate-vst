@@ -40,7 +40,8 @@ void GateGrid::timerCallback() {
         lastStates[idx] = state;
         lastProbabilities[idx] = chance;
     }
-    if (changed) repaint();
+    if (changed || processor.displayTransport.load(std::memory_order_relaxed) != 0)
+        repaint();
 }
 void GateGrid::resized() {
     // Step cells occupy the complete 545px lane; menus are contextual.
@@ -49,6 +50,9 @@ void GateGrid::paint(juce::Graphics& g) {
     const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);
     const float cell = static_cast<float>(getWidth()) / steps;
     const int active = processor.displayStep.load();
+    const bool playing = processor.displayTransport.load(std::memory_order_relaxed) != 0;
+    const float glow = playing ? .66f+.34f*std::sin(
+        float(juce::Time::getMillisecondCounterHiRes()*.008)) : .4f;
     for (int i = 0; i < steps; ++i) {
         const auto idx = static_cast<size_t>(i);
         const int state = static_cast<int>(stateValues[idx]->load(std::memory_order_relaxed));
@@ -70,13 +74,17 @@ void GateGrid::paint(juce::Graphics& g) {
         g.drawRoundedRectangle(x+.45f,y+.45f,w-.9f,h-.9f,4.f,1.f);
         g.setColour(juce::Colours::white.withAlpha(.40f));
         g.drawLine(x+4.f,y+2.f,x+w-4.f,y+2.f,.75f);
+        if (i == active && playing) {
+            g.setColour(skell::theme::colour(skell::theme::neon).withAlpha(.18f+.17f*glow));
+            g.drawRoundedRectangle(x-.9f, 0.f, w+1.8f, 41.f, 4.4f, 3.0f);
+        }
         if (i == active || i == hoveredStep) {
             g.setColour(skell::theme::colour(i == active ? skell::theme::bone : skell::theme::dim));
             g.drawRoundedRectangle(x, 0.f, w, 41.f, 4.f, i == active ? 1.6f : 1.f);
         }
         if ((i % 4 == 0 || i == hoveredStep) && w > 21.f) {
             g.setColour(state == 0 ? skell::theme::colour(skell::theme::bone).withAlpha(.86f)
-                                   : juce::Colour(0xff162010));
+                                   : juce::Colour(0xff071725));
             g.setFont(skell::theme::mono(10.f));
             g.drawText(juce::String(i + 1), static_cast<int>(x), 27,
                        static_cast<int>(w), 12, juce::Justification::centred);
