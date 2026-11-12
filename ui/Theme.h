@@ -1,5 +1,5 @@
 #pragma once
-// SkellGlitch shared SkellCore skins; matte-black vintage Obsidian is the new-install default.
+// SkellGlitch SkellCore skins: deep midnight-cyan Obsidian is the default.
 // UI-only; no painting or file I/O from the audio callback.
 #include <JuceHeader.h>
 #include <SkellCore/StudioUI.h>
@@ -29,20 +29,20 @@ inline juce::Colour colour(juce::uint32 token) {
     using C = juce::Colour;
     if (ivory()) return C(token);
     if (matteBlack()) {
-        // A dark, warm, subtly aged hardware variant of SkellCore Obsidian.
+        // Midnight-ocean blue variant of SkellCore Obsidian with bright cyan signal lighting.
         // The saved shared skin index and the other three skins are untouched.
         switch (token) {
-            case background: return C(0xff090b0a);
-            case tile: return C(0xff191d19);
-            case deep: return C(0xff272d28);
-            case border: return C(0xff566056);
-            case neon: return C(0xff57f526);
-            case pale: return C(0xffb3fd80);
-            case dim: return C(0xff327b30);
-            case magenta: return C(0xffc76391);
-            case cyan: return C(0xff4baf7b);
-            case bone: return C(0xffebeee7);
-            case gray: return C(0xffabb5aa);
+            case background: return C(0xff080d19);
+            case tile: return C(0xff121e30);
+            case deep: return C(0xff1a2c42);
+            case border: return C(0xff516b84);
+            case neon: return C(0xff40e7ff);
+            case pale: return C(0xffb4f6ff);
+            case dim: return C(0xff197f9f);
+            case magenta: return C(0xffd18be5);
+            case cyan: return C(0xff48d9db);
+            case bone: return C(0xffecf8ff);
+            case gray: return C(0xffa7c0d5);
         }
     }
     const auto p = skellcore::ui::studioPalette(skin());
@@ -75,38 +75,40 @@ inline void raised(juce::Graphics& g, juce::Rectangle<float> bounds, float radiu
     // restrained machined-metal contrast.
     if (black) {
         const auto accent = colour(neon);
-        const auto outer = juce::Colour(0xff535c53);
-        const auto metal = juce::Colour(0xff171c19);
-        // Deeply inset mounting shadow, graphite-machined bezel and floating cap.
-        g.setColour(juce::Colours::black.withAlpha(.77f));
-        g.fillRoundedRectangle(bounds.expanded(.7f).translated(0.f, 2.1f), radius);
+        const auto metal = colour(tile);
+        const auto edge = colour(border);
+        g.setColour(juce::Colours::black.withAlpha(.76f));
+        g.fillRoundedRectangle(bounds.translated(0, 2.f), radius);
         g.setGradientFill(juce::ColourGradient(
-            outer.brighter(.35f), bounds.getX(), bounds.getY(),
-            juce::Colour(0xff101410), bounds.getRight(), bounds.getBottom(), false));
+            edge.brighter(.36f), bounds.getX(), bounds.getY(),
+            juce::Colour(0xff09101e), bounds.getRight(), bounds.getBottom(), false));
         g.fillRoundedRectangle(bounds, radius);
-        g.setColour(juce::Colour(0xff090c0a));
-        g.fillRoundedRectangle(bounds.reduced(2.f), std::max(2.f, radius - 1.f));
-        const auto face = bounds.reduced(3.6f, 3.3f);
+        auto face = bounds.reduced(2.6f, 2.8f);
         g.setGradientFill(juce::ColourGradient(
-            pressed ? juce::Colour(0xff101610) : juce::Colour(0xff343e35),
+            pressed ? juce::Colour(0xff10233a) : metal.brighter(selected ? .33f : .13f),
             face.getCentreX(), face.getY(),
-            selected ? juce::Colour(0xff16281a) : metal,
+            selected ? juce::Colour(0xff10354a) : juce::Colour(0xff0a1220),
             face.getCentreX(), face.getBottom(), false));
-        g.fillRoundedRectangle(face, std::max(2.f, radius - 2.5f));
-        g.setColour(juce::Colours::white.withAlpha(.21f));
-        g.drawLine(face.getX() + radius*.48f, face.getY() + 1.5f,
-                   face.getRight() - radius*.48f, face.getY() + 1.5f, .8f);
-        g.setColour(juce::Colours::black.withAlpha(.61f));
-        g.drawLine(face.getX() + radius*.42f, face.getBottom() - .8f,
-                   face.getRight() - radius*.42f, face.getBottom() - .8f, 1.2f);
-        g.setColour(selected ? accent.withAlpha(.95f) : outer.withAlpha(.76f));
-        g.drawRoundedRectangle(bounds.reduced(.75f), radius, selected ? 1.7f : .9f);
+        g.fillRoundedRectangle(face, std::max(2.f, radius-2.f));
+        g.setColour(juce::Colours::white.withAlpha(.23f));
+        g.drawLine(face.getX()+radius*.55f, face.getY()+1.4f,
+                   face.getRight()-radius*.55f, face.getY()+1.4f, .9f);
+        g.setColour(selected ? accent : edge.withAlpha(.64f));
+        g.drawRoundedRectangle(bounds.reduced(.8f), radius, selected ? 1.7f : .85f);
         if (selected) {
-            g.setColour(accent.withAlpha(.12f));
-            g.drawRoundedRectangle(bounds.expanded(1.8f), radius+1.5f, 2.6f);
-            g.setColour(accent.withAlpha(.95f));
-            g.fillRoundedRectangle(face.getX()+8.f, face.getBottom()-1.8f,
-                                   std::max(0.f,face.getWidth()-16.f), 1.6f, .6f);
+            // Diffuse edge bloom + sharp cyan optical seam: only selected
+            // buttons emit light, never an all-button wash.
+            g.setColour(accent.withAlpha(.085f));
+            g.fillRoundedRectangle(face, std::max(2.f, radius-2.f));
+            g.setColour(accent.withAlpha(.20f));
+            g.drawRoundedRectangle(bounds.expanded(1.6f), radius+1.f, 2.6f);
+            g.setColour(accent.withAlpha(.72f));
+            g.fillRoundedRectangle(face.getX()+8.f,face.getBottom()-2.1f,
+                std::max(0.f,face.getWidth()-16.f),1.5f,.75f);
+        } else {
+            g.setColour(juce::Colours::black.withAlpha(.40f));
+            g.drawLine(face.getX()+radius*.55f,face.getBottom()-1.2f,
+                face.getRight()-radius*.55f,face.getBottom()-1.2f,1.f);
         }
         return;
     }
