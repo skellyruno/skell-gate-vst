@@ -78,6 +78,13 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
         g.setColour(juce::Colours::black.withAlpha(.017f + .009f*(5-i)));
         g.fillEllipse(ellipse(outer + i*.72f).translated(0,3.6f));
     }
+    // Secondary cast shadow makes the barrel stand proud of the faceplate.
+    if (darkSkin) {
+        g.setColour(juce::Colours::black.withAlpha(.36f));
+        g.fillEllipse(ellipse(outer+1.1f).translated(.8f,5.f));
+        g.setColour(juce::Colour(0xff060a07));
+        g.fillEllipse(ellipse(outer+.8f).translated(.3f,2.f));
+    }
     // Multi-depth steel barrel: a dark chassis inset, knurled side grip,
     // machined rim, luminous instrument scale and a high-contrast brushed cap.
     g.setColour(border.darker(.42f));
@@ -103,6 +110,19 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     }
     g.setColour(juce::Colours::white.withAlpha(skell::theme::ivory() ? .56f : .24f));
     g.drawEllipse(ellipse(outer-2.5f),1.25f);
+    if (darkSkin) {
+        juce::Path rimHighlight;
+        rimHighlight.addCentredArc(c.x,c.y,outer-2.3f,outer-2.3f,0.f,
+              juce::MathConstants<float>::pi*1.03f,
+              juce::MathConstants<float>::pi*1.79f,true);
+        g.setColour(juce::Colour(0xffb3c3b4).withAlpha(.55f));
+        g.strokePath(rimHighlight,juce::PathStrokeType(1.25f));
+        juce::Path lowRim;
+        lowRim.addCentredArc(c.x,c.y,outer-2.9f,outer-2.9f,0.f,
+             .25f,2.72f,true);
+        g.setColour(juce::Colours::black.withAlpha(.69f));
+        g.strokePath(lowRim,juce::PathStrokeType(2.f));
+    }
     // A single recessed bronze shoulder gives the knob its machined depth,
     // without the stack of thin 'washer' lines from the earlier renderer.
     g.setColour(darkSkin ? juce::Colour(0xff111913) : border.darker(.32f));
@@ -192,6 +212,8 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
              juce::MathConstants<float>::pi*1.04f,
              juce::MathConstants<float>::pi*1.75f,true);
         g.strokePath(highlight,juce::PathStrokeType(1.7f));
+        g.setColour(juce::Colours::white.withAlpha(.095f));
+        g.fillEllipse(c.x-cap*.53f,c.y-cap*.72f,cap*.66f,cap*.20f);
     }
     g.setColour(juce::Colours::white.withAlpha(skell::theme::ivory() ? .59f : .21f));
     g.drawEllipse(ellipse(cap-2.0f),1.12f);
