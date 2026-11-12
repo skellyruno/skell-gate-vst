@@ -153,6 +153,16 @@ int main() {
             if (auto* match = findNamed(*root.getChildComponent(i), name)) return match;
         return nullptr;
     };
+    auto* settingsIcon = findNamed(*editor, "HEADER_SETTINGS");
+    auto* powerIcon = findNamed(*editor, "HEADER_POWER");
+    if (!settingsIcon || !powerIcon || settingsIcon->getWidth() > 38 ||
+        powerIcon->getWidth() > 38 || settingsIcon->getHeight() > 38 ||
+        powerIcon->getHeight() > 38 ||
+        settingsIcon->getRight() + 8 < powerIcon->getX() ||
+        settingsIcon->getBounds().intersects(powerIcon->getBounds())) {
+        std::cerr << "UI_LAYOUT: header gear and power controls are oversized or misaligned\n";
+        return 38;
+    }
     auto* headerPreset = findNamed(*editor, "HEADER_PRESET_BAR");
     auto* presetTools = findNamed(*editor, "PRESET_TOOLS_MENU");
     auto* previousPreset = dynamic_cast<juce::TextButton*>(
@@ -266,6 +276,26 @@ int main() {
         return 37;
     }
     freezeButton->setToggleState(false, juce::sendNotificationSync);
+    const std::array<juce::String, 5> performanceLabels{
+        "SYNC ON", "REVERSE", "GATE", "BOTH", "FREEZE"};
+    juce::Component* parent = nullptr;
+    juce::TextButton* previous = nullptr;
+    for (const auto& label : performanceLabels) {
+        auto* button = findButton(*editor, label);
+        if (!button || button->getWidth() > 105 || button->getHeight() > 36 ||
+            (parent && parent != button->getParentComponent()) ||
+            (previous && previous->getRight() >= button->getX())) {
+            std::cerr << "UI_LAYOUT: five compact performance switches not aligned\n";
+            return 39;
+        }
+        parent = button->getParentComponent();
+        previous = button;
+    }
+    auto* selectedLoop = findButton(*editor, "1 Bar");
+    if (!selectedLoop || selectedLoop->getHeight() > 36) {
+        std::cerr << "UI_LAYOUT: loop-length switches still oversized\n";
+        return 40;
+    }
     auto* selectedReverse = findButton(*editor, "REVERSE");
     auto* selectedBar = findButton(*editor, "1 Bar");
     if (!selectedReverse || !selectedBar || !selectedReverse->getToggleState()
