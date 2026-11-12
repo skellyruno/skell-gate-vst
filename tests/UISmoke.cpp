@@ -18,28 +18,6 @@ int main() {
     std::unique_ptr<juce::AudioProcessorEditor> editor(processor->createEditor());
     if (!editor) { std::cerr << "Failed to create plugin editor\n"; return 2; }
     editor->setVisible(true);
-    // Regression: the former five-button pattern command row must remain
-    // collapsed into one edit menu, while the preset bar stays in the header.
-    const auto findNamed = [&](const juce::String& name) {
-        std::function<juce::Component*(juce::Component*)> walk =
-            [&](juce::Component* root) -> juce::Component* {
-                if (root->getName() == name) return root;
-                for (int i = 0; i < root->getNumChildComponents(); ++i)
-                    if (auto* match = walk(root->getChildComponent(i))) return match;
-                return nullptr;
-            };
-        return walk(editor.get());
-    };
-    const auto* editMenu = findNamed("PATTERN_EDIT_MENU");
-    const auto* patternSelector = findNamed("PATTERN_SELECTOR");
-    const auto* headerPreset = findNamed("HEADER_PRESET_BAR");
-    if (editMenu == nullptr || patternSelector == nullptr || headerPreset == nullptr
-        || editMenu->getParentComponent() != patternSelector->getParentComponent()
-        || editMenu->getRight() >= patternSelector->getX()
-        || headerPreset->getY() >= 60) {
-        std::cerr << "UI_LAYOUT: preset header or compact pattern editor missing/misplaced\n";
-        return 26;
-    }
     const auto directory = juce::File::getCurrentWorkingDirectory()
                                .getChildFile("build").getChildFile("ui-snapshots");
     if (!directory.createDirectory()) { std::cerr << "Failed creating snapshot directory\n"; return 3; }
@@ -177,6 +155,15 @@ int main() {
     };
     auto* headerPreset = findNamed(*editor, "HEADER_PRESET_BAR");
     auto* presetTools = findNamed(*editor, "PRESET_TOOLS_MENU");
+    auto* editMenu = findNamed(*editor, "PATTERN_EDIT_MENU");
+    auto* patternSelector = findNamed(*editor, "PATTERN_SELECTOR");
+    if (!editMenu || !patternSelector ||
+        editMenu->getParentComponent() != patternSelector->getParentComponent() ||
+        editMenu->getRight() >= patternSelector->getX() ||
+        editMenu->getY() != patternSelector->getY()) {
+        std::cerr << "UI_LAYOUT: compact pattern-edit menu missing or misaligned\n";
+        return 26;
+    }
     if (!headerPreset || !presetTools || !presetTools->isVisible() ||
         headerPreset->getY() >= 59 || headerPreset->getHeight() > 59 ||
         headerPreset->getWidth() < 250 ||
