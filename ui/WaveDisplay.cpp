@@ -24,23 +24,48 @@ void WaveDisplay::paint(juce::Graphics& g) {
     using namespace skell::theme;
     const auto bounds=getLocalBounds().toFloat().reduced(2.f);
     const auto inside=bounds.reduced(4.f);
-    // Deep inset metal display: rounded rim, shadow, warm vignette and ticks.
-    g.setColour(juce::Colours::black.withAlpha(.30f));
-    g.fillRoundedRectangle(bounds.translated(0,3),18.f);
-    g.setColour(colour(tile).brighter(.30f));
-    g.fillRoundedRectangle(bounds,18.f);
-    g.setColour(colour(border).darker(.15f));
-    g.drawRoundedRectangle(bounds,18.f,2.f);
-    g.setGradientFill(juce::ColourGradient(colour(deep).darker(.12f),inside.getCentreX(),inside.getY(),
-         colour(deep).brighter(.18f),inside.getCentreX(),inside.getBottom(),false));
-    g.fillRoundedRectangle(inside,14.f);
-    g.setColour(juce::Colours::white.withAlpha(.32f));
-    g.drawRoundedRectangle(bounds.reduced(2.f),16.f,1.2f);
-    g.setColour(colour(border).withAlpha(.55f));
-    g.drawRoundedRectangle(inside.reduced(.5f),14.f,1.f);
+    // Deep inset glass panel: the outer bezel is machined metal, but the
+    // display itself stays nearly black instead of the old washed-out gray.
+    const bool black = matteBlack();
+    g.setColour(juce::Colours::black.withAlpha(.69f));
+    g.fillRoundedRectangle(bounds.translated(0, 4.0f), 18.f);
+    if (black) {
+        g.setGradientFill(juce::ColourGradient(
+            juce::Colour(0xffa0aba1), bounds.getX(),bounds.getY(),
+            juce::Colour(0xff333b34),bounds.getRight(),bounds.getBottom(),false));
+        g.fillRoundedRectangle(bounds,18.f);
+        g.setColour(juce::Colour(0xff090d0b));
+        g.fillRoundedRectangle(bounds.reduced(3.f),16.f);
+        const auto glass=inside.reduced(2.2f);
+        g.setGradientFill(juce::ColourGradient(
+            juce::Colour(0xff070e0b),glass.getCentreX(),glass.getY(),
+            juce::Colour(0xff0f2417),glass.getCentreX(),glass.getBottom(),false));
+        g.fillRoundedRectangle(glass,12.f);
+        g.setColour(colour(neon).withAlpha(.70f));
+        g.drawRoundedRectangle(glass.reduced(.7f),12.f,1.2f);
+        g.setColour(colour(neon).withAlpha(.07f));
+        g.drawRoundedRectangle(glass.reduced(2.f),10.f,3.f);
+        g.setColour(juce::Colours::white.withAlpha(.35f));
+        g.drawRoundedRectangle(bounds.reduced(1.f),17.f,.8f);
+        g.setColour(juce::Colours::white.withAlpha(.09f));
+        g.drawLine(glass.getX()+22.f,glass.getY()+3.f,
+                   glass.getRight()-22.f,glass.getY()+3.f,1.f);
+    } else {
+        g.setGradientFill(juce::ColourGradient(colour(tile).brighter(.30f),
+            bounds.getX(),bounds.getY(),colour(border).darker(.15f),
+            bounds.getRight(),bounds.getBottom(),false));
+        g.fillRoundedRectangle(bounds,18.f);
+        g.setGradientFill(juce::ColourGradient(colour(deep).darker(.12f),
+            inside.getCentreX(),inside.getY(),colour(deep).brighter(.18f),
+            inside.getCentreX(),inside.getBottom(),false));
+        g.fillRoundedRectangle(inside,14.f);
+        g.setColour(colour(border).withAlpha(.6f));
+        g.drawRoundedRectangle(inside.reduced(.5f),14.f,1.f);
+    }
     for (int beat=1; beat<8; ++beat) {
         const float x=20.f+(getWidth()-40.f)*beat/8.f;
-        g.setColour(colour(border).withAlpha(.60f));
+        g.setColour(black ? colour(neon).withAlpha(.075f)
+                          : colour(border).withAlpha(.60f));
         g.drawLine(x,31.f,x,getHeight()-24.f,.85f);
     }
     const float phase=std::clamp(processor.displayPhase.load(std::memory_order_relaxed),0.f,1.f);
