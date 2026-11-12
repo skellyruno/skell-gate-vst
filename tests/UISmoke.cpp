@@ -32,15 +32,15 @@ int main() {
             std::cerr << "Invalid snapshot dimensions at " << width << "x" << height << "\n";
             return 4;
         }
-        int green = 0;
+        int cyan = 0;
         for (int y = 0; y < height; y += 6)
             for (int x = 0; x < width; x += 6) {
                 const auto px = frame.getPixelAt(x, y);
-                if (px.getGreen() > 110 && px.getGreen() > px.getRed() + 50
-                    && px.getGreen() > px.getBlue() + 40) ++green;
+                if (px.getGreen() > 110 && px.getBlue() > 145
+                    && px.getBlue() > px.getRed() + 65) ++cyan;
             }
-        if (green < 10) {
-            std::cerr << "Blank or missing neon controls at " << width << "x" << height << "\n";
+        if (cyan < 10) {
+            std::cerr << "Blank or missing cyan highlights at " << width << "x" << height << "\n";
             return 5;
         }
         if (width == 960) {
@@ -58,11 +58,11 @@ int main() {
             for (int yy = 197; yy <= 333; ++yy)
                 for (int xx = 43; xx <= 170; ++xx) {
                     const auto pixel = frame.getPixelAt(xx, yy);
-                    if (pixel.getGreen() > 170
-                        && pixel.getGreen() > pixel.getRed() + 75) ++illuminated;
+                    if (pixel.getBlue() > 165 && pixel.getGreen() > 130
+                        && pixel.getBlue() > pixel.getRed() + 85) ++illuminated;
                 }
             if (illuminated < 110) {
-                std::cerr << "UI_REFERENCE: fade bezel lacks reference neon ring\n";
+                std::cerr << "UI_REFERENCE: fade bezel lacks cyan illumination\n";
                 return 24;
             }
             std::cout << "UI_REFERENCE: fade illuminated pixels=" << illuminated << "\n";
@@ -75,7 +75,7 @@ int main() {
             return 6;
         }
         std::cout << "UI_SMOKE: " << width << "x" << height
-                  << " valid, neon samples=" << green << "\n";
+                  << " valid, cyan samples=" << cyan << "\n";
     }
     const auto findParameter = [&](const juce::String& name) -> juce::AudioProcessorParameter* {
         for (auto* p : processor->getParameters())
@@ -155,20 +155,29 @@ int main() {
     };
     auto* headerPreset = findNamed(*editor, "HEADER_PRESET_BAR");
     auto* presetTools = findNamed(*editor, "PRESET_TOOLS_MENU");
-    auto* editMenu = findNamed(*editor, "PATTERN_EDIT_MENU");
-    auto* patternSelector = findNamed(*editor, "PATTERN_SELECTOR");
-    if (!editMenu || !patternSelector ||
-        editMenu->getParentComponent() != patternSelector->getParentComponent() ||
-        editMenu->getRight() >= patternSelector->getX() ||
-        editMenu->getY() != patternSelector->getY()) {
-        std::cerr << "UI_LAYOUT: compact pattern-edit menu missing or misaligned\n";
+    auto* previousPreset = dynamic_cast<juce::TextButton*>(
+        findNamed(*editor, "PRESET_PREVIOUS"));
+    auto* nextPreset = dynamic_cast<juce::TextButton*>(
+        findNamed(*editor, "PRESET_NEXT"));
+    auto* selection = dynamic_cast<juce::ComboBox*>(
+        findNamed(*editor, "HEADER_PRESET_SELECTION"));
+    if (findButton(*editor,"EDIT") || findButton(*editor,"PATTERNS") ||
+        !findNamed(*editor,"SEQUENCER_GRID") ||
+        !previousPreset || !nextPreset || !selection ||
+        !previousPreset->onClick || !nextPreset->onClick ||
+        !presetTools || dynamic_cast<juce::TextButton*>(presetTools)->getButtonText() != "TOOLS") {
+        std::cerr << "UI_LAYOUT: sequencer or descriptive preset controls missing\n";
         return 26;
     }
-    auto* patternButton = dynamic_cast<juce::TextButton*>(patternSelector);
-    if (!patternButton || patternButton->getButtonText() != "PATTERNS" ||
-        !patternButton->onClick) {
-        std::cerr << "UI_CONTROL: hardware pattern menu is not a working button\n";
+    previousPreset->onClick();
+    if (selection->getSelectedId() == 12) {
+        std::cerr << "UI_PRESET: previous preset did not navigate\n";
         return 34;
+    }
+    nextPreset->onClick();
+    if (selection->getSelectedId() != 12) {
+        std::cerr << "UI_PRESET: next preset did not restore INIT\n";
+        return 35;
     }
     if (!headerPreset || !presetTools || !presetTools->isVisible() ||
         headerPreset->getY() >= 59 || headerPreset->getHeight() > 59 ||
@@ -244,6 +253,19 @@ int main() {
         std::cerr << "UI_LAYOUT: sync must sit immediately left of reverse\n";
         return 26;
     }
+    auto* freezeButton = dynamic_cast<juce::TextButton*>(
+        findNamed(*editor, "PERFORMANCE_FREEZE"));
+    auto* freezeParameter = findParameter("Freeze");
+    if (!freezeButton || !freezeParameter || !freezeButton->isVisible()) {
+        std::cerr << "UI_CONTROL: fifth FREEZE switch missing\n";
+        return 36;
+    }
+    freezeButton->setToggleState(true, juce::sendNotificationSync);
+    if (freezeParameter->getValue() < .5f) {
+        std::cerr << "UI_CONTROL: FREEZE did not automate\n";
+        return 37;
+    }
+    freezeButton->setToggleState(false, juce::sendNotificationSync);
     auto* selectedReverse = findButton(*editor, "REVERSE");
     auto* selectedBar = findButton(*editor, "1 Bar");
     if (!selectedReverse || !selectedBar || !selectedReverse->getToggleState()
