@@ -41,14 +41,17 @@ public:
         // Ease-out tape transport: starts fast and decelerates toward the end.
         // The previous p*p curve instead accelerated throughout the slice.
         if (style == Tape) p = p * (2.0 - p);
+        // Each quarter replays the same short fragment. Keep the original
+        // quarter index for the descending stutter accents: deriving it from
+        // the wrapped read phase always selected the first (unity) gain.
+        const int stutterRepeat = std::clamp(static_cast<int>(p * 4.0), 0, 3);
         if (style == Stutter) p = std::fmod(p * 4.0, 1.0) * .25;
         const double readPosition = forward
             ? 2.0 + p * (length - 6)
             : (length - 3) - p * (length - 6);
         constexpr std::array<float, 4> stutterGains{1.f, .8f, .64f, .512f};
         const float gain = style == Stutter
-            ? stutterGains[static_cast<size_t>(std::clamp(static_cast<int>(p * 4.0), 0, 3))]
-            : 1.f;
+            ? stutterGains[static_cast<size_t>(stutterRepeat)] : 1.f;
         if (!pitch.enabled || !std::isfinite(pitch.ratio) ||
             !std::isfinite(pitch.grainLen) || pitch.grainLen < 1.0)
             return gain * capture.readFinished(ch, readPosition);
