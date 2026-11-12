@@ -26,7 +26,10 @@ void LoopRow::paint(juce::Graphics&) {
 }
 void LoopRow::timerCallback() {
     const int value = static_cast<int>(processor.apvts.getRawParameterValue("loopLength")->load());
-    if (displayedSelection == value) return;
+    if (displayedSelection == value) {
+        if (value >= 0 && value < 9) buttons[static_cast<size_t>(value)]->repaint();
+        return;
+    }
     displayedSelection = value;
     for (int i = 0; i < 9; ++i) buttons[static_cast<size_t>(i)]->setToggleState(i == value, juce::dontSendNotification);
 }
