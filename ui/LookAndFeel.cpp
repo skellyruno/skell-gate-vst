@@ -239,12 +239,29 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     // The rotating inlaid pointer and ring remain true to automation.
 
 }
-void SkellLookAndFeel::drawComboBox(juce::Graphics& g, int w, int h, bool, int, int, int, int, juce::ComboBox&) {
-    skell::theme::raised(g,juce::Rectangle<float>(1.f,1.f,static_cast<float>(w-2),static_cast<float>(h-4)),7.f);
-    g.setColour(skell::theme::colour(skell::theme::matteBlack() ? skell::theme::neon : skell::theme::dim));
+void SkellLookAndFeel::drawComboBox(juce::Graphics& g, int w, int h, bool isDown,
+                                    int, int, int, int, juce::ComboBox& box) {
+    const auto bounds = juce::Rectangle<float>(1.f,1.f,float(w-2),float(h-3));
+    const bool night = skell::theme::matteBlack();
+    if (night && box.getName() == "HEADER_PRESET_SELECTION") {
+        g.setColour(juce::Colours::black.withAlpha(.70f));
+        g.fillRoundedRectangle(bounds.translated(0,2.f),7.f);
+        g.setGradientFill(juce::ColourGradient(
+            juce::Colour(0xff253d56),0.f,0.f,
+            juce::Colour(0xff0a1425),0.f,float(h),false));
+        g.fillRoundedRectangle(bounds,7.f);
+        g.setColour(skell::theme::colour(skell::theme::border));
+        g.drawRoundedRectangle(bounds.reduced(.65f),7.f,1.f);
+        g.setColour(juce::Colours::white.withAlpha(.24f));
+        g.drawLine(12.f,3.f,float(w)-20.f,3.f,.9f);
+    } else {
+        skell::theme::raised(g,bounds,7.f,false,isDown);
+    }
+    const auto accent = skell::theme::colour(skell::theme::neon);
+    g.setColour(accent);
     juce::Path triangle;
-    triangle.addTriangle(static_cast<float>(w-18),h*.41f,static_cast<float>(w-8),h*.41f,
-                         static_cast<float>(w-13),h*.62f);
+    triangle.addTriangle(float(w-18),h*.41f,float(w-8),h*.41f,
+                         float(w-13),h*.62f);
     g.fillPath(triangle);
 }
 void SkellLookAndFeel::drawPopupMenuBackground(juce::Graphics& g, int w, int h) {
