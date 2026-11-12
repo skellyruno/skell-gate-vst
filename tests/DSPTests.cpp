@@ -92,6 +92,24 @@ static void sliceTest() {
         }
     }
     check(std::isfinite(reverse.sample(b, 0, .45, 3, 0, 9, 48000)), "stutter non-finite");
+    // The stutter read head repeats a quarter-slice segment, but each
+    // repetition must use its own gain. Previously the quarter index was
+    // calculated *after* wrapping p into [0, .25), so all four gains were 1.
+    SliceCapture constant; constant.prepare(2, 1024);
+    constant.onBoundary();
+    for (int i = 0; i < 512; ++i) constant.write(.5f, -.5f);
+    constant.onBoundary();
+    for (int n = 0; n < 4; ++n) {
+        const double phase = (n + .5) / 4.0;
+        const float gain = std::array<float, 4>{1.f, .8f, .64f, .512f}[static_cast<size_t>(n)];
+        approx(reverse.sample(constant, 0, phase, Reverser::Stutter, 0, 0.f, 48000),
+               .5f * gain, 1e-5, "stutter repeat accent missing on left channel");
+        approx(reverse.sample(constant, 1, phase, Reverser::Stutter, 0, 0.f, 48000),
+               -.5f * gain, 1e-5, "stutter repeat accent changed stereo gain");
+        const auto pitched = reverse.sample(constant, 0, phase, Reverser::Stutter, 0, 7.f, 48000);
+        check(std::isfinite(pitched) && std::abs(pitched) <= .5f * gain + 1e-5f,
+              "pitched stutter exceeds bounded repeat accent");
+    }
     b.clear();
     check(b.length() == 0 && b.readFinished(0, 200) == 0.f, "seek exposed stale audio");
     b.onBoundary();
