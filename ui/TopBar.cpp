@@ -3,10 +3,11 @@
 #include <cmath>
 void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
     const auto r=getLocalBounds().toFloat().reduced(2.f);
-    const auto neon=skell::theme::colour(skell::theme::neon);
+    const auto neon=(icon==Kind::Skull && skell::theme::matteBlack())
+        ? juce::Colour(0xff65f532) : skell::theme::colour(skell::theme::neon);
     const auto border=skell::theme::colour(skell::theme::border);
     const auto bronze=skell::theme::matteBlack()
-        ? juce::Colour(0xff373b36) : skell::theme::colour(skell::theme::tile);
+        ? juce::Colour(0xff2c3c52) : skell::theme::colour(skell::theme::tile);
     const auto c=r.getCentre();
     const float radius=std::min(r.getWidth(),r.getHeight())*.49f;
     const auto ellipse=[&](float rad) {
@@ -114,9 +115,9 @@ TopBar::TopBar(SkellGlitchAudioProcessor& p) : processor(p) {
 }
 void TopBar::resized() {
     skull.setBounds(10,4,49,50);
-    // Tight two-control hardware group at the right edge: only 2 px apart.
-    settings.setBounds(866,7,43,46);
-    power.setBounds(911,7,45,46);
+    // Smaller SkellCore hardware controls, 3px apart with clear header spacing.
+    settings.setBounds(880, 11, 35, 36);
+    power.setBounds(918, 11, 36, 36);
 }
 void TopBar::paint(juce::Graphics& g) {
     const auto green=skell::theme::colour(skell::theme::neon);
@@ -156,5 +157,5 @@ void TopBar::paint(juce::Graphics& g) {
     g.setFont(skell::theme::mono(12.f));
     g.setColour(dark.withAlpha(.93f));
     g.drawText(juce::String(sr>0?sr/1000.0:48.0,1)+" kHz  •  "+juce::String(latency)+" samples",
-               648,18,202,25,juce::Justification::centredRight);
+               653,18,206,25,juce::Justification::centredRight);
 }
