@@ -71,8 +71,8 @@ public:
             for (int i=0;i<165;++i) {
                 const float along=8.f+static_cast<float>(step()%940u);
                 const float jitter=static_cast<float>(step()%14u);
-                const bool lower=(step()&1u)!=0;
-                const float y=lower ? 700.f-jitter : 63.f+jitter;
+                const bool nearBottom=(step()&1u)!=0;
+                const float y=nearBottom ? 700.f-jitter : 63.f+jitter;
                 const float len=1.5f+static_cast<float>(step()%17u);
                 g.setColour(juce::Colour(0xff9c9380).withAlpha(.06f+float(step()%4u)*.021f));
                 g.drawLine(along,y,std::min(951.f,along+len),y-.8f,.75f);
