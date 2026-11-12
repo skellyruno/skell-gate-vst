@@ -9,6 +9,7 @@
 #include "ui/BandSlider.h"
 #include "ui/GlitchKnob.h"
 #include "ui/PresetBar.h"
+#include "ui/GlitchPulse.h"
 class SettingsPanel;
 class SkellGlitchAudioProcessor;
 class SkellGlitchAudioProcessorEditor final : public juce::AudioProcessorEditor, private juce::Timer {
@@ -38,6 +39,8 @@ private:
     std::unique_ptr<juce::TooltipWindow> tooltips;
     float uiScale = 1.f;
     uint64_t lastFlip = 0;
+    GlitchPulse visualPulse{static_cast<std::uint32_t>(juce::Time::getMillisecondCounter())};
+    int lastPulseIntensity = 0;
     int lastHeaderLatency = -1;
     double lastHeaderSampleRate = -1.0;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SkellGlitchAudioProcessorEditor)
