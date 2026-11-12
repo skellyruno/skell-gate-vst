@@ -52,30 +52,32 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
             g.fillRoundedRectangle(c.x+t*2.6f-.55f,c.y+5.8f,1.15f,3.2f,.5f);
         }
     } else if(icon==Kind::Settings) {
-        // Dark bevel under each spoke gives the green, engraved mechanical
-        // gear in the reference, rather than a flat neon sun icon.
-        const auto olive=skell::theme::matteBlack()
-            ? neon.darker(.23f) : skell::theme::colour(skell::theme::dim).darker(.26f);
-        for(int n=0;n<8;++n) {
-            const float a=juce::MathConstants<float>::twoPi*n/8.f;
-            const float dx=std::sin(a),dy=-std::cos(a);
-            g.setColour(olive.darker(.48f));
-            g.drawLine(c.x+dx*8.6f+1.f,c.y+dy*8.6f+1.f,
-                       c.x+dx*12.f+1.f,c.y+dy*12.f+1.f,3.2f);
-            g.setColour(olive);
-            g.drawLine(c.x+dx*8.6f,c.y+dy*8.6f,
-                       c.x+dx*12.f,c.y+dy*12.f,2.6f);
+        // Eight real gear teeth, not the old radial sunburst. Geometry is
+        // proportional to the smaller SkellCore control and stays legible.
+        juce::Path gear;
+        constexpr int vertices = 32;
+        for(int i=0;i<vertices;++i) {
+            const float a=juce::MathConstants<float>::twoPi * float(i)/float(vertices)
+                          - juce::MathConstants<float>::halfPi;
+            const float toothed=(i % 4 == 1 || i % 4 == 2) ? .74f : .59f;
+            const float px=c.x+std::cos(a)*radius*toothed;
+            const float py=c.y+std::sin(a)*radius*toothed;
+            if(i==0) gear.startNewSubPath(px,py);
+            else gear.lineTo(px,py);
         }
-        g.setColour(olive.darker(.47f));
-        g.fillEllipse(ellipse(9.7f));
-        g.setColour(neon.darker(.3f));
-        g.fillEllipse(ellipse(8.2f));
-        g.setColour(olive);
-        g.fillEllipse(ellipse(5.7f));
-        g.setColour(neon.brighter(.22f));
-        g.drawEllipse(ellipse(5.7f),1.1f);
-        g.setColour(olive.darker(.52f));
-        g.fillEllipse(ellipse(2.7f));
+        gear.closeSubPath();
+        g.setColour(juce::Colours::black.withAlpha(.69f));
+        g.fillPath(gear,juce::AffineTransform::translation(.6f,1.2f));
+        g.setGradientFill(juce::ColourGradient(
+            neon.brighter(.26f),c.x-radius*.55f,c.y-radius*.55f,
+            neon.darker(.33f),c.x+radius*.55f,c.y+radius*.55f,false));
+        g.fillPath(gear);
+        g.setColour(neon.brighter(.14f).withAlpha(.8f));
+        g.strokePath(gear,juce::PathStrokeType(.7f));
+        g.setColour(bronze.darker(.48f));
+        g.fillEllipse(ellipse(radius*.36f));
+        g.setColour(neon.brighter(.18f));
+        g.drawEllipse(ellipse(radius*.33f),1.15f);
     } else {
         const bool active = getToggleState();
         const auto olive = skell::theme::matteBlack()
