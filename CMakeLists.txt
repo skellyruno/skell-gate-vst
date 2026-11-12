@@ -58,7 +58,7 @@ juce_add_plugin(SkellGlitch
 
 target_sources(SkellGlitch PRIVATE
     PluginProcessor.h PluginProcessor.cpp PluginEditor.h PluginEditor.cpp
-    ui/Theme.h ui/LookAndFeel.h ui/LookAndFeel.cpp
+    ui/Theme.h ui/GlitchPulse.h ui/LookAndFeel.h ui/LookAndFeel.cpp
     ui/TopBar.h ui/TopBar.cpp
     ui/LoopRow.h ui/LoopRow.cpp
     ui/GlitchKnob.h ui/GlitchKnob.cpp
@@ -87,6 +87,12 @@ option(SKELL_BUILD_UI_SMOKE "Build offscreen UI snapshot smoke test" OFF)
 if(SKELL_BUILD_UI_SMOKE)
     juce_add_console_app(SkellGlitchUISmoke PRODUCT_NAME "Skell-Glitch UI Smoke")
     target_sources(SkellGlitchUISmoke PRIVATE tests/UISmoke.cpp)
-    target_link_libraries(SkellGlitchUISmoke PRIVATE SkellGlitch juce::juce_audio_utils juce::juce_gui_extra)
+    target_link_libraries(SkellGlitchUISmoke PRIVATE
+        SkellGlitch juce::juce_audio_utils juce::juce_gui_extra SkellCore::UI)
+    # The smoke target now compiles UI-component headers directly, so it
+    # needs exactly the plugin's generated JuceHeader include directories.
+    # Keep this tied to the JUCE target rather than hard-coding artefact paths.
+    target_include_directories(SkellGlitchUISmoke PRIVATE
+        "$<TARGET_PROPERTY:SkellGlitch,INCLUDE_DIRECTORIES>")
     target_compile_definitions(SkellGlitchUISmoke PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
 endif()
