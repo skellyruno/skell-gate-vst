@@ -74,24 +74,39 @@ inline void raised(juce::Graphics& g, juce::Rectangle<float> bounds, float radiu
     // of full-bright neon. Selected, unselected and hover all share a
     // restrained machined-metal contrast.
     if (black) {
-        const auto base = colour(tile);
-        const auto line = colour(border);
         const auto accent = colour(neon);
-        g.setColour(juce::Colours::black.withAlpha(.57f));
-        g.fillRoundedRectangle(bounds.translated(0.f, 2.2f), radius);
+        const auto outer = juce::Colour(0xff535c53);
+        const auto metal = juce::Colour(0xff171c19);
+        // Deeply inset mounting shadow, graphite-machined bezel and floating cap.
+        g.setColour(juce::Colours::black.withAlpha(.77f));
+        g.fillRoundedRectangle(bounds.expanded(.7f).translated(0.f, 2.1f), radius);
         g.setGradientFill(juce::ColourGradient(
-            base.brighter(selected ? .22f : .17f), bounds.getX(), bounds.getY(),
-            base.darker(pressed ? .22f : .12f), bounds.getRight(), bounds.getBottom(), false));
+            outer.brighter(.35f), bounds.getX(), bounds.getY(),
+            juce::Colour(0xff101410), bounds.getRight(), bounds.getBottom(), false));
         g.fillRoundedRectangle(bounds, radius);
-        g.setColour((selected ? accent : line).withAlpha(selected ? .79f : .72f));
-        g.drawRoundedRectangle(bounds.reduced(.6f), radius, selected ? 1.3f : 1.f);
-        g.setColour(juce::Colours::white.withAlpha(selected ? .18f : .10f));
-        g.drawLine(bounds.getX() + radius, bounds.getY() + 2.f,
-                   bounds.getRight() - radius, bounds.getY() + 2.f, 1.f);
+        g.setColour(juce::Colour(0xff090c0a));
+        g.fillRoundedRectangle(bounds.reduced(2.f), std::max(2.f, radius - 1.f));
+        const auto face = bounds.reduced(3.6f, 3.3f);
+        g.setGradientFill(juce::ColourGradient(
+            pressed ? juce::Colour(0xff101610) : juce::Colour(0xff343e35),
+            face.getCentreX(), face.getY(),
+            selected ? juce::Colour(0xff16281a) : metal,
+            face.getCentreX(), face.getBottom(), false));
+        g.fillRoundedRectangle(face, std::max(2.f, radius - 2.5f));
+        g.setColour(juce::Colours::white.withAlpha(.21f));
+        g.drawLine(face.getX() + radius*.48f, face.getY() + 1.5f,
+                   face.getRight() - radius*.48f, face.getY() + 1.5f, .8f);
+        g.setColour(juce::Colours::black.withAlpha(.61f));
+        g.drawLine(face.getX() + radius*.42f, face.getBottom() - .8f,
+                   face.getRight() - radius*.42f, face.getBottom() - .8f, 1.2f);
+        g.setColour(selected ? accent.withAlpha(.95f) : outer.withAlpha(.76f));
+        g.drawRoundedRectangle(bounds.reduced(.75f), radius, selected ? 1.7f : .9f);
         if (selected) {
-            g.setColour(accent.withAlpha(.92f));
-            g.fillRoundedRectangle(bounds.getX() + radius, bounds.getBottom() - 3.5f,
-                                   bounds.getWidth() - 2.f * radius, 1.7f, .8f);
+            g.setColour(accent.withAlpha(.12f));
+            g.drawRoundedRectangle(bounds.expanded(1.8f), radius+1.5f, 2.6f);
+            g.setColour(accent.withAlpha(.95f));
+            g.fillRoundedRectangle(face.getX()+8.f, face.getBottom()-1.8f,
+                                   std::max(0.f,face.getWidth()-16.f), 1.6f, .6f);
         }
         return;
     }
@@ -120,7 +135,7 @@ inline const juce::Rectangle<int> top{0,0,width,59};
 inline const juce::Rectangle<int> loops{22,72,924,71};
 inline const juce::Rectangle<int> wave{207,152,546,233};
 inline const juce::Rectangle<int> gate{210,393,545,85};
-inline const juce::Rectangle<int> modes{197,489,640,47};
+inline const juce::Rectangle<int> modes{210,489,545,47};
 inline const juce::Rectangle<int> presets{318,11,322,37};
 inline const juce::Rectangle<int> band{233,562,496,85};
 }

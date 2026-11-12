@@ -46,12 +46,90 @@ public:
                 g.drawLine(x,y,std::min(955.f,x+len),y,.43f);
             }
         }
+        // Chipped graphite paint and directional scratches are all drawn on
+        // the cached chassis layer. No bitmap, allocation or rendering from
+        // processBlock(), and the scratches remain subtle at the 50% UI size.
+        if (black) {
+            juce::uint32 grit=0x9f7c4b2du;
+            const auto step=[&]() -> juce::uint32 {
+                grit ^= grit << 13; grit ^= grit >> 17; grit ^= grit << 5;
+                return grit;
+            };
+            for (int i=0;i<340;++i) {
+                const float x=14.f + static_cast<float>(step()%920u);
+                const float y=85.f + static_cast<float>(step()%604u);
+                const float length=4.f+static_cast<float>(step()%76u);
+                const float slope=(static_cast<int>(step()%19u)-9)*.27f;
+                const bool metallic=(step()%7u)<2u;
+                g.setColour((metallic ? juce::Colour(0xffa4a18e)
+                                      : juce::Colours::black)
+                                      .withAlpha(metallic ? .055f : .105f));
+                g.drawLine(x,y,std::min(943.f,x+length),y+slope,metallic?.52f:.7f);
+            }
+            // Exposed steel is concentrated on the outer edges and corners,
+            // rather than covering the whole plate with distracting grime.
+            for (int i=0;i<165;++i) {
+                const float along=8.f+static_cast<float>(step()%940u);
+                const float jitter=static_cast<float>(step()%14u);
+                const bool nearBottom=(step()&1u)!=0;
+                const float y=nearBottom ? 700.f-jitter : 63.f+jitter;
+                const float len=1.5f+static_cast<float>(step()%17u);
+                g.setColour(juce::Colour(0xff9c9380).withAlpha(.06f+float(step()%4u)*.021f));
+                g.drawLine(along,y,std::min(951.f,along+len),y-.8f,.75f);
+            }
+            // Edge wear is directional, with occasional exposed brushed
+            // metal. This is a small, deterministic paint-only detail rather
+            // than a moving/noisy shader over the interactive controls.
+            for (int i = 0; i < 115; ++i) {
+                const bool right = (step() & 1u) != 0;
+                const float x = right ? 782.f + float(step() % 146u)
+                                      : 25.f + float(step() % 151u);
+                const float y = 170.f + float(step() % 505u);
+                const float len = 8.f + float(step() % 39u);
+                const float dy = -3.f - float(step() % 13u);
+                const auto metal = juce::Colour(0xffa99f88);
+                g.setColour(metal.withAlpha(.075f + float(step() % 4u)*.022f));
+                g.drawLine(x,y,std::min(948.f,x+len),y+dy,.55f);
+            }
+            for (int i = 0; i < 65; ++i) {
+                const float x = 140.f + float(step() % 680u);
+                const float y = 677.f + float(step() % 23u);
+                const float len = 8.f + float(step() % 62u);
+                g.setColour(juce::Colour(0xffb9aa8f)
+                    .withAlpha(.075f + float(step()%3u)*.025f));
+                g.drawLine(x,y,std::min(943.f,x+len),y-2.0f,.7f);
+            }
+            const auto neonLight=colour(neon);
+            g.setGradientFill(juce::ColourGradient(
+                neonLight.withAlpha(.18f),480.f,699.f,
+                neonLight.withAlpha(0.f),480.f,660.f,false));
+            g.fillRoundedRectangle(351.f,700.f,258.f,3.1f,1.5f);
+            g.setColour(neonLight.withAlpha(.42f));
+            g.drawLine(390.f,699.f,570.f,699.f,1.25f);
+            // Protective corner fasteners with a recessed shaft and cross slot.
+            for (const auto& loc : {juce::Point<float>{20.f,110.f},
+                                    juce::Point<float>{940.f,110.f},
+                                    juce::Point<float>{20.f,692.f},
+                                    juce::Point<float>{940.f,692.f}}) {
+                g.setColour(juce::Colours::black.withAlpha(.85f));
+                g.fillEllipse(loc.x-8.f,loc.y-6.1f,16.f,16.f);
+                g.setGradientFill(juce::ColourGradient(
+                    juce::Colour(0xff889088),loc.x-7.f,loc.y-7.f,
+                    juce::Colour(0xff222722),loc.x+7.f,loc.y+7.f,false));
+                g.fillEllipse(loc.x-6.5f,loc.y-6.5f,13.f,13.f);
+                g.setColour(juce::Colours::black.withAlpha(.8f));
+                g.fillEllipse(loc.x-4.2f,loc.y-4.2f,8.4f,8.4f);
+                g.setColour(juce::Colour(0xffb3b9a9).withAlpha(.7f));
+                g.drawLine(loc.x-2.1f,loc.y-2.1f,loc.x+2.1f,loc.y+2.1f,1.2f);
+                g.drawLine(loc.x+2.1f,loc.y-2.1f,loc.x-2.1f,loc.y+2.1f,1.2f);
+            }
+        }
         auto frame=juce::Rectangle<float>(2,2,956,716);
         g.setColour(juce::Colours::black.withAlpha(.62f));
         g.drawRoundedRectangle(frame,23.f,3.f);
-        g.setColour(colour(border).brighter(.22f));
+        g.setColour(black ? juce::Colour(0xff67726b) : colour(border).brighter(.22f));
         g.drawRoundedRectangle(frame.reduced(2.f),21.f,2.f);
-        g.setColour(juce::Colours::white.withAlpha(ivory ? .62f : .18f));
+        g.setColour(juce::Colours::white.withAlpha(ivory ? .62f : black ? .20f : .18f));
         g.drawRoundedRectangle(frame.reduced(4.f),19.f,1.f);
         g.setColour(juce::Colours::black.withAlpha(.18f));
         g.drawRoundedRectangle(frame.reduced(5.5f),18.f,1.f);
@@ -114,6 +192,10 @@ public:
         addCombo("triggerSource", {"Auto", "MIDI", "Sidechain", "Manual"});
         addCombo("latencyMode", {"Zero (previous slice)", "Aligned (delay dry)"});
         addCombo("gateCurve", {"Linear", "Exponential", "S-Curve"});
+        // Advanced rhythm/style controls remain automatable and are now
+        // housed here, never deleted or silently disconnected.
+        addCombo("reverseStyle", {"Classic", "Tape", "Ping-Pong", "Stutter"});
+        addCombo("gateRate", {"1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T"});
         for (const auto& param : {"bandInvert", "seedLock", "deltaListen"}) {
             auto t = std::make_unique<juce::TextButton>(param);
             t->setClickingTogglesState(true);
@@ -154,31 +236,34 @@ public:
         g.setColour(skell::theme::colour(skell::theme::gray));
         g.setFont(skell::theme::regular(12));
         for (int i = 0; i < labels.size(); ++i)
-            g.drawText(labels[i].toUpperCase(), 18, 51 + i * 29, 130, 22, juce::Justification::centredLeft);
-        g.drawText("TRIGGER SOURCE", 18, 323, 126, 18, juce::Justification::centredLeft);
-        g.drawText("LATENCY", 18, 354, 126, 18, juce::Justification::centredLeft);
-        g.drawText("GATE CURVE", 18, 385, 126, 18, juce::Justification::centredLeft);
-        g.drawText("WINDOW SIZE", 18, 512, 130, 18, juce::Justification::centredLeft);
+            g.drawText(labels[i].toUpperCase(), 18, 49 + i * 26, 130, 21, juce::Justification::centredLeft);
+        constexpr const char* comboLabels[] = {"TRIGGER SOURCE", "LATENCY", "GATE CURVE",
+                                               "REVERSE STYLE", "GATE RATE"};
+        for (size_t i = 0; i < 5; ++i)
+            g.drawText(comboLabels[i], 18, 295 + static_cast<int>(i) * 29, 129, 24,
+                       juce::Justification::centredLeft);
+        g.drawText("WINDOW SIZE", 18, 549, 130, 20, juce::Justification::centredLeft);
     }
     void resized() override {
         close.setBounds(getWidth() - 44, 10, 28, 28);
         for (size_t i = 0; i < sliders.size(); ++i)
-            sliders[i]->setBounds(140, 51 + static_cast<int>(i) * 29, getWidth() - 154, 22);
+            sliders[i]->setBounds(140, 49 + static_cast<int>(i) * 26, getWidth() - 154, 22);
         for (size_t i = 0; i < combos.size(); ++i)
-            combos[i]->setBounds(145, 317 + static_cast<int>(i) * 31, getWidth() - 161, 25);
+            combos[i]->setBounds(145, 295 + static_cast<int>(i) * 29, getWidth() - 161, 25);
         for (size_t i = 0; i < toggles.size(); ++i)
-            toggles[i]->setBounds(15 + static_cast<int>(i) * 124, 413, 120, 29);
-        manualCopy.setBounds(15, 446, 173, 29);
-        jitter.setBounds(194, 446, 175, 29);
-        trigger.setBounds(15, 479, 173, 29);
-        freeze.setBounds(194, 479, 175, 29);
-        size.setBounds(145, 510, 135, 26);
-        randomSeed.setBounds(286, 510, 94, 26);
+            toggles[i]->setBounds(15 + static_cast<int>(i) * 124, 444, 120, 29);
+        manualCopy.setBounds(15, 478, 173, 29);
+        jitter.setBounds(194, 478, 175, 29);
+        trigger.setBounds(15, 512, 173, 29);
+        freeze.setBounds(194, 512, 175, 29);
+        size.setBounds(145, 547, 135, 26);
+        randomSeed.setBounds(286, 547, 94, 26);
     }
 private:
     void addCombo(const char* name, juce::StringArray choices) {
         auto c = std::make_unique<juce::ComboBox>();
         c->addItemList(choices, 1);
+        c->setName(juce::String(name).toUpperCase());
         addAndMakeVisible(*c);
         comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(processor.apvts, name, *c));
         combos.push_back(std::move(c));
@@ -211,7 +296,7 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     loops.setBounds(skell::theme::loops);
     waveform.setBounds(skell::theme::wave);
     gate.setBounds(skell::theme::gate);
-    modes.setBounds(197, 489, 640, 47);
+    modes.setBounds(210, 489, 545, 47);
     // The preset bar is now a single header control; no third bottom row.
     presets.setBounds(318, 11, 322, 37);
     band.setBounds(skell::theme::band);
@@ -233,7 +318,7 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     powerAttach = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.apvts, "power", top.power);
     settings = std::make_unique<SettingsPanel>(p, [this](int size) { applyWindowSize(size); });
     canvas.addAndMakeVisible(*settings);
-    settings->setBounds(530, 102, 402, 548);
+    settings->setBounds(530, 73, 402, 602);
     settings->setVisible(false);
     top.settings.onClick = [this] { settings->setVisible(!settings->isVisible()); settings->toFront(false); };
     // Same skull-click appearance workflow as SkellKey and the SkellCore quickstart.

@@ -164,6 +164,12 @@ int main() {
         std::cerr << "UI_LAYOUT: compact pattern-edit menu missing or misaligned\n";
         return 26;
     }
+    auto* patternButton = dynamic_cast<juce::TextButton*>(patternSelector);
+    if (!patternButton || patternButton->getButtonText() != "PATTERNS" ||
+        !patternButton->onClick) {
+        std::cerr << "UI_CONTROL: hardware pattern menu is not a working button\n";
+        return 34;
+    }
     if (!headerPreset || !presetTools || !presetTools->isVisible() ||
         headerPreset->getY() >= 59 || headerPreset->getHeight() > 59 ||
         headerPreset->getWidth() < 250 ||
@@ -173,6 +179,27 @@ int main() {
     }
     // The rate/style row must never intrude into the four rotary controls.
     // This caught an earlier 29-pixel downward shift that clipped MIX.
+    auto* reverseStyleSetting = dynamic_cast<juce::ComboBox*>(
+        findNamed(*editor, "REVERSESTYLE"));
+    auto* gateRateSetting = dynamic_cast<juce::ComboBox*>(
+        findNamed(*editor, "GATERATE"));
+    if (!reverseStyleSetting || !gateRateSetting ||
+        !reverseStyleSetting->getParentComponent() ||
+        reverseStyleSetting->getParentComponent() != gateRateSetting->getParentComponent() ||
+        reverseStyleSetting->getY() >= gateRateSetting->getY() ||
+        reverseStyleSetting->getBounds().intersects(gateRateSetting->getBounds())) {
+        std::cerr << "UI_LAYOUT: advanced rhythm selectors missing from Settings\n";
+        return 31;
+    }
+    // Moving these controls cannot break host automation or preset recall.
+    auto* reverseStyleParameter = findParameter("Reverse style");
+    if (!reverseStyleParameter) return 32;
+    reverseStyleSetting->setSelectedId(4, juce::sendNotificationSync);
+    if (reverseStyleParameter->getValue() < .99f) {
+        std::cerr << "UI_CONTROL: Settings reverse-style picker lost automation\n";
+        return 33;
+    }
+    reverseStyleSetting->setSelectedId(1, juce::sendNotificationSync);
     auto* modeButton = findButton(*editor, "REVERSE");
     auto* knobMix = findNamed(*editor, "MIX");
     auto* knobSmooth = findNamed(*editor, "SMOOTH");

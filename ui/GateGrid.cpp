@@ -2,18 +2,24 @@
 #include "../PluginProcessor.h"
 #include "../dsp/GlitchRandomizer.h"
 #include <cmath>
+
+namespace {
+constexpr const char* patternNames[] = {
+    "Straight", "Offbeat", "Trap Hats", "Triplet Stutter", "Half-Time",
+    "Glitch 1", "Glitch 2", "Glitch 3", "Glitch 4",
+    "Glitch 5", "Glitch 6", "Glitch 7", "Glitch 8"
+};
+}
+
 GateGrid::GateGrid(SkellGlitchAudioProcessor& p) : processor(p) {
     // Pattern editing is one compact menu, not a second row of five buttons.
     editActions.setName("PATTERN_EDIT_MENU");
     editActions.setTooltip("Randomize, shift, invert or clear sequencer steps");
     editActions.onClick = [this] { showEditMenu(); };
     addAndMakeVisible(editActions);
-    pattern.addItemList({"Straight", "Offbeat", "Trap Hats", "Triplet Stutter", "Half-Time",
-        "Glitch 1", "Glitch 2", "Glitch 3", "Glitch 4", "Glitch 5", "Glitch 6", "Glitch 7", "Glitch 8"}, 1);
-    pattern.setTextWhenNothingSelected("PATTERNS");
     pattern.setName("PATTERN_SELECTOR");
-    pattern.setTooltip("Load a gate pattern without changing the current effect mode");
-    pattern.onChange = [this] { if (pattern.getSelectedId() > 0) loadPattern(pattern.getSelectedId() - 1); };
+    pattern.setTooltip("Choose one of 13 sequencer patterns");
+    pattern.onClick = [this] { showPatternMenu(); };
     addAndMakeVisible(pattern);
     setTooltip("Click to cycle steps. Drag to paint. Drag probability strip or hold Shift to edit chance.");
     for (int i = 0; i < 32; ++i) {
@@ -164,6 +170,18 @@ void GateGrid::mouseMove(const juce::MouseEvent& e) {
 void GateGrid::mouseExit(const juce::MouseEvent&) {
     if (hoveredStep != -1) { hoveredStep = -1; repaint(); }
 }
+void GateGrid::showPatternMenu() {
+    juce::PopupMenu menu;
+    menu.addSectionHeader("PATTERN LIBRARY");
+    for (int i = 0; i < 13; ++i)
+        menu.addItem(i + 1, patternNames[i]);
+    juce::Component::SafePointer<GateGrid> safe(this);
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&pattern),
+        [safe](int choice) {
+            if (safe != nullptr && choice >= 1 && choice <= 13)
+                safe->loadPattern(choice - 1);
+        });
+}
 void GateGrid::showEditMenu() {
     juce::PopupMenu menu;
     menu.addSectionHeader("STEP EDIT");
@@ -204,7 +222,8 @@ void GateGrid::applyPattern(int op) {
 
 void GateGrid::loadPattern(int index) {
     const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);
-    const auto name = pattern.getItemText(index);
+    index = std::clamp(index, 0, 12);
+    const auto name = juce::String(patternNames[index]);
     processor.apvts.state.setProperty("patternName", name, nullptr);
     for (int i = 0; i < steps; ++i) {
         int value = 1;
