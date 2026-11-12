@@ -1,5 +1,14 @@
 # Skell-Glitch — CUT IT. FLIP IT.
 
+## Midnight-cyan performance UI — current review
+- Rethemed the default SkellCore Obsidian skin to deep midnight blue with electric cyan lighting; the Skelly skull remains the same green symbol and can still cycle alternate SkellCore skins.
+- Redesigned small blue-metal buttons with glowing selected outlines; reduced Settings and Power, kept the mode row centered, and fitted five compact controls: SYNC, REVERSE, GATE, BOTH, FREEZE (existing automatable freeze parameter).
+- Removed the permanent EDIT/PATTERNS row. Right-click the step sequencer to access all five editing commands and all 13 factory patterns; the workflow remains functional without wasting surface area.
+- Improved the preset strip with previous/next buttons, a polished dropdown, correct saved-preset name synchronization, and a clearly labeled TOOLS menu (previously the cryptic "...") for Undo/Redo, A/B captures, and Save/Open.
+- Removed permanently printed values from knob caps. Current values float in a cyan-framed badge when hovering or dragging; ring and pointer still respond to actual automation.
+- Adds gentle selected-button pulses, live step movement when the host runs, and a subdued breathing idle display; no additional audio callback work.
+- CI asserts cyan render, five real performance controls, preset navigation and automation, and all existing DSP/latency/SkellCore checks. Screenshots must come from the real Windows JUCE build.
+
 ## SkellCore hardware pass — review build
 - Replaced the flat gray-looking Obsidian surfaces with deeper machined graphite buttons, heavy knurled rotary edges, brushed metal knob faces, high-contrast legends and measured lime-green accent tracks. The existing shared SkellCore UI/skin store and official clickable skull remain in place.
 - Added deterministic wear, scuffed metal edges, subtle machining scratches, inset fasteners and a bottom-edge light accent to the cached chassis component; no frame allocations or painting are introduced into DSP callbacks.
