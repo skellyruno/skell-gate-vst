@@ -33,7 +33,7 @@ void BandSlider::paint(juce::Graphics& g) {
     g.setColour(juce::Colours::black.withAlpha(.40f));
     g.fillRoundedRectangle(rail.translated(0,2.f),5.f);
     const bool black=matteBlack();
-    g.setColour(black ? juce::Colour(0xff07110a) : colour(border).darker(.38f));
+    g.setColour(black ? juce::Colour(0xff08120a) : colour(border).darker(.38f));
     g.fillRoundedRectangle(rail,5.f);
     if (black) {
         g.setColour(colour(neon).withAlpha(.12f));
@@ -45,7 +45,7 @@ void BandSlider::paint(juce::Graphics& g) {
                                           colour(neon).darker(.21f),0.f,47.f,false));
     g.fillRoundedRectangle(left,40.f,std::max(1.f,right-left),6.f,3.f);
     if (black) {
-        g.setColour(juce::Colour(0xffd5ffb1).withAlpha(.57f));
+        g.setColour(juce::Colour(0xffddffcb).withAlpha(.57f));
         g.drawLine(left+3.f,41.f,right-3.f,41.f,.7f);
     }
     for (const auto freq:{100.f,1000.f,10000.f}) {
@@ -59,8 +59,8 @@ void BandSlider::paint(juce::Graphics& g) {
         g.setColour(juce::Colours::black.withAlpha(.30f));
         g.fillRoundedRectangle(handle.translated(1.f,2.f),7.f);
         g.setGradientFill(juce::ColourGradient(
-            black ? juce::Colour(0xff9aa79a) : colour(tile).brighter(.4f),x-8,27,
-            black ? juce::Colour(0xff161c17) : colour(tile).darker(.26f),x+8,59,false));
+            black ? juce::Colour(0xff93ad8b) : colour(tile).brighter(.4f),x-8,27,
+            black ? juce::Colour(0xff172219) : colour(tile).darker(.26f),x+8,59,false));
         g.fillRoundedRectangle(handle,6.f);
         g.setColour(colour(border));g.drawRoundedRectangle(handle,6.f,1.2f);
         g.setColour(juce::Colours::white.withAlpha(black ? .35f : .65f));
