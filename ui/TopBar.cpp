@@ -53,7 +53,8 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
     } else if(icon==Kind::Settings) {
         // Dark bevel under each spoke gives the green, engraved mechanical
         // gear in the reference, rather than a flat neon sun icon.
-        const auto olive=skell::theme::colour(skell::theme::dim).darker(.26f);
+        const auto olive=skell::theme::matteBlack()
+            ? neon.darker(.23f) : skell::theme::colour(skell::theme::dim).darker(.26f);
         for(int n=0;n<8;++n) {
             const float a=juce::MathConstants<float>::twoPi*n/8.f;
             const float dx=std::sin(a),dy=-std::cos(a);
@@ -75,8 +76,14 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
         g.setColour(olive.darker(.52f));
         g.fillEllipse(ellipse(2.7f));
     } else {
-        const auto olive=skell::theme::colour(skell::theme::dim).darker(
-            skell::theme::matteBlack() ? .14f : .35f);
+        const bool active = getToggleState();
+        const auto olive = skell::theme::matteBlack()
+            ? neon.darker(active ? .06f : .32f)
+            : skell::theme::colour(skell::theme::dim).darker(.35f);
+        if (active) {
+            g.setColour(neon.withAlpha(.085f));
+            g.fillEllipse(ellipse(radius - 5.f));
+        }
         juce::Path powerArc;
         powerArc.addCentredArc(c.x,c.y+1.f,9.f,9.f,0.f,.68f,
                               juce::MathConstants<float>::twoPi-.68f,true);
@@ -107,15 +114,16 @@ TopBar::TopBar(SkellGlitchAudioProcessor& p) : processor(p) {
 }
 void TopBar::resized() {
     skull.setBounds(10,4,49,50);
-    // Physical controls are deliberately grouped with only a 5 px gap.
-    settings.setBounds(859,7,42,46);
-    power.setBounds(906,7,47,46);
+    // Tight two-control hardware group at the right edge: only 2 px apart.
+    settings.setBounds(866,7,43,46);
+    power.setBounds(911,7,45,46);
 }
 void TopBar::paint(juce::Graphics& g) {
     const auto green=skell::theme::colour(skell::theme::neon);
     const auto dark=skell::theme::colour(skell::theme::bone);
     const auto face=skell::theme::colour(skell::theme::tile);
-    g.setGradientFill(juce::ColourGradient(face.brighter(skell::theme::matteBlack() ? .08f : .24f),0.f,0.f,
+    g.setGradientFill(juce::ColourGradient(
+        skell::theme::matteBlack() ? face.brighter(.08f) : face.brighter(.24f),0.f,0.f,
                                           skell::theme::colour(skell::theme::background).darker(.08f),
                                           0.f,59.f,false));
     g.fillAll();
@@ -132,19 +140,21 @@ void TopBar::paint(juce::Graphics& g) {
         g.setColour(dark);
         g.drawText("SKELL",62,7,83,30,juce::Justification::centredLeft);
         g.setColour(green.darker(.32f));
-        g.drawText("GLITCH",148,8,102,30,juce::Justification::centredLeft);
+        g.drawText("GLITCH",138,8,102,30,juce::Justification::centredLeft);
         g.setColour(green);
-        g.drawText("GLITCH",147,7,102,30,juce::Justification::centredLeft);
+        g.drawText("GLITCH",137,7,102,30,juce::Justification::centredLeft);
     }
     g.setColour(skell::theme::colour(skell::theme::gray));
     g.setFont(skell::theme::regular(10.5f));
     g.drawText("CUT IT. FLIP IT.",63,38,170,14,juce::Justification::centredLeft);
-    g.setFont(skell::theme::mono(9.7f));
-    g.drawText("v1.7.3",255,17,57,16,juce::Justification::centredLeft);
+    // Small engraved edition mark directly beside the one-word title.
+    g.setColour(skell::theme::colour(skell::theme::gray).withAlpha(.88f));
+    g.setFont(skell::theme::mono(9.f));
+    g.drawText("v1.7.s",258,15,55,14,juce::Justification::centredLeft);
     const double sr=processor.getSampleRate();
     const int latency=processor.displayLatency.load(std::memory_order_relaxed);
     g.setFont(skell::theme::mono(12.f));
     g.setColour(dark.withAlpha(.93f));
     g.drawText(juce::String(sr>0?sr/1000.0:48.0,1)+" kHz  •  "+juce::String(latency)+" samples",
-               651,18,196,25,juce::Justification::centredRight);
+               648,18,202,25,juce::Justification::centredRight);
 }

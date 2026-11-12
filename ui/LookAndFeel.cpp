@@ -35,7 +35,7 @@ void SkellLookAndFeel::setSkin(skellcore::ui::StudioSkin chosen) {
 void SkellLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& b, const juce::Colour&, bool hover, bool down) {
     const auto r = b.getLocalBounds().toFloat().reduced(1.6f, 2.f);
     const bool on = b.getToggleState();
-    if (on) {
+    if (on && !skell::theme::matteBlack()) {
         g.setColour(skell::theme::colour(skell::theme::neon).withAlpha(.20f));
         g.fillRoundedRectangle(r.expanded(2.f), 10.f);
     }
@@ -46,8 +46,9 @@ void SkellLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& b, 
     }
 }
 void SkellLookAndFeel::drawButtonText(juce::Graphics& g, juce::TextButton& b, bool, bool) {
-    g.setColour(b.getToggleState() ? juce::Colour(0xff121910)
-                                  : skell::theme::colour(skell::theme::bone));
+    g.setColour(b.getToggleState() && !skell::theme::matteBlack()
+                   ? juce::Colour(0xff121910)
+                   : skell::theme::colour(skell::theme::bone));
     const float h = static_cast<float>(b.getHeight());
     g.setFont(skell::theme::display(h >= 40.f ? 15.3f : h >= 29.f ? 12.7f : 11.f));
     g.drawFittedText(b.getButtonText(), b.getLocalBounds().reduced(3,2),
@@ -64,8 +65,9 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     const float angle = start + fraction * (end - start);
     const auto neon = skell::theme::colour(skell::theme::neon);
     const auto border = skell::theme::colour(skell::theme::border);
-    const auto bronze = skell::theme::matteBlack()
-        ? juce::Colour(0xff393c37) : skell::theme::colour(skell::theme::tile);
+    const bool darkSkin = skell::theme::matteBlack();
+    const auto bronze = darkSkin
+        ? juce::Colour(0xff373d37) : skell::theme::colour(skell::theme::tile);
     const auto ink = skell::theme::colour(skell::theme::bone);
     const bool fade = slider.getName() == "FADE IN" || slider.getName() == "FADE OUT";
     const auto ellipse = [&](float radius) {
@@ -81,20 +83,29 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     g.setColour(border.darker(.42f));
     g.fillEllipse(ellipse(outer+.6f));
     g.setGradientFill(juce::ColourGradient(
-        bronze.brighter(.42f),c.x-outer*.74f,c.y-outer*.9f,
-        bronze.darker(.29f),c.x+outer*.84f,c.y+outer*.92f,false));
+        bronze.brighter(darkSkin ? .16f : .42f),c.x-outer*.74f,c.y-outer*.9f,
+        bronze.darker(darkSkin ? .39f : .29f),c.x+outer*.84f,c.y+outer*.92f,false));
     g.fillEllipse(ellipse(outer-.9f));
-    g.setColour(juce::Colours::white.withAlpha(skell::theme::ivory() ? .56f : .25f));
+    g.setColour(juce::Colours::white.withAlpha(skell::theme::ivory() ? .56f : .11f));
     g.drawEllipse(ellipse(outer-2.5f),1.25f);
     // A single recessed bronze shoulder gives the knob its machined depth,
     // without the stack of thin 'washer' lines from the earlier renderer.
     g.setColour(border.darker(.32f));
     g.fillEllipse(ellipse(outer-5.2f));
     g.setGradientFill(juce::ColourGradient(
-        bronze.brighter(.34f), c.x-outer*.55f, c.y-outer*.65f,
-        bronze.darker(.30f), c.x+outer*.63f, c.y+outer*.83f, false));
+        bronze.brighter(darkSkin ? .13f : .34f), c.x-outer*.55f, c.y-outer*.65f,
+        bronze.darker(darkSkin ? .31f : .30f), c.x+outer*.63f, c.y+outer*.83f, false));
     g.fillEllipse(ellipse(outer-7.0f));
 
+    // Fine radial machining marks sit inside the outer metal lip, never
+    // over the value arc or the knob's centre cap.
+    for (int tick = 0; tick < 48; ++tick) {
+        const float a = juce::MathConstants<float>::twoPi * static_cast<float>(tick) / 48.f;
+        const auto from = c.getPointOnCircumference(outer - 5.6f, a);
+        const auto to = c.getPointOnCircumference(outer - 4.1f, a);
+        g.setColour(juce::Colours::white.withAlpha(darkSkin ? .13f : .20f));
+        g.drawLine(from.x, from.y, to.x, to.y, .65f);
+    }
     const float ringRadius = outer * .78f;
     juce::Path track, progress;
     track.addCentredArc(c.x,c.y,ringRadius,ringRadius,0.f,start,end,true);
@@ -135,16 +146,25 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     g.fillEllipse(ellipse(cap+2.5f).translated(1.f,2.6f));
     g.setColour(border.darker(.37f));
     g.fillEllipse(ellipse(cap+1.f));
-    g.setColour(bronze.brighter(.32f));
+    g.setColour(bronze.brighter(darkSkin ? .14f : .32f));
     g.fillEllipse(ellipse(cap));
     g.setGradientFill(juce::ColourGradient(
-        bronze.brighter(.48f),c.x-cap*.71f,c.y-cap*.81f,
-        bronze.darker(.14f),c.x+cap*.71f,c.y+cap*.91f,false));
+        bronze.brighter(darkSkin ? .29f : .48f),c.x-cap*.71f,c.y-cap*.81f,
+        bronze.darker(darkSkin ? .26f : .14f),c.x+cap*.71f,c.y+cap*.91f,false));
     g.fillEllipse(ellipse(cap-.8f));
-    g.setColour(juce::Colours::white.withAlpha(skell::theme::ivory() ? .59f : .18f));
+    g.setColour(juce::Colours::white.withAlpha(skell::theme::ivory() ? .59f : .12f));
     g.drawEllipse(ellipse(cap-2.0f),1.12f);
     g.setColour(border.withAlpha(.15f));
     g.drawEllipse(ellipse(cap-3.3f),.52f);
+    // The inlaid pointer rotates with the actual value. Its direction
+    // matches the ring marker, so the dial never appears lopsided or fake.
+    const auto pointerStart = c.getPointOnCircumference(cap * .56f, angle);
+    const auto pointerEnd = c.getPointOnCircumference(cap * .88f, angle);
+    g.setColour(juce::Colours::black.withAlpha(.65f));
+    g.drawLine(pointerStart.x + .7f, pointerStart.y + .9f,
+               pointerEnd.x + .7f, pointerEnd.y + .9f, 4.f);
+    g.setColour(neon.withAlpha(darkSkin ? .92f : .83f));
+    g.drawLine(pointerStart.x, pointerStart.y, pointerEnd.x, pointerEnd.y, 2.1f);
     // Position pin always follows the real parameter, including at the
     // Instant fade setting; it never follows the decorative illumination.
     const auto tip=c.getPointOnCircumference(ringRadius,angle);
@@ -156,14 +176,14 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     const auto text = fade
         ? (value < .5 ? juce::String("Inst") : juce::String(juce::roundToInt(value))+" ms")
         : juce::String(juce::roundToInt(value))+"%";
-    g.setColour(ink.withAlpha(.95f));
+    g.setColour(ink.withAlpha(.97f));
     g.setFont(skell::theme::display(size > 130 ? 18.6f : 17.1f));
     g.drawFittedText(text,juce::Rectangle<int>((int)(c.x-cap+6),(int)(c.y-13),
         (int)(2*cap-12),26),juce::Justification::centred,1);
 }
 void SkellLookAndFeel::drawComboBox(juce::Graphics& g, int w, int h, bool, int, int, int, int, juce::ComboBox&) {
     skell::theme::raised(g,juce::Rectangle<float>(1.f,1.f,static_cast<float>(w-2),static_cast<float>(h-4)),7.f);
-    g.setColour(skell::theme::colour(skell::theme::dim));
+    g.setColour(skell::theme::colour(skell::theme::matteBlack() ? skell::theme::neon : skell::theme::dim));
     juce::Path triangle;
     triangle.addTriangle(static_cast<float>(w-18),h*.41f,static_cast<float>(w-8),h*.41f,
                          static_cast<float>(w-13),h*.62f);

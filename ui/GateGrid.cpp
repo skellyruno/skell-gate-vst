@@ -2,16 +2,17 @@
 #include "../PluginProcessor.h"
 #include "../dsp/GlitchRandomizer.h"
 #include <cmath>
-GateGrid::GateGrid(SkellGlitchAudioProcessor& p) : processor(p),
-    commands{juce::TextButton("RANDOM"), juce::TextButton("SHIFT <"),
-             juce::TextButton("SHIFT >"), juce::TextButton("INVERT"), juce::TextButton("CLEAR")} {
-    for (int i = 0; i < 5; ++i) {
-        addAndMakeVisible(commands[static_cast<size_t>(i)]);
-        commands[static_cast<size_t>(i)].onClick = [this, i] { applyPattern(i); };
-    }
+GateGrid::GateGrid(SkellGlitchAudioProcessor& p) : processor(p) {
+    // Pattern editing is one compact menu, not a second row of five buttons.
+    editActions.setName("PATTERN_EDIT_MENU");
+    editActions.setTooltip("Randomize, shift, invert or clear sequencer steps");
+    editActions.onClick = [this] { showEditMenu(); };
+    addAndMakeVisible(editActions);
     pattern.addItemList({"Straight", "Offbeat", "Trap Hats", "Triplet Stutter", "Half-Time",
         "Glitch 1", "Glitch 2", "Glitch 3", "Glitch 4", "Glitch 5", "Glitch 6", "Glitch 7", "Glitch 8"}, 1);
     pattern.setTextWhenNothingSelected("PATTERNS");
+    pattern.setName("PATTERN_SELECTOR");
+    pattern.setTooltip("Load a gate pattern without changing the current effect mode");
     pattern.onChange = [this] { if (pattern.getSelectedId() > 0) loadPattern(pattern.getSelectedId() - 1); };
     addAndMakeVisible(pattern);
     setTooltip("Click to cycle steps. Drag to paint. Drag probability strip or hold Shift to edit chance.");
@@ -43,16 +44,10 @@ void GateGrid::timerCallback() {
     if (changed) repaint();
 }
 void GateGrid::resized() {
-    constexpr int gap = 5, patternWidth = 138, patternGap = 8;
-    const int usable = getWidth() - patternWidth - patternGap - gap * 4;
-    const int commandWidth = usable / 5;
-    int px = 0;
-    for (int i = 0; i < 5; ++i) {
-        const int buttonWidth = i == 4 ? (getWidth() - patternWidth - patternGap - px) : commandWidth;
-        commands[static_cast<size_t>(i)].setBounds(px, 54, buttonWidth, 29);
-        px += buttonWidth + gap;
-    }
-    pattern.setBounds(getWidth() - patternWidth, 54, patternWidth, 29);
+    constexpr int editWidth = 92, patternWidth = 166, gap = 9;
+    const int left = (getWidth() - editWidth - patternWidth - gap) / 2;
+    editActions.setBounds(left, 54, editWidth, 29);
+    pattern.setBounds(left + editWidth + gap, 54, patternWidth, 29);
 }
 void GateGrid::paint(juce::Graphics& g) {
     const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);
@@ -168,6 +163,22 @@ void GateGrid::mouseMove(const juce::MouseEvent& e) {
 }
 void GateGrid::mouseExit(const juce::MouseEvent&) {
     if (hoveredStep != -1) { hoveredStep = -1; repaint(); }
+}
+void GateGrid::showEditMenu() {
+    juce::PopupMenu menu;
+    menu.addSectionHeader("STEP EDIT");
+    menu.addItem(1, "Randomize");
+    menu.addItem(2, "Shift left");
+    menu.addItem(3, "Shift right");
+    menu.addSeparator();
+    menu.addItem(4, "Invert");
+    menu.addItem(5, "Clear");
+    juce::Component::SafePointer<GateGrid> safe(this);
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&editActions),
+        [safe](int choice) {
+            if (safe != nullptr && choice >= 1 && choice <= 5)
+                safe->applyPattern(choice - 1);
+        });
 }
 void GateGrid::applyPattern(int op) {
     const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);
