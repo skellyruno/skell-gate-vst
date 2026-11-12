@@ -12,16 +12,10 @@ constexpr const char* patternNames[] = {
 }
 
 GateGrid::GateGrid(SkellGlitchAudioProcessor& p) : processor(p) {
-    // Pattern editing is one compact menu, not a second row of five buttons.
-    editActions.setName("PATTERN_EDIT_MENU");
-    editActions.setTooltip("Randomize, shift, invert or clear sequencer steps");
-    editActions.onClick = [this] { showEditMenu(); };
-    addAndMakeVisible(editActions);
-    pattern.setName("PATTERN_SELECTOR");
-    pattern.setTooltip("Choose one of 13 sequencer patterns");
-    pattern.onClick = [this] { showPatternMenu(); };
-    addAndMakeVisible(pattern);
-    setTooltip("Click to cycle steps. Drag to paint. Drag probability strip or hold Shift to edit chance.");
+    setName("SEQUENCER_GRID");
+    // No permanent command row: the full edit/pattern library opens on
+    // right click anywhere on the step lane.
+    setTooltip("Click/drag steps to paint. Right-click for edit and pattern library. Shift-drag edits probability.");
     for (int i = 0; i < 32; ++i) {
         const auto name = "step" + juce::String(i + 1);
         stateValues[static_cast<size_t>(i)] = processor.apvts.getRawParameterValue(name + "_state");
@@ -47,18 +41,19 @@ void GateGrid::timerCallback() {
         lastStates[idx] = state;
         lastProbabilities[idx] = chance;
     }
-    if (changed) repaint();
+    if (changed || processor.displayTransport.load(std::memory_order_relaxed) != 0)
+        repaint();
 }
 void GateGrid::resized() {
-    constexpr int editWidth = 92, patternWidth = 166, gap = 9;
-    const int left = (getWidth() - editWidth - patternWidth - gap) / 2;
-    editActions.setBounds(left, 54, editWidth, 29);
-    pattern.setBounds(left + editWidth + gap, 54, patternWidth, 29);
+    // Step cells occupy the complete 545px lane; menus are contextual.
 }
 void GateGrid::paint(juce::Graphics& g) {
     const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);
     const float cell = static_cast<float>(getWidth()) / steps;
     const int active = processor.displayStep.load();
+    const bool playing = processor.displayTransport.load(std::memory_order_relaxed) != 0;
+    const float glow = playing ? .66f+.34f*std::sin(
+        float(juce::Time::getMillisecondCounterHiRes()*.008)) : .4f;
     for (int i = 0; i < steps; ++i) {
         const auto idx = static_cast<size_t>(i);
         const int state = static_cast<int>(stateValues[idx]->load(std::memory_order_relaxed));
@@ -80,13 +75,17 @@ void GateGrid::paint(juce::Graphics& g) {
         g.drawRoundedRectangle(x+.45f,y+.45f,w-.9f,h-.9f,4.f,1.f);
         g.setColour(juce::Colours::white.withAlpha(.40f));
         g.drawLine(x+4.f,y+2.f,x+w-4.f,y+2.f,.75f);
+        if (i == active && playing) {
+            g.setColour(skell::theme::colour(skell::theme::neon).withAlpha(.18f+.17f*glow));
+            g.drawRoundedRectangle(x-.9f, 0.f, w+1.8f, 41.f, 4.4f, 3.0f);
+        }
         if (i == active || i == hoveredStep) {
             g.setColour(skell::theme::colour(i == active ? skell::theme::bone : skell::theme::dim));
             g.drawRoundedRectangle(x, 0.f, w, 41.f, 4.f, i == active ? 1.6f : 1.f);
         }
         if ((i % 4 == 0 || i == hoveredStep) && w > 21.f) {
             g.setColour(state == 0 ? skell::theme::colour(skell::theme::bone).withAlpha(.86f)
-                                   : juce::Colour(0xff162010));
+                                   : juce::Colour(0xff071725));
             g.setFont(skell::theme::mono(10.f));
             g.drawText(juce::String(i + 1), static_cast<int>(x), 27,
                        static_cast<int>(w), 12, juce::Justification::centred);
@@ -98,6 +97,10 @@ void GateGrid::paint(juce::Graphics& g) {
             g.fillRoundedRectangle(x, 44.f, w * probability * .01f, 4.f, 2.f);
         }
     }
+    g.setColour(skell::theme::colour(skell::theme::gray).withAlpha(.75f));
+    g.setFont(skell::theme::mono(9.4f));
+    g.drawText("RIGHT-CLICK STEPS FOR TOOLS", 0, 57, getWidth(), 14,
+               juce::Justification::centred);
 }
 void GateGrid::setStep(int index, int value) {
     const auto key = "step" + juce::String(index + 1) + "_state";
@@ -138,6 +141,10 @@ void GateGrid::edit(const juce::MouseEvent& e) {
     } else setStep(idx, drawValue);
 }
 void GateGrid::mouseDown(const juce::MouseEvent& e) {
+    if (e.mods.isPopupMenu()) {
+        showSequencerMenu();
+        return;
+    }
     if (e.position.y >= 52) return;
     edited = -1;
     finishProbabilityGesture();
@@ -170,32 +177,26 @@ void GateGrid::mouseMove(const juce::MouseEvent& e) {
 void GateGrid::mouseExit(const juce::MouseEvent&) {
     if (hoveredStep != -1) { hoveredStep = -1; repaint(); }
 }
-void GateGrid::showPatternMenu() {
-    juce::PopupMenu menu;
-    menu.addSectionHeader("PATTERN LIBRARY");
+void GateGrid::showSequencerMenu() {
+    juce::Component::SafePointer<GateGrid> safe(this);
+    // Separate non-overlapping command ID ranges prevent a pattern from
+    // accidentally executing an edit command.
+    juce::PopupMenu routed;
+    routed.addSectionHeader("STEP SEQUENCER");
+    juce::PopupMenu editRouted, patternsRouted;
+    const juce::StringArray edits{"Randomize steps", "Shift left",
+                                  "Shift right", "Invert steps", "Clear steps"};
+    for (int i = 0; i < edits.size(); ++i)
+        editRouted.addItem(101 + i, edits[i]);
     for (int i = 0; i < 13; ++i)
-        menu.addItem(i + 1, patternNames[i]);
-    juce::Component::SafePointer<GateGrid> safe(this);
-    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&pattern),
+        patternsRouted.addItem(201 + i, patternNames[i]);
+    routed.addSubMenu("Edit steps", editRouted);
+    routed.addSubMenu("Load pattern", patternsRouted);
+    routed.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this),
         [safe](int choice) {
-            if (safe != nullptr && choice >= 1 && choice <= 13)
-                safe->loadPattern(choice - 1);
-        });
-}
-void GateGrid::showEditMenu() {
-    juce::PopupMenu menu;
-    menu.addSectionHeader("STEP EDIT");
-    menu.addItem(1, "Randomize");
-    menu.addItem(2, "Shift left");
-    menu.addItem(3, "Shift right");
-    menu.addSeparator();
-    menu.addItem(4, "Invert");
-    menu.addItem(5, "Clear");
-    juce::Component::SafePointer<GateGrid> safe(this);
-    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&editActions),
-        [safe](int choice) {
-            if (safe != nullptr && choice >= 1 && choice <= 5)
-                safe->applyPattern(choice - 1);
+            if (safe == nullptr) return;
+            if (choice >= 101 && choice <= 105) safe->applyPattern(choice - 101);
+            else if (choice >= 201 && choice <= 213) safe->loadPattern(choice - 201);
         });
 }
 void GateGrid::applyPattern(int op) {

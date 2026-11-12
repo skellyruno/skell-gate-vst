@@ -6,11 +6,24 @@ PresetBar::PresetBar(SkellGlitchAudioProcessor& p) : processor(p),
             juce::TextButton("SAVE"), juce::TextButton("OPEN")} {
     setName("HEADER_PRESET_BAR");
     presets.addItemList(SkellGlitchAudioProcessor::factoryPresetNames(), 1);
+    presets.setName("HEADER_PRESET_SELECTION");
     presets.setSelectedId(12, juce::dontSendNotification);
-    presets.onChange = [this] { if (presets.getSelectedId() > 0) processor.loadFactoryPreset(presets.getSelectedId() - 1); };
+    lastShownName = "INIT";
+    presets.onChange = [this] {
+        if (presets.getSelectedId() > 0)
+            processor.loadFactoryPreset(presets.getSelectedId() - 1);
+    };
     presets.setTooltip("Choose a factory preset");
     addAndMakeVisible(presets);
-    tools.setButtonText("...");
+    previous.setName("PRESET_PREVIOUS");
+    next.setName("PRESET_NEXT");
+    previous.setTooltip("Load previous factory preset");
+    next.setTooltip("Load next factory preset");
+    previous.onClick = [this] { stepPreset(-1); };
+    next.onClick = [this] { stepPreset(1); };
+    addAndMakeVisible(previous);
+    addAndMakeVisible(next);
+    tools.setButtonText("TOOLS");
     tools.setName("PRESET_TOOLS_MENU");
     tools.setTooltip("Undo, redo, snapshots A/B, save and open preset");
     tools.onClick = [this] { showToolsMenu(); };
@@ -48,11 +61,31 @@ PresetBar::PresetBar(SkellGlitchAudioProcessor& p) : processor(p),
                    safe->processor.loadUserPreset(c.getResult());
            });
     };
+    startTimerHz(8); // Keeps preset name correct after external state recalls.
 }
 void PresetBar::resized() {
-    constexpr int gap = 5, toolsWidth = 39;
-    presets.setBounds(0, 0, getWidth() - toolsWidth - gap, getHeight());
-    tools.setBounds(getWidth() - toolsWidth, 0, toolsWidth, getHeight());
+    constexpr int gap = 4, arrowWidth = 29, toolsWidth = 63;
+    const int comboWidth = getWidth()-2*arrowWidth-toolsWidth-3*gap;
+    previous.setBounds(0,2,arrowWidth,getHeight()-4);
+    presets.setBounds(arrowWidth+gap,0,comboWidth,getHeight());
+    next.setBounds(arrowWidth+gap+comboWidth+gap,2,arrowWidth,getHeight()-4);
+    tools.setBounds(getWidth()-toolsWidth,2,toolsWidth,getHeight()-4);
+}
+void PresetBar::stepPreset(int direction) {
+    const int count = presets.getNumItems();
+    if (count <= 0) return;
+    const int current = presets.getSelectedItemIndex() >= 0
+        ? presets.getSelectedItemIndex() : count-1;
+    const int nextIndex = (current + direction + count) % count;
+    presets.setSelectedId(nextIndex+1,juce::sendNotificationSync);
+}
+void PresetBar::timerCallback() {
+    const juce::String name = processor.apvts.state.getProperty("presetName","INIT").toString();
+    if (name == lastShownName || name.isEmpty()) return;
+    lastShownName = name;
+    const int match = SkellGlitchAudioProcessor::factoryPresetNames().indexOf(name);
+    if (match >= 0) presets.setSelectedId(match+1,juce::dontSendNotification);
+    else presets.setText(name,juce::dontSendNotification);
 }
 void PresetBar::runAction(int index) {
     if (index < 0 || index >= static_cast<int>(actions.size())) return;

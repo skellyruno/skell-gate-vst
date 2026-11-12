@@ -11,5 +11,7 @@ private:
     SkellGlitchAudioProcessor& processor;
     juce::TextButton& sync;
     std::array<juce::TextButton, 3> modes;
+    juce::TextButton freeze{"FREEZE"};
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> freezeAttach;
     int displayedMode = -1;
 };

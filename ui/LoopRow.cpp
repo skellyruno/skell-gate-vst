@@ -19,14 +19,17 @@ void LoopRow::resized() {
     const int gap = 12;
     const int w = (getWidth() - gap * 8) / 9;
     for (int i = 0; i < 9; ++i)
-        buttons[static_cast<size_t>(i)]->setBounds(i * (w + gap), 2, w, 43);
+        buttons[static_cast<size_t>(i)]->setBounds(i * (w + gap), 6, w, 35);
 }
 void LoopRow::paint(juce::Graphics&) {
     // Label and etched divider belong to the shared backplate, not a duplicate.
 }
 void LoopRow::timerCallback() {
     const int value = static_cast<int>(processor.apvts.getRawParameterValue("loopLength")->load());
-    if (displayedSelection == value) return;
+    if (displayedSelection == value) {
+        if (value >= 0 && value < 9) buttons[static_cast<size_t>(value)]->repaint();
+        return;
+    }
     displayedSelection = value;
     for (int i = 0; i < 9; ++i) buttons[static_cast<size_t>(i)]->setToggleState(i == value, juce::dontSendNotification);
 }

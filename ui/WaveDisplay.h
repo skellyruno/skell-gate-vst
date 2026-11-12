@@ -18,4 +18,5 @@ private:
     uint64_t lastFlip = UINT64_MAX;
     int lastReverse = -1, lastStep = -1;
     float lastPhase = -1.f;
+    int idleFrames = 0;
 };

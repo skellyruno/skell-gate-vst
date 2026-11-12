@@ -3,10 +3,11 @@
 #include <cmath>
 void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
     const auto r=getLocalBounds().toFloat().reduced(2.f);
-    const auto neon=skell::theme::colour(skell::theme::neon);
+    const auto neon=(icon==Kind::Skull && skell::theme::matteBlack())
+        ? juce::Colour(0xff65f532) : skell::theme::colour(skell::theme::neon);
     const auto border=skell::theme::colour(skell::theme::border);
     const auto bronze=skell::theme::matteBlack()
-        ? juce::Colour(0xff373b36) : skell::theme::colour(skell::theme::tile);
+        ? juce::Colour(0xff2c3c52) : skell::theme::colour(skell::theme::tile);
     const auto c=r.getCentre();
     const float radius=std::min(r.getWidth(),r.getHeight())*.49f;
     const auto ellipse=[&](float rad) {
@@ -51,30 +52,32 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
             g.fillRoundedRectangle(c.x+t*2.6f-.55f,c.y+5.8f,1.15f,3.2f,.5f);
         }
     } else if(icon==Kind::Settings) {
-        // Dark bevel under each spoke gives the green, engraved mechanical
-        // gear in the reference, rather than a flat neon sun icon.
-        const auto olive=skell::theme::matteBlack()
-            ? neon.darker(.23f) : skell::theme::colour(skell::theme::dim).darker(.26f);
-        for(int n=0;n<8;++n) {
-            const float a=juce::MathConstants<float>::twoPi*n/8.f;
-            const float dx=std::sin(a),dy=-std::cos(a);
-            g.setColour(olive.darker(.48f));
-            g.drawLine(c.x+dx*8.6f+1.f,c.y+dy*8.6f+1.f,
-                       c.x+dx*12.f+1.f,c.y+dy*12.f+1.f,3.2f);
-            g.setColour(olive);
-            g.drawLine(c.x+dx*8.6f,c.y+dy*8.6f,
-                       c.x+dx*12.f,c.y+dy*12.f,2.6f);
+        // Eight real gear teeth, not the old radial sunburst. Geometry is
+        // proportional to the smaller SkellCore control and stays legible.
+        juce::Path gear;
+        constexpr int vertices = 32;
+        for(int i=0;i<vertices;++i) {
+            const float a=juce::MathConstants<float>::twoPi * float(i)/float(vertices)
+                          - juce::MathConstants<float>::halfPi;
+            const float toothed=(i % 4 == 1 || i % 4 == 2) ? .74f : .59f;
+            const float px=c.x+std::cos(a)*radius*toothed;
+            const float py=c.y+std::sin(a)*radius*toothed;
+            if(i==0) gear.startNewSubPath(px,py);
+            else gear.lineTo(px,py);
         }
-        g.setColour(olive.darker(.47f));
-        g.fillEllipse(ellipse(9.7f));
-        g.setColour(neon.darker(.3f));
-        g.fillEllipse(ellipse(8.2f));
-        g.setColour(olive);
-        g.fillEllipse(ellipse(5.7f));
-        g.setColour(neon.brighter(.22f));
-        g.drawEllipse(ellipse(5.7f),1.1f);
-        g.setColour(olive.darker(.52f));
-        g.fillEllipse(ellipse(2.7f));
+        gear.closeSubPath();
+        g.setColour(juce::Colours::black.withAlpha(.69f));
+        g.fillPath(gear,juce::AffineTransform::translation(.6f,1.2f));
+        g.setGradientFill(juce::ColourGradient(
+            neon.brighter(.26f),c.x-radius*.55f,c.y-radius*.55f,
+            neon.darker(.33f),c.x+radius*.55f,c.y+radius*.55f,false));
+        g.fillPath(gear);
+        g.setColour(neon.brighter(.14f).withAlpha(.8f));
+        g.strokePath(gear,juce::PathStrokeType(.7f));
+        g.setColour(bronze.darker(.48f));
+        g.fillEllipse(ellipse(radius*.36f));
+        g.setColour(neon.brighter(.18f));
+        g.drawEllipse(ellipse(radius*.33f),1.15f);
     } else {
         const bool active = getToggleState();
         const auto olive = skell::theme::matteBlack()
@@ -108,15 +111,17 @@ TopBar::TopBar(SkellGlitchAudioProcessor& p) : processor(p) {
     addAndMakeVisible(skull);
     addAndMakeVisible(power);
     addAndMakeVisible(settings);
+    settings.setName("HEADER_SETTINGS");
+    power.setName("HEADER_POWER");
     skull.setTooltip("SKELL appearance: click skull to cycle the shared SkellCore skins");
     settings.setTooltip("Engine settings and window sizes");
     power.setTooltip("Click-free effect bypass");
 }
 void TopBar::resized() {
     skull.setBounds(10,4,49,50);
-    // Tight two-control hardware group at the right edge: only 2 px apart.
-    settings.setBounds(866,7,43,46);
-    power.setBounds(911,7,45,46);
+    // Smaller SkellCore hardware controls, 3px apart with clear header spacing.
+    settings.setBounds(880, 11, 35, 36);
+    power.setBounds(918, 11, 36, 36);
 }
 void TopBar::paint(juce::Graphics& g) {
     const auto green=skell::theme::colour(skell::theme::neon);
@@ -156,5 +161,5 @@ void TopBar::paint(juce::Graphics& g) {
     g.setFont(skell::theme::mono(12.f));
     g.setColour(dark.withAlpha(.93f));
     g.drawText(juce::String(sr>0?sr/1000.0:48.0,1)+" kHz  •  "+juce::String(latency)+" samples",
-               648,18,202,25,juce::Justification::centredRight);
+               653,18,206,25,juce::Justification::centredRight);
 }
