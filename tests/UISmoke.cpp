@@ -164,6 +164,12 @@ int main() {
         std::cerr << "UI_LAYOUT: compact pattern-edit menu missing or misaligned\n";
         return 26;
     }
+    auto* patternButton = dynamic_cast<juce::TextButton*>(patternSelector);
+    if (!patternButton || patternButton->getButtonText() != "PATTERNS" ||
+        !patternButton->onClick) {
+        std::cerr << "UI_CONTROL: hardware pattern menu is not a working button\n";
+        return 34;
+    }
     if (!headerPreset || !presetTools || !presetTools->isVisible() ||
         headerPreset->getY() >= 59 || headerPreset->getHeight() > 59 ||
         headerPreset->getWidth() < 250 ||
