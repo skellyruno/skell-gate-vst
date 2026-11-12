@@ -114,6 +114,10 @@ public:
         addCombo("triggerSource", {"Auto", "MIDI", "Sidechain", "Manual"});
         addCombo("latencyMode", {"Zero (previous slice)", "Aligned (delay dry)"});
         addCombo("gateCurve", {"Linear", "Exponential", "S-Curve"});
+        // Advanced rhythm/style controls remain automatable and are now
+        // housed here, never deleted or silently disconnected.
+        addCombo("reverseStyle", {"Classic", "Tape", "Ping-Pong", "Stutter"});
+        addCombo("gateRate", {"1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T"});
         for (const auto& param : {"bandInvert", "seedLock", "deltaListen"}) {
             auto t = std::make_unique<juce::TextButton>(param);
             t->setClickingTogglesState(true);
@@ -154,31 +158,34 @@ public:
         g.setColour(skell::theme::colour(skell::theme::gray));
         g.setFont(skell::theme::regular(12));
         for (int i = 0; i < labels.size(); ++i)
-            g.drawText(labels[i].toUpperCase(), 18, 51 + i * 29, 130, 22, juce::Justification::centredLeft);
-        g.drawText("TRIGGER SOURCE", 18, 323, 126, 18, juce::Justification::centredLeft);
-        g.drawText("LATENCY", 18, 354, 126, 18, juce::Justification::centredLeft);
-        g.drawText("GATE CURVE", 18, 385, 126, 18, juce::Justification::centredLeft);
-        g.drawText("WINDOW SIZE", 18, 512, 130, 18, juce::Justification::centredLeft);
+            g.drawText(labels[i].toUpperCase(), 18, 49 + i * 26, 130, 21, juce::Justification::centredLeft);
+        constexpr const char* comboLabels[] = {"TRIGGER SOURCE", "LATENCY", "GATE CURVE",
+                                               "REVERSE STYLE", "GATE RATE"};
+        for (size_t i = 0; i < 5; ++i)
+            g.drawText(comboLabels[i], 18, 295 + static_cast<int>(i) * 29, 129, 24,
+                       juce::Justification::centredLeft);
+        g.drawText("WINDOW SIZE", 18, 549, 130, 20, juce::Justification::centredLeft);
     }
     void resized() override {
         close.setBounds(getWidth() - 44, 10, 28, 28);
         for (size_t i = 0; i < sliders.size(); ++i)
-            sliders[i]->setBounds(140, 51 + static_cast<int>(i) * 29, getWidth() - 154, 22);
+            sliders[i]->setBounds(140, 49 + static_cast<int>(i) * 26, getWidth() - 154, 22);
         for (size_t i = 0; i < combos.size(); ++i)
-            combos[i]->setBounds(145, 317 + static_cast<int>(i) * 31, getWidth() - 161, 25);
+            combos[i]->setBounds(145, 295 + static_cast<int>(i) * 29, getWidth() - 161, 25);
         for (size_t i = 0; i < toggles.size(); ++i)
-            toggles[i]->setBounds(15 + static_cast<int>(i) * 124, 413, 120, 29);
-        manualCopy.setBounds(15, 446, 173, 29);
-        jitter.setBounds(194, 446, 175, 29);
-        trigger.setBounds(15, 479, 173, 29);
-        freeze.setBounds(194, 479, 175, 29);
-        size.setBounds(145, 510, 135, 26);
-        randomSeed.setBounds(286, 510, 94, 26);
+            toggles[i]->setBounds(15 + static_cast<int>(i) * 124, 444, 120, 29);
+        manualCopy.setBounds(15, 478, 173, 29);
+        jitter.setBounds(194, 478, 175, 29);
+        trigger.setBounds(15, 512, 173, 29);
+        freeze.setBounds(194, 512, 175, 29);
+        size.setBounds(145, 547, 135, 26);
+        randomSeed.setBounds(286, 547, 94, 26);
     }
 private:
     void addCombo(const char* name, juce::StringArray choices) {
         auto c = std::make_unique<juce::ComboBox>();
         c->addItemList(choices, 1);
+        c->setName(juce::String(name).toUpperCase());
         addAndMakeVisible(*c);
         comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(processor.apvts, name, *c));
         combos.push_back(std::move(c));
@@ -211,7 +218,7 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     loops.setBounds(skell::theme::loops);
     waveform.setBounds(skell::theme::wave);
     gate.setBounds(skell::theme::gate);
-    modes.setBounds(197, 489, 640, 47);
+    modes.setBounds(210, 489, 545, 47);
     // The preset bar is now a single header control; no third bottom row.
     presets.setBounds(318, 11, 322, 37);
     band.setBounds(skell::theme::band);
@@ -233,7 +240,7 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     powerAttach = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.apvts, "power", top.power);
     settings = std::make_unique<SettingsPanel>(p, [this](int size) { applyWindowSize(size); });
     canvas.addAndMakeVisible(*settings);
-    settings->setBounds(530, 102, 402, 548);
+    settings->setBounds(530, 73, 402, 602);
     settings->setVisible(false);
     top.settings.onClick = [this] { settings->setVisible(!settings->isVisible()); settings->toFront(false); };
     // Same skull-click appearance workflow as SkellKey and the SkellCore quickstart.
