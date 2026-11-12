@@ -6,7 +6,7 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
     const auto neon=skell::theme::colour(skell::theme::neon);
     const auto border=skell::theme::colour(skell::theme::border);
     const auto bronze=skell::theme::matteBlack()
-        ? juce::Colour(0xff4b4b43) : skell::theme::colour(skell::theme::tile);
+        ? juce::Colour(0xff373b36) : skell::theme::colour(skell::theme::tile);
     const auto c=r.getCentre();
     const float radius=std::min(r.getWidth(),r.getHeight())*.49f;
     const auto ellipse=[&](float rad) {
@@ -22,7 +22,7 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
          bronze.brighter(.34f),c.x-radius*.7f,c.y-radius*.8f,
          bronze.darker(.24f),c.x+radius*.78f,c.y+radius*.95f,false));
     g.fillEllipse(ellipse(radius-1.3f));
-    g.setColour(juce::Colours::white.withAlpha(skell::theme::ivory() ? .60f : .30f));
+    g.setColour(juce::Colours::white.withAlpha(skell::theme::ivory() ? .60f : .19f));
     g.drawEllipse(ellipse(radius-3.f),1.f);
     g.setColour(border.withAlpha(.37f));
     g.drawEllipse(ellipse(radius-4.7f),.7f);
