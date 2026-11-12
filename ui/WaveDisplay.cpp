@@ -15,7 +15,8 @@ void WaveDisplay::timerCallback() {
     const float phase = processor.displayPhase.load(std::memory_order_relaxed);
     const bool playing = processor.displayTransport.load(std::memory_order_relaxed) != 0;
     if (flip != lastFlip || reverse != lastReverse || step != lastStep
-        || (playing && std::abs(phase - lastPhase) >= .002f)) {
+        || (playing && std::abs(phase - lastPhase) >= .002f)
+        || (!playing && (++idleFrames % 3 == 0))) {
         lastFlip = flip; lastReverse = reverse; lastStep = step; lastPhase = phase;
         repaint();
     }
@@ -31,15 +32,15 @@ void WaveDisplay::paint(juce::Graphics& g) {
     g.fillRoundedRectangle(bounds.translated(0, 4.0f), 18.f);
     if (black) {
         g.setGradientFill(juce::ColourGradient(
-            juce::Colour(0xffa0aba1), bounds.getX(),bounds.getY(),
-            juce::Colour(0xff333b34),bounds.getRight(),bounds.getBottom(),false));
+            juce::Colour(0xff829bb8), bounds.getX(),bounds.getY(),
+            juce::Colour(0xff20334b),bounds.getRight(),bounds.getBottom(),false));
         g.fillRoundedRectangle(bounds,18.f);
-        g.setColour(juce::Colour(0xff090d0b));
+        g.setColour(juce::Colour(0xff050c19));
         g.fillRoundedRectangle(bounds.reduced(3.f),16.f);
         const auto glass=inside.reduced(2.2f);
         g.setGradientFill(juce::ColourGradient(
-            juce::Colour(0xff070e0b),glass.getCentreX(),glass.getY(),
-            juce::Colour(0xff0f2417),glass.getCentreX(),glass.getBottom(),false));
+            juce::Colour(0xff061421),glass.getCentreX(),glass.getY(),
+            juce::Colour(0xff10263d),glass.getCentreX(),glass.getBottom(),false));
         g.fillRoundedRectangle(glass,12.f);
         g.setColour(colour(neon).withAlpha(.70f));
         g.drawRoundedRectangle(glass.reduced(.7f),12.f,1.2f);
@@ -91,10 +92,17 @@ void WaveDisplay::paint(juce::Graphics& g) {
         g.setColour(colour(neon));
         g.drawLine(playX,31.f,playX,getHeight()-23.f,2.f);
     } else {
-        g.setColour(colour(bone).withAlpha(.87f));
+        // The idle display breathes gently without inventing audio activity.
+        const float breathing = .63f + .20f * std::sin(
+            float(juce::Time::getMillisecondCounterHiRes() * .0023));
+        g.setColour(colour(bone).withAlpha(breathing));
         g.setFont(regular(13.6f));
         g.drawText("WAITING FOR INPUT",getLocalBounds().reduced(26),
                    juce::Justification::centred);
+        g.setColour(colour(neon).withAlpha(.12f+.13f*breathing));
+        const float centre = getWidth()*.5f;
+        g.drawLine(centre-35.f,getHeight()*.64f,centre+35.f,
+                   getHeight()*.64f,1.35f);
     }
     const int mode=static_cast<int>(processor.apvts.getRawParameterValue("mode")->load());
     if(mode!=0) {
