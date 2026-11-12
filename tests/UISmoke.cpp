@@ -6,6 +6,9 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include "../ui/GlitchPulse.h"
+#include "../ui/TopBar.h"
+#include "../ui/GateGrid.h"
 
 // Reuse the exact processor factory linked into the VST3 wrapper.
 extern juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter();
@@ -72,6 +75,13 @@ int main() {
             if (chassis.getBlue() > chassis.getGreen() + 15) {
                 std::cerr << "UI_THEME: blue chassis leaked into green skin\n";
                 return 41;
+            }
+            // The faceplate must actually look black now, not charcoal green.
+            const auto exposed = frame.getPixelAt(185, 300);
+            if (exposed.getRed() >= 45 || exposed.getGreen() >= 45
+                || exposed.getBlue() >= 45) {
+                std::cerr << "UI_THEME: background is not near-black\n";
+                return 42;
             }
         }
         const auto output = directory.getChildFile(
@@ -160,6 +170,57 @@ int main() {
             if (auto* match = findNamed(*root.getChildComponent(i), name)) return match;
         return nullptr;
     };
+    // Simulate 90 seconds of UI ticks without sleeping or running the host.
+    // The effect must be genuinely intermittent: several short bursts with
+    // quiet time between them, never a constant flicker.
+    GlitchPulse pulse(0x236cc08du);
+    int activeFrames=0, currentRun=0, longestRun=0;
+    for (int frame=0;frame<2700;++frame) {
+        pulse.tick();
+        if (pulse.intensity()>0) {
+            ++activeFrames;
+            ++currentRun;
+            longestRun=std::max(longestRun,currentRun);
+        } else currentRun=0;
+    }
+    if (pulse.bursts()<5 || pulse.bursts()>24 ||
+        activeFrames<12 || activeFrames>125 || longestRun>5) {
+        std::cerr << "UI_GLITCH: visual scheduler is too frequent, too long or inert\n";
+        return 43;
+    }
+    auto* visualHeader = dynamic_cast<TopBar*>(findNamed(*editor,"SKELL_HEADER"));
+    auto* visualSteps = dynamic_cast<GateGrid*>(findNamed(*editor,"SEQUENCER_GRID"));
+    if (!visualHeader || !visualSteps) {
+        std::cerr << "UI_GLITCH: animated UI targets missing\n";
+        return 44;
+    }
+    editor->setSize(960,720);
+    const auto calm = editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    visualHeader->setGlitchBurst(3,0xac861b32u);
+    visualSteps->setGlitchBurst(3,0xac861b32u);
+    const auto disrupted = editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    int skullPixels=0, stepPixels=0;
+    for (int y=3;y<58;++y)
+        for(int x=10;x<62;++x)
+            if (calm.getPixelAt(x,y)!=disrupted.getPixelAt(x,y)) ++skullPixels;
+    for (int y=397;y<447;y+=2)
+        for(int x=214;x<749;x+=2)
+            if (calm.getPixelAt(x,y)!=disrupted.getPixelAt(x,y)) ++stepPixels;
+    if (skullPixels<8 || stepPixels<8) {
+        std::cerr << "UI_GLITCH: burst does not visibly affect the skull and green sequencer\n";
+        return 45;
+    }
+    const auto burstFile=directory.getChildFile("Skell-Glitch-Burst-960x720.png");
+    juce::FileOutputStream burstStream(burstFile);
+    if (burstStream.failedToOpen() || !png.writeImageToStream(disrupted,burstStream)) {
+        std::cerr << "UI_GLITCH: unable to save actual burst screenshot\n";
+        return 46;
+    }
+    visualHeader->setGlitchBurst(0,0u);
+    visualSteps->setGlitchBurst(0,0u);
+    std::cout << "UI_GLITCH: "<<pulse.bursts()<<" rare bursts in 90s, longest "
+              <<longestRun<<" frames; changed skull="<<skullPixels
+              <<" and steps="<<stepPixels<<" pixels\n";
     auto* settingsIcon = findNamed(*editor, "HEADER_SETTINGS");
     auto* powerIcon = findNamed(*editor, "HEADER_POWER");
     if (!settingsIcon || !powerIcon || settingsIcon->getWidth() > 38 ||
