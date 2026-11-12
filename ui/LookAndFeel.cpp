@@ -190,9 +190,9 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     g.setColour(darkSkin ? juce::Colour(0xff91a18b) : bronze.brighter(.32f));
     g.fillEllipse(ellipse(cap));
     g.setGradientFill(juce::ColourGradient(
-        darkSkin ? juce::Colour(0xffa3b5a1) : bronze.brighter(.48f),
+        darkSkin ? juce::Colour(0xffafc2aa) : bronze.brighter(.48f),
         c.x-cap*.77f,c.y-cap*.86f,
-        darkSkin ? juce::Colour(0xff1a2b1e) : bronze.darker(.14f),
+        darkSkin ? juce::Colour(0xff18261b) : bronze.darker(.14f),
         c.x+cap*.74f,c.y+cap*.94f,false));
     g.fillEllipse(ellipse(cap-.8f));
     if (darkSkin) {
@@ -212,8 +212,16 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
              juce::MathConstants<float>::pi*1.04f,
              juce::MathConstants<float>::pi*1.75f,true);
         g.strokePath(highlight,juce::PathStrokeType(1.7f));
-        g.setColour(juce::Colours::white.withAlpha(.07f));
+        g.setColour(juce::Colours::white.withAlpha(.065f));
         g.fillEllipse(c.x-cap*.53f,c.y-cap*.72f,cap*.66f,cap*.20f);
+        // Brushed steel light-play is confined to the center cap. The few
+        // near-invisible strokes add texture without dulling the value arc.
+        g.setColour(juce::Colour(0xfff0f8e9).withAlpha(.045f));
+        for (int mark=0;mark<6;++mark) {
+            const float yy=c.y-cap*.37f+float(mark)*cap*.14f;
+            const float xx=c.x-cap*.47f+float(mark%3)*1.25f;
+            g.drawLine(xx,yy,xx+cap*.46f,yy+.25f,.42f);
+        }
     }
     g.setColour(juce::Colours::white.withAlpha(skell::theme::ivory() ? .59f : .21f));
     g.drawEllipse(ellipse(cap-2.0f),1.12f);
@@ -249,6 +257,14 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     g.fillEllipse(tip.x-4.8f,tip.y-3.9f,9.6f,9.6f);
     g.setColour(neon.brighter(.1f));
     g.fillEllipse(tip.x-3.8f,tip.y-3.3f,7.6f,7.6f);
+    if (darkSkin) {
+        // Sharp pin highlight and a fine circular inset keep the real
+        // automation position tactile without increasing halo brightness.
+        g.setColour(juce::Colour(0xffe8ffdc).withAlpha(.73f));
+        g.fillEllipse(tip.x-1.9f,tip.y-1.8f,2.3f,2.3f);
+        g.setColour(juce::Colours::black.withAlpha(.27f));
+        g.drawEllipse(tip.x-4.0f,tip.y-3.5f,8.0f,8.0f,.45f);
+    }
     // Value readouts live in the hover/drag badge, not on the metal cap.
     // The rotating inlaid pointer and ring remain true to automation.
 
