@@ -12,6 +12,7 @@ constexpr const char* patternNames[] = {
 }
 
 GateGrid::GateGrid(SkellGlitchAudioProcessor& p) : processor(p) {
+    setName("SEQUENCER_GRID");
     // No permanent command row: the full edit/pattern library opens on
     // right click anywhere on the step lane.
     setTooltip("Click/drag steps to paint. Right-click for edit and pattern library. Shift-drag edits probability.");
