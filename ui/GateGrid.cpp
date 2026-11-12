@@ -97,6 +97,23 @@ void GateGrid::paint(juce::Graphics& g) {
             g.fillRoundedRectangle(x, 44.f, w * probability * .01f, 4.f, 2.f);
         }
     }
+    if (glitchIntensity > 0 && skell::theme::matteBlack()) {
+        // Rare short green scan breaks across the existing sequencer cells.
+        // Never modify step parameters, probabilities, timing or automation.
+        std::uint32_t bits=glitchVariant ^ 0xab75f147u;
+        const auto neon=skell::theme::colour(skell::theme::neon);
+        for (int i=0;i<3+glitchIntensity*2;++i) {
+            bits ^= bits<<13; bits ^= bits>>17; bits ^= bits<<5;
+            const float x=6.f+float(bits%static_cast<std::uint32_t>(
+                std::max(1,getWidth()-18)));
+            const float y=5.f+float((bits>>7)%39u);
+            const float length=3.f+float((bits>>15)%20u);
+            g.setColour(juce::Colours::black.withAlpha(.62f));
+            g.fillRect(x,y,length+2.f,2.3f);
+            g.setColour(neon.withAlpha(.37f+.12f*glitchIntensity));
+            g.fillRect(x+1.f,y+.7f,length,.9f);
+        }
+    }
     g.setColour(skell::theme::colour(skell::theme::gray).withAlpha(.75f));
     g.setFont(skell::theme::mono(9.4f));
     g.drawText("RIGHT-CLICK STEPS FOR TOOLS", 0, 57, getWidth(), 14,
