@@ -111,6 +111,8 @@ TopBar::TopBar(SkellGlitchAudioProcessor& p) : processor(p) {
     addAndMakeVisible(skull);
     addAndMakeVisible(power);
     addAndMakeVisible(settings);
+    settings.setName("HEADER_SETTINGS");
+    power.setName("HEADER_POWER");
     skull.setTooltip("SKELL appearance: click skull to cycle the shared SkellCore skins");
     settings.setTooltip("Engine settings and window sizes");
     power.setTooltip("Click-free effect bypass");
