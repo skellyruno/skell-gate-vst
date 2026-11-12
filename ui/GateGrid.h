@@ -16,14 +16,11 @@ private:
     void timerCallback() override;
     void edit(const juce::MouseEvent&);
     void finishProbabilityGesture();
-    void showEditMenu();
-    void showPatternMenu();
+    void showSequencerMenu();
     void applyPattern(int operation);
     void setStep(int index, int value);
     void loadPattern(int index);
     SkellGlitchAudioProcessor& processor;
-    juce::TextButton editActions{"EDIT"};
-    juce::TextButton pattern{"PATTERNS"};
     std::array<std::atomic<float>*, 32> stateValues{}, probabilityValues{};
     std::array<float, 32> lastStates{}, lastProbabilities{};
     int lastPaintedStep = -1, lastStepCount = -1;
