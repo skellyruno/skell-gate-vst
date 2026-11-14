@@ -416,6 +416,7 @@ void SkellGlitchAudioProcessorEditor::timerCallback() {
     // Rare, bounded UI-only interference. No host parameter or audio engine
     // changes; the full backplate stays cached instead of repainting at 30 Hz.
     visualPulse.tick();
+    top.setTitleGlitchEnabled(processor.titleJitter.load(std::memory_order_relaxed));
     const int pulse = visualPulse.intensity();
     if (pulse > 0 || lastPulseIntensity > 0) {
         top.setGlitchBurst(pulse, visualPulse.visualSeed());
