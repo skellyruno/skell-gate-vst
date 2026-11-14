@@ -220,6 +220,9 @@ public:
             slider->textFromValueFunction=[](double v) {
                 return juce::String(juce::roundToInt(v));
             };
+            // The JUCE Label retains its previous string when the value is
+            // unchanged. Refresh it explicitly after replacing the formatter.
+            slider->updateText();
             sliders.push_back(std::move(slider));
         }
         addCombo("triggerSource", {"Auto", "MIDI", "Sidechain", "Manual"});
@@ -429,8 +432,8 @@ void SkellGlitchAudioProcessorEditor::timerCallback() {
         lastPower = powerOn;
         lastMode = activeMode;
         const juce::String modeText = activeMode==0?"REVERSE":activeMode==1?"GATE":"BOTH";
-        startStatus.setText(powerOn ? "ACTIVE  •  "+modeText+"  /  PLAY AUDIO"
-                                    : "BYPASSED  •  PRESS POWER TO START",
+        startStatus.setText(powerOn ? "ACTIVE  /  "+modeText+"  /  PLAY AUDIO"
+                                    : "BYPASSED  /  PRESS POWER TO START",
                             juce::dontSendNotification);
         startStatus.setColour(juce::Label::textColourId,
             powerOn ? skell::theme::colour(skell::theme::neon)
