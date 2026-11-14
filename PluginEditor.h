@@ -6,7 +6,6 @@
 #include "ui/WaveDisplay.h"
 #include "ui/GateGrid.h"
 #include "ui/ModeRow.h"
-#include "ui/BandSlider.h"
 #include "ui/GlitchKnob.h"
 #include "ui/PresetBar.h"
 #include "ui/GlitchPulse.h"
@@ -31,7 +30,7 @@ private:
     GateGrid gate;
     ModeRow modes;
     PresetBar presets;
-    BandSlider band;
+    juce::Label startStatus;
     GlitchKnob fadeIn{"FADE IN"}, fadeOut{"FADE OUT"}, smooth{"SMOOTH"}, mix{"MIX"};
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> fadeInAttach, fadeOutAttach, smoothAttach, mixAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> syncAttach, powerAttach;
@@ -42,6 +41,8 @@ private:
     GlitchPulse visualPulse{static_cast<std::uint32_t>(juce::Time::getMillisecondCounter())};
     int lastPulseIntensity = 0;
     int lastHeaderLatency = -1;
+    bool lastPower = false;
+    int lastMode = -1;
     double lastHeaderSampleRate = -1.0;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SkellGlitchAudioProcessorEditor)
 };
