@@ -22,6 +22,11 @@ int main() {
     std::unique_ptr<juce::AudioProcessorEditor> editor(processor->createEditor());
     if (!editor) { std::cerr << "Failed to create plugin editor\n"; return 2; }
     editor->setVisible(true);
+    if (editor->getWidth()<636 || editor->getWidth()>645 ||
+        editor->getHeight()<476 || editor->getHeight()>487) {
+        std::cerr << "UI_SIZE: default must be ~11 percent smaller than old 75 percent\n";
+        return 56;
+    }
     const auto directory = juce::File::getCurrentWorkingDirectory()
                                .getChildFile("build").getChildFile("ui-snapshots");
     if (!directory.createDirectory()) { std::cerr << "Failed creating snapshot directory\n"; return 3; }
@@ -178,7 +183,44 @@ int main() {
         std::cerr << "PRESET: new Both program missing\n";
         return 53;
     }
+    // Actual audio A/B: selecting a Gate preset must audibly differ from
+    // the dry source without NaNs, overs or stereo image destruction.
+    engine->loadFactoryPreset(17);
+    engine->prepareToPlay(48000.0,512);
+    juce::AudioBuffer<float> gateSignal(2,512);
+    juce::MidiBuffer emptyMidi;
+    double gateDifference=0.0;
+    float maximum=0.f;
+    for (int block=0;block<110;++block) {
+        for (int sample=0;sample<512;++sample) {
+            const double phase=(block*512+sample)*6.283185307179586*220.0/48000.0;
+            const float dry=.26f*static_cast<float>(std::sin(phase));
+            gateSignal.setSample(0,sample,dry);
+            gateSignal.setSample(1,sample,-dry);
+        }
+        engine->processBlock(gateSignal,emptyMidi);
+        for (int sample=0;sample<512;++sample) {
+            const float dry=.26f*static_cast<float>(std::sin(
+                (block*512+sample)*6.283185307179586*220.0/48000.0));
+            const float left=gateSignal.getSample(0,sample);
+            const float right=gateSignal.getSample(1,sample);
+            if (!std::isfinite(left) || !std::isfinite(right) ||
+                std::abs(left+right)>.001f) {
+                std::cerr << "PRESET_AUDIO: gate introduced NaNs or stereo imbalance\n";
+                return 57;
+            }
+            maximum=std::max(maximum,std::abs(left));
+            gateDifference+=std::abs(left-dry);
+        }
+    }
+    if (gateDifference<2.0 || maximum>.85f) {
+        std::cerr << "PRESET_AUDIO: gate did not audibly modulate the signal or exceeded headroom\n";
+        return 58;
+    }
+    std::cout << "PRESET_AUDIO: gate vs dry sum="<<gateDifference
+              <<" peak="<<maximum<<" passed\n";
     engine->loadFactoryPreset(11);
+    engine->prepareToPlay(48000.0,512);
     if (engine->apvts.getRawParameterValue("power")->load()<.5f ||
         engine->apvts.getRawParameterValue("loopLength")->load()!=2.f) {
         std::cerr << "PRESET: Default still bypassed or too slow\n";
@@ -251,11 +293,40 @@ int main() {
     }
     visualHeader->setGlitchBurst(0,0u);
     visualSteps->setGlitchBurst(0,0u);
+    visualHeader->setTitleGlitchEnabled(false);
+    visualHeader->setGlitchBurst(3,0xac861b32u);
+    const auto titleOff=editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    int titleChanges=0;
+    for(int y=10;y<37;++y)
+        for(int x=138;x<230;++x)
+            if(calm.getPixelAt(x,y)!=titleOff.getPixelAt(x,y)) ++titleChanges;
+    visualHeader->setGlitchBurst(0,0u);
+    visualHeader->setTitleGlitchEnabled(true);
+    if (titleChanges>2) {
+        std::cerr << "UI_GLITCH: TITLE GLITCH off still moves title text\n";
+        return 64;
+    }
+
     std::cout << "UI_GLITCH: "<<pulse.bursts()<<" rare bursts in 90s, longest "
               <<longestRun<<" frames; changed skull="<<skullPixels
               <<" and steps="<<stepPixels<<" pixels\n";
     auto* settingsIcon = findNamed(*editor, "HEADER_SETTINGS");
     auto* powerIcon = findNamed(*editor, "HEADER_POWER");
+    auto* settingsButton=dynamic_cast<juce::TextButton*>(settingsIcon);
+    if (!settingsButton || !settingsButton->onClick) {
+        std::cerr << "UI_SETTINGS: settings icon is not interactive\n";
+        return 61;
+    }
+    settingsButton->onClick();
+    const auto settingsScene=editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    juce::FileOutputStream settingsOutput(directory.getChildFile(
+        "Skell-Glitch-Settings-960x720.png"));
+    if (settingsOutput.failedToOpen() ||
+        !png.writeImageToStream(settingsScene,settingsOutput)) {
+        std::cerr << "UI_SETTINGS: failed to render real Settings screenshot\n";
+        return 62;
+    }
+    settingsButton->onClick();
     if (!settingsIcon || !powerIcon || settingsIcon->getWidth() > 38 ||
         powerIcon->getWidth() > 38 || settingsIcon->getHeight() > 38 ||
         powerIcon->getHeight() > 38 ||
@@ -276,6 +347,25 @@ int main() {
     if (findNamed(*editor,"LOW CUT") || findNamed(*editor,"HIGH CUT")) {
         std::cerr << "UI_LAYOUT: low/high bar unexpectedly visible\n";
         return 50;
+    }
+    // The 4 knob faces must match in actual diameter and mirror exactly
+    // around x=480, without touching the central sequencer lane.
+    auto* leftTop=findNamed(*editor,"FADE IN");
+    auto* rightTop=findNamed(*editor,"FADE OUT");
+    auto* leftBottom=findNamed(*editor,"SMOOTH");
+    auto* rightBottom=findNamed(*editor,"MIX");
+    if (!leftTop || !rightTop || !leftBottom || !rightBottom ||
+        leftTop->getWidth()!=rightTop->getWidth() ||
+        leftTop->getWidth()!=leftBottom->getWidth() ||
+        leftTop->getWidth()!=rightBottom->getWidth() ||
+        std::min(leftTop->getWidth(),leftTop->getHeight()) !=
+            std::min(leftBottom->getWidth(),leftBottom->getHeight()) ||
+        std::abs(leftTop->getBounds().getCentreX() +
+                 rightTop->getBounds().getCentreX()-960)>2 ||
+        std::abs(leftBottom->getBounds().getCentreX() +
+                 rightBottom->getBounds().getCentreX()-960)>2) {
+        std::cerr << "UI_LAYOUT: four hardware knobs are not symmetrical\n";
+        return 59;
     }
     auto* headerPreset = findNamed(*editor, "HEADER_PRESET_BAR");
     auto* presetTools = findNamed(*editor, "PRESET_TOOLS_MENU");
@@ -302,6 +392,12 @@ int main() {
     if (selection->getSelectedId() != 12) {
         std::cerr << "UI_PRESET: next preset did not restore Default\n";
         return 35;
+    }
+    if (headerPreset &&
+        (std::abs(headerPreset->getBounds().getCentreX()-480)>1 ||
+         std::abs(visualSteps->getBounds().getCentreX()-480)>1)) {
+        std::cerr << "UI_LAYOUT: preset and sequencer are not centered\n";
+        return 60;
     }
     if (!headerPreset || !presetTools || !presetTools->isVisible() ||
         headerPreset->getY() >= 59 || headerPreset->getHeight() > 59 ||
@@ -494,6 +590,13 @@ int main() {
     const auto beforeSkin = editor->createComponentSnapshot(editor->getLocalBounds(),true);
     skull->onClick();
     const auto afterSkin = editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    juce::FileOutputStream altOutput(directory.getChildFile(
+        "Skell-Glitch-Amethyst-960x720.png"));
+    if (altOutput.failedToOpen() ||
+        !png.writeImageToStream(afterSkin,altOutput)) {
+        std::cerr << "UI_THEME: could not save true alternate-theme capture\n";
+        return 63;
+    }
     if (!beforeSkin.isValid() || !afterSkin.isValid()
         || beforeSkin.getPixelAt(120,170) == afterSkin.getPixelAt(120,170)) {
         std::cerr << "SKELLCORE_SKULL: clicking skull did not change editor skin\n";
