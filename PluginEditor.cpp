@@ -201,12 +201,6 @@ public:
             auto slider = std::make_unique<juce::Slider>();
             slider->setSliderStyle(juce::Slider::LinearHorizontal);
             slider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 54, 19);
-            // Round for the human-facing settings UI only. Stored values
-            // and APVTS automation retain their original full precision.
-            slider->setNumDecimalPlacesToDisplay(0);
-            slider->textFromValueFunction=[](double v) {
-                return juce::String(juce::roundToInt(v));
-            };
             slider->setDoubleClickReturnValue(true, p.apvts.getParameter(param)->convertFrom0to1(p.apvts.getParameter(param)->getDefaultValue()));
             const juce::String key(param);
             const juce::String label=key=="reversePitch"?"PITCH"
@@ -219,6 +213,13 @@ public:
             slider->setName("SETTING_"+key.toUpperCase());
             addAndMakeVisible(*slider);
             sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.apvts, param, *slider));
+            // APVTS attachments install their own text mapping. Apply the
+            // readable whole-number formatter *after* attachment creation,
+            // without quantising the actual automatable parameter.
+            slider->setNumDecimalPlacesToDisplay(0);
+            slider->textFromValueFunction=[](double v) {
+                return juce::String(juce::roundToInt(v));
+            };
             sliders.push_back(std::move(slider));
         }
         addCombo("triggerSource", {"Auto", "MIDI", "Sidechain", "Manual"});
@@ -329,13 +330,13 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     gate.setBounds(skell::theme::gate);
     modes.setBounds(skell::theme::modes);
     // The preset bar is now a single header control; no third bottom row.
-    presets.setBounds(316, 11, 340, 37);
+    presets.setBounds(310, 11, 340, 37);
     // Four knobs use the same width, horizontal centres, and mirrored
     // geometry; preserve the hardware metal material and the two dividers.
     fadeIn.setBounds(33, 198, 141, 148);
     fadeOut.setBounds(786, 198, 141, 148);
-    smooth.setBounds(33, 541, 141, 130);
-    mix.setBounds(786, 541, 141, 130);
+    smooth.setBounds(33, 532, 141, 141);
+    mix.setBounds(786, 532, 141, 141);
     startStatus.setName("LIVE_START_STATUS");
     startStatus.setJustificationType(juce::Justification::centred);
     startStatus.setFont(skell::theme::mono(13.1f));
