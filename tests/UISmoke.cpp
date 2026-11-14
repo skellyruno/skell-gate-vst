@@ -9,6 +9,7 @@
 #include "../ui/GlitchPulse.h"
 #include "../ui/TopBar.h"
 #include "../ui/GateGrid.h"
+#include "../PluginProcessor.h"
 
 // Reuse the exact processor factory linked into the VST3 wrapper.
 extern juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter();
@@ -100,10 +101,14 @@ int main() {
         return nullptr;
     };
     auto* power = findParameter("Power");
-    if (power == nullptr || power->getValue() >= .5f) {
-        std::cerr << "Expected bypassed initial power parameter\n";
+    if (power == nullptr || power->getValue() < .5f) {
+        std::cerr << "Expected enabled default starter effect\n";
         return 7;
     }
+    // The new default is ON, but explicit bypass must still reproduce the
+    // original dry signal sample-for-sample and preserve host latency.
+    power->setValueNotifyingHost(0.f);
+    processor->prepareToPlay(48000.0,512);
     // Full JUCE processor signal-path smoke: real blocks, 2-channel sine,
     // default bypass pass-through, then enabled reverse processing.
     juce::AudioBuffer<float> audio(2, 512);
@@ -152,6 +157,34 @@ int main() {
         std::cerr << "HOST_SMOKE: reverse inactive or unexpected zero-mode latency\n";
         return 12;
     }
+    // Preserve factory IDs 0..11 and verify new categorised programs
+    // contain audible, distinct gate/reverse/Both settings without using
+    // external host presets or file I/O.
+    const auto names=SkellGlitchAudioProcessor::factoryPresetNames();
+    auto* engine=dynamic_cast<SkellGlitchAudioProcessor*>(processor.get());
+    if (!engine || names.size()!=28 || names[11]!="Default" ||
+        engine->currentPresetName()!="Default") {
+        std::cerr << "PRESET: stable factory index or Default name incorrect\n";
+        return 51;
+    }
+    engine->loadFactoryPreset(17); // Gate / Sharp Sixteenths.
+    if (engine->apvts.getRawParameterValue("mode")->load()!=1.f ||
+        engine->apvts.getRawParameterValue("step2_state")->load()!=0.f) {
+        std::cerr << "PRESET: new Gate program not audible/distinct\n";
+        return 52;
+    }
+    engine->loadFactoryPreset(25); // Both / Slow Motion.
+    if (engine->apvts.getRawParameterValue("mode")->load()!=2.f) {
+        std::cerr << "PRESET: new Both program missing\n";
+        return 53;
+    }
+    engine->loadFactoryPreset(11);
+    if (engine->apvts.getRawParameterValue("power")->load()<.5f ||
+        engine->apvts.getRawParameterValue("loopLength")->load()!=2.f) {
+        std::cerr << "PRESET: Default still bypassed or too slow\n";
+        return 54;
+    }
+    std::cout << "PRESET: 28 factory programs, stable IDs and audible Default passed\n";
     // The actual UI callbacks must write automatable host parameters.
     std::function<juce::TextButton*(juce::Component&, const juce::String&)> findButton;
     findButton = [&](juce::Component& root, const juce::String& text) -> juce::TextButton* {
@@ -231,6 +264,19 @@ int main() {
         std::cerr << "UI_LAYOUT: header gear and power controls are oversized or misaligned\n";
         return 38;
     }
+    auto* startStatus = dynamic_cast<juce::Label*>(
+        findNamed(*editor,"LIVE_START_STATUS"));
+    if (!startStatus || !startStatus->getText().containsIgnoreCase("POWER") &&
+        !startStatus->getText().containsIgnoreCase("ACTIVE")) {
+        std::cerr << "UI_START: starting/bypass status missing\n";
+        return 49;
+    }
+    // The low/high filter parameters remain available to restore legacy
+    // presets, but the unwanted bar must not exist in the new editor.
+    if (findNamed(*editor,"LOW CUT") || findNamed(*editor,"HIGH CUT")) {
+        std::cerr << "UI_LAYOUT: low/high bar unexpectedly visible\n";
+        return 50;
+    }
     auto* headerPreset = findNamed(*editor, "HEADER_PRESET_BAR");
     auto* presetTools = findNamed(*editor, "PRESET_TOOLS_MENU");
     auto* previousPreset = dynamic_cast<juce::TextButton*>(
@@ -254,7 +300,7 @@ int main() {
     }
     nextPreset->onClick();
     if (selection->getSelectedId() != 12) {
-        std::cerr << "UI_PRESET: next preset did not restore INIT\n";
+        std::cerr << "UI_PRESET: next preset did not restore Default\n";
         return 35;
     }
     if (!headerPreset || !presetTools || !presetTools->isVisible() ||
@@ -266,6 +312,12 @@ int main() {
     }
     // The rate/style row must never intrude into the four rotary controls.
     // This caught an earlier 29-pixel downward shift that clipped MIX.
+    auto* attackSetting=dynamic_cast<juce::Slider*>(
+        findNamed(*editor,"SETTING_GATEATTACK"));
+    if (!attackSetting || attackSetting->getTextFromValue(3.75)!="4") {
+        std::cerr << "UI_SETTINGS: advanced readout is not whole numbers\n";
+        return 55;
+    }
     auto* reverseStyleSetting = dynamic_cast<juce::ComboBox*>(
         findNamed(*editor, "REVERSESTYLE"));
     auto* gateRateSetting = dynamic_cast<juce::ComboBox*>(
@@ -365,10 +417,10 @@ int main() {
         return 40;
     }
     auto* selectedReverse = findButton(*editor, "REVERSE");
-    auto* selectedBar = findButton(*editor, "1 Bar");
+    auto* selectedBar = findButton(*editor, "1/8");
     if (!selectedReverse || !selectedBar || !selectedReverse->getToggleState()
         || !selectedBar->getToggleState()) {
-        std::cerr << "UI_CONTROL: initial mode/loop selection not visible\n";
+        std::cerr << "UI_CONTROL: initial reverse/short-loop selection not visible\n";
         return 17;
     }
     auto* mode = findParameter("Mode");
@@ -423,8 +475,8 @@ int main() {
         }
     }
     std::cout << "LATENCY_SMOKE: aligned=6000, bypass impulse sample=6000, passed\n";
-    // Verify that the official SkellCore skull is clickable and actually
-    // changes the real editor skin; four clicks must restore the original.
+    // Verify that the official SkellCore skull cycles the three muted skins:
+    // Obsidian, Amethyst, Crimson. Bright cream Ivory is intentionally skipped.
     std::function<juce::TextButton*(juce::Component&)> findSkull;
     findSkull = [&](juce::Component& root) -> juce::TextButton* {
         if (auto* button = dynamic_cast<juce::TextButton*>(&root))
@@ -447,8 +499,12 @@ int main() {
         std::cerr << "SKELLCORE_SKULL: clicking skull did not change editor skin\n";
         return 23;
     }
-    for (int i = 0; i < 3; ++i) skull->onClick();
-    std::cout << "SKELLCORE_SKULL: 4-skin cycle and return passed\n";
+    for (int i = 0; i < 2; ++i) skull->onClick();
+    if (skell::theme::ivory()) {
+        std::cerr << "SKELLCORE_SKULL: unwanted bright skin in local cycle\n";
+        return 48;
+    }
+    std::cout << "SKELLCORE_SKULL: 3-dark-skin cycle and return passed\n";
     const auto elapsed = std::chrono::duration<double>(
         std::chrono::steady_clock::now() - began).count();
     std::cout << "HOST_SMOKE: processed=" << processed
