@@ -160,8 +160,8 @@ public:
         g.setFont(regular(14));
         g.setColour(colour(gray));
         g.drawText("LOOP LENGTH",426,120,110,24,juce::Justification::centred);
-        g.drawText("FADE IN",45,340,120,26,juce::Justification::centred);
-        g.drawText("FADE OUT",794,340,120,26,juce::Justification::centred);
+        g.drawText("FADE IN",43,346,122,25,juce::Justification::centred);
+        g.drawText("FADE OUT",795,346,122,25,juce::Justification::centred);
         // The five aligned performance controls explain themselves;
         // removing the isolated MODE engraving restores visual balance.
         g.drawText("SMOOTH",43,676,120,24,juce::Justification::centred);
@@ -300,27 +300,35 @@ private:
 };
 
 SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudioProcessor& p)
-    : juce::AudioProcessorEditor(&p), processor(p), top(p), loops(p), waveform(p), gate(p), modes(p, top.sync), presets(p), band(p) {
+    : juce::AudioProcessorEditor(&p), processor(p), top(p), loops(p), waveform(p), gate(p), modes(p, top.sync), presets(p) {
     setLookAndFeel(&look);
     canvas.setInterceptsMouseClicks(false, true);
     addAndMakeVisible(canvas);
     background = std::make_unique<Backplate>();
     canvas.addAndMakeVisible(*background);
     background->setBounds(0, 0, skell::theme::width, skell::theme::height);
-    for (juce::Component* c : std::array<juce::Component*, 11>{&top, &loops, &waveform, &gate, &modes, &presets,
-                                                         &band, &fadeIn, &fadeOut, &smooth, &mix}) canvas.addAndMakeVisible(*c);
+    for (juce::Component* c : std::array<juce::Component*, 10>{&top, &loops, &waveform, &gate, &modes, &presets,
+                                                         &fadeIn, &fadeOut, &smooth, &mix}) canvas.addAndMakeVisible(*c);
     top.setBounds(skell::theme::top);
     loops.setBounds(skell::theme::loops);
     waveform.setBounds(skell::theme::wave);
     gate.setBounds(skell::theme::gate);
-    modes.setBounds(210, 477, 545, 40);
+    modes.setBounds(skell::theme::modes);
     // The preset bar is now a single header control; no third bottom row.
     presets.setBounds(316, 11, 340, 37);
-    band.setBounds(skell::theme::band);
-    fadeIn.setBounds(34, 190, 141, 154);
-    fadeOut.setBounds(783, 190, 141, 154);
-    smooth.setBounds(34, 539, 130, 130);
-    mix.setBounds(788, 539, 130, 130);
+    // Four knobs use the same width, horizontal centres, and mirrored
+    // geometry; preserve the hardware metal material and the two dividers.
+    fadeIn.setBounds(33, 198, 141, 148);
+    fadeOut.setBounds(786, 198, 141, 148);
+    smooth.setBounds(33, 541, 141, 130);
+    mix.setBounds(786, 541, 141, 130);
+    startStatus.setName("LIVE_START_STATUS");
+    startStatus.setJustificationType(juce::Justification::centred);
+    startStatus.setFont(skell::theme::mono(13.1f));
+    startStatus.setColour(juce::Label::textColourId,skell::theme::colour(skell::theme::bone));
+    startStatus.setBounds(308, 581, 344, 46);
+    startStatus.setInterceptsMouseClicks(false,false);
+    canvas.addAndMakeVisible(startStatus);
     for (auto* slider : {&fadeIn, &fadeOut, &smooth, &mix}) slider->setDoubleClickReturnValue(true, slider == &smooth ? 30. : slider == &mix ? 100. : 0.);
     fadeIn.textFromValueFunction = [](double value) { return value < .5 ? "Inst" : juce::String(value, 0) + " ms"; };
     fadeOut.textFromValueFunction = fadeIn.textFromValueFunction;
@@ -347,7 +355,8 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
         (void)skellcore::ui::StudioSkinStore::save(next);
         background->repaint();
         top.repaint(); loops.repaint(); waveform.repaint(); gate.repaint();
-        modes.repaint(); presets.repaint(); band.repaint();
+        modes.repaint(); presets.repaint();
+        startStatus.setColour(juce::Label::textColourId,skell::theme::colour(skell::theme::bone));
         for (auto* dial : {&fadeIn, &fadeOut, &smooth, &mix}) dial->repaint();
         settings->repaint();
     };
@@ -390,6 +399,20 @@ void SkellGlitchAudioProcessorEditor::timerCallback() {
         gate.setGlitchBurst(pulse, visualPulse.visualSeed());
     }
     lastPulseIntensity = pulse;
+    const bool powerOn = processor.apvts.getRawParameterValue("power")->load() >= .5f;
+    const int activeMode = static_cast<int>(processor.apvts.getRawParameterValue("mode")->load());
+    if (powerOn != lastPower || activeMode != lastMode) {
+        lastPower = powerOn;
+        lastMode = activeMode;
+        const juce::String modeText = activeMode==0?"REVERSE":activeMode==1?"GATE":"BOTH";
+        startStatus.setText(powerOn ? "ACTIVE  •  "+modeText+"  /  PLAY AUDIO"
+                                    : "BYPASSED  •  PRESS POWER TO START",
+                            juce::dontSendNotification);
+        startStatus.setColour(juce::Label::textColourId,
+            powerOn ? skell::theme::colour(skell::theme::neon)
+                    : skell::theme::colour(skell::theme::gray));
+        top.repaint();
+    }
     const bool on = processor.apvts.getRawParameterValue("sync")->load() >= .5f;
     const auto label = on ? juce::String("SYNC ON") : juce::String("SYNC OFF");
     if (top.sync.getButtonText() != label) top.sync.setButtonText(label);
