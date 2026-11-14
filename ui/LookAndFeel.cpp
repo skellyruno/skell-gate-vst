@@ -4,7 +4,10 @@
 SkellLookAndFeel::SkellLookAndFeel() : sharedSkin(skellcore::ui::StudioSkinStore::file().existsAsFile()
         ? skellcore::ui::StudioSkinStore::load()
         : skellcore::ui::StudioSkin::Obsidian) {
-    setSkin(sharedSkin.skin());
+    // Legacy SkellCore Ivory (cream/bright lime) is not offered by this
+    // plugin's skin selector. Keep its global saved file untouched.
+    setSkin(sharedSkin.skin()==skellcore::ui::StudioSkin::Ivory
+        ? skellcore::ui::StudioSkin::Obsidian : sharedSkin.skin());
 }
 void SkellLookAndFeel::setSkin(skellcore::ui::StudioSkin chosen) {
     sharedSkin.setSkin(chosen);
