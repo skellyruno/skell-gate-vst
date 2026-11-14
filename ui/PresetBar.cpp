@@ -118,17 +118,21 @@ void PresetBar::runAction(int index) {
 }
 void PresetBar::showToolsMenu() {
     juce::PopupMenu menu;
-    menu.addSectionHeader("PRESET TOOLS");
-    menu.addItem(1, "Undo");
-    menu.addItem(2, "Redo");
+    menu.addSectionHeader("EDIT HISTORY");
+    menu.addItem(1,"Undo");
+    menu.addItem(2,"Redo");
+    juce::PopupMenu snapshots;
+    snapshots.addSectionHeader("A/B SNAPSHOTS");
+    snapshots.addItem(3,"Capture A");
+    snapshots.addItem(4,"Recall A");
+    snapshots.addItem(5,"Capture B");
+    snapshots.addItem(6,"Recall B");
     menu.addSeparator();
-    menu.addItem(3, "Capture A");
-    menu.addItem(4, "Recall A");
-    menu.addItem(5, "Capture B");
-    menu.addItem(6, "Recall B");
+    menu.addSubMenu("Compare A / B",snapshots);
     menu.addSeparator();
-    menu.addItem(7, "Save preset...");
-    menu.addItem(8, "Open preset...");
+    menu.addSectionHeader("PRESET FILES");
+    menu.addItem(7,"Save preset...");
+    menu.addItem(8,"Open preset...");
     juce::Component::SafePointer<PresetBar> safe(this);
     menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&tools),
         [safe](int choice) {
