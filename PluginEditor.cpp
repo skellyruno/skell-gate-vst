@@ -348,7 +348,14 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     top.settings.onClick = [this] { settings->setVisible(!settings->isVisible()); settings->toFront(false); };
     // Same skull-click appearance workflow as SkellKey and the SkellCore quickstart.
     top.skull.onClick = [this] {
-        const auto next = skellcore::ui::studioSkinFromIndex((static_cast<int>(look.skin()) + 1) % 4);
+        // Only the three muted SkellCore skins: charcoal green, purple,
+        // and burgundy. The washed-out cream/lime Ivory skin is omitted.
+        const auto current=look.skin();
+        const auto next=current==skellcore::ui::StudioSkin::Obsidian
+            ? skellcore::ui::StudioSkin::Amethyst
+            : current==skellcore::ui::StudioSkin::Amethyst
+                ? skellcore::ui::StudioSkin::Crimson
+                : skellcore::ui::StudioSkin::Obsidian;
         setLookAndFeel(nullptr);
         look.setSkin(next);
         setLookAndFeel(&look);
@@ -365,6 +372,7 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     setResizeLimits(480, 360, 1200, 900);
     getConstrainer()->setFixedAspectRatio(4.0 / 3.0);
     applyWindowSize(p.getSavedSize());
+    timerCallback(); // Show Power/Default guidance before the first screenshot.
     startTimerHz(30);
 }
 SkellGlitchAudioProcessorEditor::~SkellGlitchAudioProcessorEditor() {
@@ -373,9 +381,9 @@ SkellGlitchAudioProcessorEditor::~SkellGlitchAudioProcessorEditor() {
     // JUCE removes children automatically; this instance owns the widgets and settings.
 }
 void SkellGlitchAudioProcessorEditor::applyWindowSize(int index) {
-    // 75% is precisely half the size of the old 150% screenshot.
-    // The 50% option is available for very compact DAW layouts.
-    constexpr float scales[] = {.5f, .75f, 1.f, 1.25f};
+    // Index 1 was 75%: 0.75 * 0.89 = 0.6675, exactly 11% smaller.
+    // Preserve index IDs and previous sessions' saved selections.
+    constexpr float scales[] = {.5f, .6675f, 1.f, 1.25f};
     uiScale = scales[static_cast<size_t>(std::clamp(index, 0, 3))];
     processor.setSavedSize(index);
     setSize(juce::roundToInt(skell::theme::width * uiScale),
