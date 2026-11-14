@@ -197,12 +197,25 @@ public:
         setVisible(false);
         addAndMakeVisible(close);
         close.setButtonText("X"); close.onClick = [this] { setVisible(false); };
-        for (auto param : {"chaos", "reversePitch", "gateAttack", "gateRelease", "gateDepth", "gateSwing", "loopMs", "gateSteps", "seed"}) {
+        for (auto param : {"chaos", "reversePitch", "gateAttack", "gateRelease", "gateSwing", "loopMs", "gateSteps"}) {
             auto slider = std::make_unique<juce::Slider>();
             slider->setSliderStyle(juce::Slider::LinearHorizontal);
-            slider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 65, 19);
+            slider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 54, 19);
+            // Round for the human-facing settings UI only. Stored values
+            // and APVTS automation retain their original full precision.
+            slider->setNumDecimalPlacesToDisplay(0);
+            slider->textFromValueFunction=[](double v) {
+                return juce::String(juce::roundToInt(v));
+            };
             slider->setDoubleClickReturnValue(true, p.apvts.getParameter(param)->convertFrom0to1(p.apvts.getParameter(param)->getDefaultValue()));
-            labels.add(juce::String(param));
+            const juce::String key(param);
+            const juce::String label=key=="reversePitch"?"PITCH"
+                :key=="gateAttack"?"ATTACK"
+                :key=="gateRelease"?"RELEASE"
+                :key=="gateSwing"?"SWING"
+                :key=="loopMs"?"FREE LENGTH"
+                :key=="gateSteps"?"STEPS":"CHAOS";
+            labels.add(label);
             addAndMakeVisible(*slider);
             sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.apvts, param, *slider));
             sliders.push_back(std::move(slider));
@@ -214,7 +227,7 @@ public:
         // housed here, never deleted or silently disconnected.
         addCombo("reverseStyle", {"Classic", "Tape", "Ping-Pong", "Stutter"});
         addCombo("gateRate", {"1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T"});
-        for (const auto& param : {"bandInvert", "seedLock", "deltaListen"}) {
+        for (const auto& param : {"seedLock", "deltaListen"}) {
             auto t = std::make_unique<juce::TextButton>(param);
             t->setClickingTogglesState(true);
             addAndMakeVisible(*t);
@@ -232,7 +245,7 @@ public:
         jitter.setToggleState(p.titleJitter.load(), juce::dontSendNotification);
         jitter.onClick = [this] { processor.titleJitter.store(jitter.getToggleState()); };
         addAndMakeVisible(jitter);
-        size.addItemList({"XS - 50%", "S - 75%", "M - 100%", "L - 125%"}, 1);
+        size.addItemList({"XS - 50%", "S - 67%", "M - 100%", "L - 125%"}, 1);
         size.setSelectedId(p.getSavedSize() + 1, juce::dontSendNotification);
         size.onChange = [this] { if (size.getSelectedId() > 0) resizeEditor(size.getSelectedId() - 1); };
         addAndMakeVisible(size);
@@ -254,22 +267,22 @@ public:
         g.setColour(skell::theme::colour(skell::theme::gray));
         g.setFont(skell::theme::regular(12));
         for (int i = 0; i < labels.size(); ++i)
-            g.drawText(labels[i].toUpperCase(), 18, 49 + i * 26, 130, 21, juce::Justification::centredLeft);
+            g.drawText(labels[i].toUpperCase(), 18, 53 + i * 30, 126, 22, juce::Justification::centredLeft);
         constexpr const char* comboLabels[] = {"TRIGGER SOURCE", "LATENCY", "GATE CURVE",
                                                "REVERSE STYLE", "GATE RATE"};
         for (size_t i = 0; i < 5; ++i)
-            g.drawText(comboLabels[i], 18, 295 + static_cast<int>(i) * 29, 129, 24,
+            g.drawText(comboLabels[i], 18, 282 + static_cast<int>(i) * 30, 129, 24,
                        juce::Justification::centredLeft);
-        g.drawText("WINDOW SIZE", 18, 549, 130, 20, juce::Justification::centredLeft);
+        g.drawText("WINDOW SIZE", 18, 548, 130, 20, juce::Justification::centredLeft);
     }
     void resized() override {
         close.setBounds(getWidth() - 44, 10, 28, 28);
         for (size_t i = 0; i < sliders.size(); ++i)
-            sliders[i]->setBounds(140, 49 + static_cast<int>(i) * 26, getWidth() - 154, 22);
+            sliders[i]->setBounds(140, 53 + static_cast<int>(i) * 30, getWidth() - 154, 22);
         for (size_t i = 0; i < combos.size(); ++i)
-            combos[i]->setBounds(145, 295 + static_cast<int>(i) * 29, getWidth() - 161, 25);
+            combos[i]->setBounds(145, 282 + static_cast<int>(i) * 30, getWidth() - 161, 25);
         for (size_t i = 0; i < toggles.size(); ++i)
-            toggles[i]->setBounds(15 + static_cast<int>(i) * 124, 444, 120, 29);
+            toggles[i]->setBounds(15 + static_cast<int>(i) * 183, 439, 176, 29);
         manualCopy.setBounds(15, 478, 173, 29);
         jitter.setBounds(194, 478, 175, 29);
         trigger.setBounds(15, 512, 355, 29);
