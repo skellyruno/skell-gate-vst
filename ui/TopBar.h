@@ -25,6 +25,12 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
     void setJitterOffset(int v) { if (v != jitterOffset) { jitterOffset = v; repaint(); } }
+    void setTitleGlitchEnabled(bool enabled) {
+        if (titleGlitchEnabled != enabled) {
+            titleGlitchEnabled = enabled;
+            repaint();
+        }
+    }
     void setGlitchBurst(int intensity, std::uint32_t variant) {
         if (glitchIntensity != intensity || glitchVariant != variant) {
             glitchIntensity = intensity;
@@ -40,6 +46,7 @@ public:
 private:
     SkellGlitchAudioProcessor& processor;
     int jitterOffset = 0;
+    bool titleGlitchEnabled = true;
     int glitchIntensity = 0;
     std::uint32_t glitchVariant = 0;
 };
