@@ -205,7 +205,7 @@ void TopBar::paint(juce::Graphics& g) {
         g.setColour(green);
         g.drawText("GLITCH",137,7,102,30,juce::Justification::centredLeft);
     }
-    if (glitchIntensity > 0 && skell::theme::matteBlack()) {
+    if (glitchIntensity > 0 && titleGlitchEnabled && skell::theme::matteBlack()) {
         // Tiny occasional displacement of the title's green signal and a
         // few packet-loss bars. This is visual only, not a color/theme switch.
         juce::Graphics::ScopedSaveState burst(g);
@@ -217,7 +217,7 @@ void TopBar::paint(juce::Graphics& g) {
         g.drawText("GLITCH",juce::roundToInt(137.f+dx),7,102,30,
                    juce::Justification::centredLeft);
     }
-    if (glitchIntensity > 0 && skell::theme::matteBlack()) {
+    if (glitchIntensity > 0 && titleGlitchEnabled && skell::theme::matteBlack()) {
         std::uint32_t bits=glitchVariant ^ 0xd3c4f2a1u;
         for (int i=0;i<5;++i) {
             bits ^= bits<<13; bits ^= bits>>17; bits ^= bits<<5;
@@ -238,8 +238,8 @@ void TopBar::paint(juce::Graphics& g) {
     const int latency=processor.displayLatency.load(std::memory_order_relaxed);
     g.setFont(skell::theme::mono(12.f));
     g.setColour(dark.withAlpha(.93f));
-    g.drawText(juce::String(sr>0?sr/1000.0:48.0,1)+" kHz  •  "+juce::String(latency)+" samples",
-               628,18,191,25,juce::Justification::centredRight);
+    g.drawText(juce::String(sr>0?sr/1000.0:48.0,1)+" kHz  •  "+juce::String(latency)+" smp",
+               655,18,165,25,juce::Justification::centredRight);
     const bool enabled=processor.apvts.getRawParameterValue("power")->load()>=.5f;
     g.setFont(skell::theme::display(10.4f));
     g.setColour(enabled ? green.brighter(.16f) : juce::Colour(0xffec8d80));
