@@ -24,14 +24,12 @@ ModeRow::ModeRow(SkellGlitchAudioProcessor& p, juce::TextButton& syncControl)
     startTimerHz(20);
 }
 void ModeRow::resized() {
-    constexpr int gap = 8;
-    constexpr int count = 5;
-    const int w = (getWidth() - gap * (count - 1)) / count;
-    const int start = (getWidth() - (count * w + gap * (count - 1))) / 2;
-    sync.setBounds(start, 2, w, 34);
-    for (int i = 0; i < 3; ++i)
-        modes[static_cast<size_t>(i)].setBounds(start+(i+1)*(w+gap), 2, w, 34);
-    freeze.setBounds(start+4*(w+gap), 2, w, 34);
+    constexpr int gap = 11, count = 5, w = 92;
+    const int start = (getWidth() - (count*w+(count-1)*gap))/2;
+    sync.setBounds(start, 5, w, 29);
+    for (int i=0; i<3; ++i)
+        modes[static_cast<size_t>(i)].setBounds(start+(i+1)*(w+gap),5,w,29);
+    freeze.setBounds(start+4*(w+gap),5,w,29);
 }
 void ModeRow::paint(juce::Graphics&) {}
 void ModeRow::timerCallback() {
