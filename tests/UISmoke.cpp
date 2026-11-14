@@ -337,9 +337,11 @@ int main() {
     }
     auto* startStatus = dynamic_cast<juce::Label*>(
         findNamed(*editor,"LIVE_START_STATUS"));
-    if (!startStatus || !startStatus->getText().containsIgnoreCase("POWER") &&
-        !startStatus->getText().containsIgnoreCase("ACTIVE")) {
-        std::cerr << "UI_START: starting/bypass status missing\n";
+    if (!startStatus ||
+        (!startStatus->getText().containsIgnoreCase("POWER") &&
+         !startStatus->getText().containsIgnoreCase("ACTIVE")) ||
+        !startStatus->getText().contains(" / ")) {
+        std::cerr << "UI_START: active guidance missing or separator not printable\n";
         return 49;
     }
     // The low/high filter parameters remain available to restore legacy
@@ -411,8 +413,21 @@ int main() {
     auto* attackSetting=dynamic_cast<juce::Slider*>(
         findNamed(*editor,"SETTING_GATEATTACK"));
     if (!attackSetting || attackSetting->getTextFromValue(3.75)!="4") {
-        std::cerr << "UI_SETTINGS: advanced readout is not whole numbers\n";
+        std::cerr << "UI_SETTINGS: advanced formatter is not whole numbers\n";
         return 55;
+    }
+    // Checking getTextFromValue() alone misses the real bug: JUCE caches
+    // the initial four-decimal string inside the slider's Label widget.
+    juce::Label* liveReadout=nullptr;
+    for(int i=0;i<attackSetting->getNumChildComponents();++i)
+        if(auto* label=dynamic_cast<juce::Label*>(attackSetting->getChildComponent(i))) {
+            liveReadout=label;
+            break;
+        }
+    if (!liveReadout ||
+        liveReadout->getText()!=juce::String(juce::roundToInt(attackSetting->getValue()))) {
+        std::cerr << "UI_SETTINGS: real label still shows decimal places\n";
+        return 65;
     }
     auto* reverseStyleSetting = dynamic_cast<juce::ComboBox*>(
         findNamed(*editor, "REVERSESTYLE"));
