@@ -65,7 +65,6 @@ target_sources(SkellGlitch PRIVATE
     ui/WaveDisplay.h ui/WaveDisplay.cpp
     ui/GateGrid.h ui/GateGrid.cpp
     ui/ModeRow.h ui/ModeRow.cpp
-    ui/BandSlider.h ui/BandSlider.cpp
     ui/PresetBar.h ui/PresetBar.cpp
     dsp/TempoClock.h dsp/SliceCapture.h dsp/Reverser.h
     dsp/GateSequencer.h dsp/GateShaper.h dsp/BandSplitter.h
