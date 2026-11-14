@@ -1,14 +1,33 @@
 #include "PresetBar.h"
 #include "../PluginProcessor.h"
+#include <array>
+#include <algorithm>
+namespace {
+// Presentation ordering only; stable numeric preset IDs are unchanged.
+constexpr std::array<int,28> presetOrder{{
+    11,
+    0,1,5,6,8,10,12,13,14,15,16,
+    3,7,17,18,19,20,21,
+    2,4,9,22,23,24,25,26,27
+}};
+}
 PresetBar::PresetBar(SkellGlitchAudioProcessor& p) : processor(p),
     actions{juce::TextButton("UNDO"), juce::TextButton("REDO"), juce::TextButton("A+"),
             juce::TextButton("A USE"), juce::TextButton("B+"), juce::TextButton("B USE"),
             juce::TextButton("SAVE"), juce::TextButton("OPEN")} {
     setName("HEADER_PRESET_BAR");
-    presets.addItemList(SkellGlitchAudioProcessor::factoryPresetNames(), 1);
+    const auto names=SkellGlitchAudioProcessor::factoryPresetNames();
+    presets.addSectionHeading("DEFAULT");
+    for (int position=0; position<static_cast<int>(presetOrder.size()); ++position) {
+        if (position==1) presets.addSectionHeading("REVERSE");
+        if (position==12) presets.addSectionHeading("GATE");
+        if (position==19) presets.addSectionHeading("BOTH");
+        const int factoryId=presetOrder[static_cast<size_t>(position)];
+        presets.addItem(names[factoryId], factoryId+1);
+    }
     presets.setName("HEADER_PRESET_SELECTION");
     presets.setSelectedId(12, juce::dontSendNotification);
-    lastShownName = "INIT";
+    lastShownName = "Default";
     presets.onChange = [this] {
         if (presets.getSelectedId() > 0)
             processor.loadFactoryPreset(presets.getSelectedId() - 1);
@@ -72,15 +91,18 @@ void PresetBar::resized() {
     tools.setBounds(getWidth()-toolsWidth,2,toolsWidth,getHeight()-4);
 }
 void PresetBar::stepPreset(int direction) {
-    const int count = presets.getNumItems();
-    if (count <= 0) return;
-    const int current = presets.getSelectedItemIndex() >= 0
-        ? presets.getSelectedItemIndex() : count-1;
-    const int nextIndex = (current + direction + count) % count;
-    presets.setSelectedId(nextIndex+1,juce::sendNotificationSync);
+    const int currentId=presets.getSelectedId()-1;
+    const auto it=std::find(presetOrder.begin(),presetOrder.end(),currentId);
+    const int count=static_cast<int>(presetOrder.size());
+    const int current = it==presetOrder.end() ? 0 :
+        static_cast<int>(std::distance(presetOrder.begin(),it));
+    const int nextIndex=(current+direction+count)%count;
+    presets.setSelectedId(presetOrder[static_cast<size_t>(nextIndex)]+1,
+                          juce::sendNotificationSync);
 }
 void PresetBar::timerCallback() {
-    const juce::String name = processor.apvts.state.getProperty("presetName","INIT").toString();
+    const juce::String saved = processor.apvts.state.getProperty("presetName","Default").toString();
+    const juce::String name = saved=="INIT" ? "Default" : saved;
     if (name == lastShownName || name.isEmpty()) return;
     lastShownName = name;
     const int match = SkellGlitchAudioProcessor::factoryPresetNames().indexOf(name);
@@ -96,17 +118,21 @@ void PresetBar::runAction(int index) {
 }
 void PresetBar::showToolsMenu() {
     juce::PopupMenu menu;
-    menu.addSectionHeader("PRESET TOOLS");
-    menu.addItem(1, "Undo");
-    menu.addItem(2, "Redo");
+    menu.addSectionHeader("EDIT HISTORY");
+    menu.addItem(1,"Undo");
+    menu.addItem(2,"Redo");
+    juce::PopupMenu snapshots;
+    snapshots.addSectionHeader("A/B SNAPSHOTS");
+    snapshots.addItem(3,"Capture A");
+    snapshots.addItem(4,"Recall A");
+    snapshots.addItem(5,"Capture B");
+    snapshots.addItem(6,"Recall B");
     menu.addSeparator();
-    menu.addItem(3, "Capture A");
-    menu.addItem(4, "Recall A");
-    menu.addItem(5, "Capture B");
-    menu.addItem(6, "Recall B");
+    menu.addSubMenu("Compare A / B",snapshots);
     menu.addSeparator();
-    menu.addItem(7, "Save preset...");
-    menu.addItem(8, "Open preset...");
+    menu.addSectionHeader("PRESET FILES");
+    menu.addItem(7,"Save preset...");
+    menu.addItem(8,"Open preset...");
     juce::Component::SafePointer<PresetBar> safe(this);
     menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&tools),
         [safe](int choice) {

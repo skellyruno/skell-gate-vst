@@ -9,6 +9,7 @@
 #include "../ui/GlitchPulse.h"
 #include "../ui/TopBar.h"
 #include "../ui/GateGrid.h"
+#include "../PluginProcessor.h"
 
 // Reuse the exact processor factory linked into the VST3 wrapper.
 extern juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter();
@@ -21,6 +22,11 @@ int main() {
     std::unique_ptr<juce::AudioProcessorEditor> editor(processor->createEditor());
     if (!editor) { std::cerr << "Failed to create plugin editor\n"; return 2; }
     editor->setVisible(true);
+    if (editor->getWidth()<636 || editor->getWidth()>645 ||
+        editor->getHeight()<476 || editor->getHeight()>487) {
+        std::cerr << "UI_SIZE: default must be ~11 percent smaller than old 75 percent\n";
+        return 56;
+    }
     const auto directory = juce::File::getCurrentWorkingDirectory()
                                .getChildFile("build").getChildFile("ui-snapshots");
     if (!directory.createDirectory()) { std::cerr << "Failed creating snapshot directory\n"; return 3; }
@@ -100,10 +106,14 @@ int main() {
         return nullptr;
     };
     auto* power = findParameter("Power");
-    if (power == nullptr || power->getValue() >= .5f) {
-        std::cerr << "Expected bypassed initial power parameter\n";
+    if (power == nullptr || power->getValue() < .5f) {
+        std::cerr << "Expected enabled default starter effect\n";
         return 7;
     }
+    // The new default is ON, but explicit bypass must still reproduce the
+    // original dry signal sample-for-sample and preserve host latency.
+    power->setValueNotifyingHost(0.f);
+    processor->prepareToPlay(48000.0,512);
     // Full JUCE processor signal-path smoke: real blocks, 2-channel sine,
     // default bypass pass-through, then enabled reverse processing.
     juce::AudioBuffer<float> audio(2, 512);
@@ -152,6 +162,71 @@ int main() {
         std::cerr << "HOST_SMOKE: reverse inactive or unexpected zero-mode latency\n";
         return 12;
     }
+    // Preserve factory IDs 0..11 and verify new categorised programs
+    // contain audible, distinct gate/reverse/Both settings without using
+    // external host presets or file I/O.
+    const auto names=SkellGlitchAudioProcessor::factoryPresetNames();
+    auto* engine=dynamic_cast<SkellGlitchAudioProcessor*>(processor.get());
+    if (!engine || names.size()!=28 || names[11]!="Default" ||
+        engine->currentPresetName()!="Default") {
+        std::cerr << "PRESET: stable factory index or Default name incorrect\n";
+        return 51;
+    }
+    engine->loadFactoryPreset(17); // Gate / Sharp Sixteenths.
+    if (engine->apvts.getRawParameterValue("mode")->load()!=1.f ||
+        engine->apvts.getRawParameterValue("step2_state")->load()!=0.f) {
+        std::cerr << "PRESET: new Gate program not audible/distinct\n";
+        return 52;
+    }
+    engine->loadFactoryPreset(25); // Both / Slow Motion.
+    if (engine->apvts.getRawParameterValue("mode")->load()!=2.f) {
+        std::cerr << "PRESET: new Both program missing\n";
+        return 53;
+    }
+    // Actual audio A/B: selecting a Gate preset must audibly differ from
+    // the dry source without NaNs, overs or stereo image destruction.
+    engine->loadFactoryPreset(17);
+    engine->prepareToPlay(48000.0,512);
+    juce::AudioBuffer<float> gateSignal(2,512);
+    juce::MidiBuffer emptyMidi;
+    double gateDifference=0.0;
+    float maximum=0.f;
+    for (int block=0;block<110;++block) {
+        for (int sample=0;sample<512;++sample) {
+            const double phase=(block*512+sample)*6.283185307179586*220.0/48000.0;
+            const float dry=.26f*static_cast<float>(std::sin(phase));
+            gateSignal.setSample(0,sample,dry);
+            gateSignal.setSample(1,sample,-dry);
+        }
+        engine->processBlock(gateSignal,emptyMidi);
+        for (int sample=0;sample<512;++sample) {
+            const float dry=.26f*static_cast<float>(std::sin(
+                (block*512+sample)*6.283185307179586*220.0/48000.0));
+            const float left=gateSignal.getSample(0,sample);
+            const float right=gateSignal.getSample(1,sample);
+            if (!std::isfinite(left) || !std::isfinite(right) ||
+                std::abs(left+right)>.001f) {
+                std::cerr << "PRESET_AUDIO: gate introduced NaNs or stereo imbalance\n";
+                return 57;
+            }
+            maximum=std::max(maximum,std::abs(left));
+            gateDifference+=std::abs(left-dry);
+        }
+    }
+    if (gateDifference<2.0 || maximum>.85f) {
+        std::cerr << "PRESET_AUDIO: gate did not audibly modulate the signal or exceeded headroom\n";
+        return 58;
+    }
+    std::cout << "PRESET_AUDIO: gate vs dry sum="<<gateDifference
+              <<" peak="<<maximum<<" passed\n";
+    engine->loadFactoryPreset(11);
+    engine->prepareToPlay(48000.0,512);
+    if (engine->apvts.getRawParameterValue("power")->load()<.5f ||
+        engine->apvts.getRawParameterValue("loopLength")->load()!=2.f) {
+        std::cerr << "PRESET: Default still bypassed or too slow\n";
+        return 54;
+    }
+    std::cout << "PRESET: 28 factory programs, stable IDs and audible Default passed\n";
     // The actual UI callbacks must write automatable host parameters.
     std::function<juce::TextButton*(juce::Component&, const juce::String&)> findButton;
     findButton = [&](juce::Component& root, const juce::String& text) -> juce::TextButton* {
@@ -218,11 +293,40 @@ int main() {
     }
     visualHeader->setGlitchBurst(0,0u);
     visualSteps->setGlitchBurst(0,0u);
+    visualHeader->setTitleGlitchEnabled(false);
+    visualHeader->setGlitchBurst(3,0xac861b32u);
+    const auto titleOff=editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    int titleChanges=0;
+    for(int y=10;y<37;++y)
+        for(int x=138;x<230;++x)
+            if(calm.getPixelAt(x,y)!=titleOff.getPixelAt(x,y)) ++titleChanges;
+    visualHeader->setGlitchBurst(0,0u);
+    visualHeader->setTitleGlitchEnabled(true);
+    if (titleChanges>2) {
+        std::cerr << "UI_GLITCH: TITLE GLITCH off still moves title text\n";
+        return 64;
+    }
+
     std::cout << "UI_GLITCH: "<<pulse.bursts()<<" rare bursts in 90s, longest "
               <<longestRun<<" frames; changed skull="<<skullPixels
               <<" and steps="<<stepPixels<<" pixels\n";
     auto* settingsIcon = findNamed(*editor, "HEADER_SETTINGS");
     auto* powerIcon = findNamed(*editor, "HEADER_POWER");
+    auto* settingsButton=dynamic_cast<juce::TextButton*>(settingsIcon);
+    if (!settingsButton || !settingsButton->onClick) {
+        std::cerr << "UI_SETTINGS: settings icon is not interactive\n";
+        return 61;
+    }
+    settingsButton->onClick();
+    const auto settingsScene=editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    juce::FileOutputStream settingsOutput(directory.getChildFile(
+        "Skell-Glitch-Settings-960x720.png"));
+    if (settingsOutput.failedToOpen() ||
+        !png.writeImageToStream(settingsScene,settingsOutput)) {
+        std::cerr << "UI_SETTINGS: failed to render real Settings screenshot\n";
+        return 62;
+    }
+    settingsButton->onClick();
     if (!settingsIcon || !powerIcon || settingsIcon->getWidth() > 38 ||
         powerIcon->getWidth() > 38 || settingsIcon->getHeight() > 38 ||
         powerIcon->getHeight() > 38 ||
@@ -230,6 +334,40 @@ int main() {
         settingsIcon->getBounds().intersects(powerIcon->getBounds())) {
         std::cerr << "UI_LAYOUT: header gear and power controls are oversized or misaligned\n";
         return 38;
+    }
+    auto* startStatus = dynamic_cast<juce::Label*>(
+        findNamed(*editor,"LIVE_START_STATUS"));
+    if (!startStatus ||
+        (!startStatus->getText().containsIgnoreCase("POWER") &&
+         !startStatus->getText().containsIgnoreCase("ACTIVE")) ||
+        !startStatus->getText().contains(" / ")) {
+        std::cerr << "UI_START: active guidance missing or separator not printable\n";
+        return 49;
+    }
+    // The low/high filter parameters remain available to restore legacy
+    // presets, but the unwanted bar must not exist in the new editor.
+    if (findNamed(*editor,"LOW CUT") || findNamed(*editor,"HIGH CUT")) {
+        std::cerr << "UI_LAYOUT: low/high bar unexpectedly visible\n";
+        return 50;
+    }
+    // The 4 knob faces must match in actual diameter and mirror exactly
+    // around x=480, without touching the central sequencer lane.
+    auto* leftTop=findNamed(*editor,"FADE IN");
+    auto* rightTop=findNamed(*editor,"FADE OUT");
+    auto* leftBottom=findNamed(*editor,"SMOOTH");
+    auto* rightBottom=findNamed(*editor,"MIX");
+    if (!leftTop || !rightTop || !leftBottom || !rightBottom ||
+        leftTop->getWidth()!=rightTop->getWidth() ||
+        leftTop->getWidth()!=leftBottom->getWidth() ||
+        leftTop->getWidth()!=rightBottom->getWidth() ||
+        std::min(leftTop->getWidth(),leftTop->getHeight()) !=
+            std::min(leftBottom->getWidth(),leftBottom->getHeight()) ||
+        std::abs(leftTop->getBounds().getCentreX() +
+                 rightTop->getBounds().getCentreX()-960)>2 ||
+        std::abs(leftBottom->getBounds().getCentreX() +
+                 rightBottom->getBounds().getCentreX()-960)>2) {
+        std::cerr << "UI_LAYOUT: four hardware knobs are not symmetrical\n";
+        return 59;
     }
     auto* headerPreset = findNamed(*editor, "HEADER_PRESET_BAR");
     auto* presetTools = findNamed(*editor, "PRESET_TOOLS_MENU");
@@ -254,8 +392,14 @@ int main() {
     }
     nextPreset->onClick();
     if (selection->getSelectedId() != 12) {
-        std::cerr << "UI_PRESET: next preset did not restore INIT\n";
+        std::cerr << "UI_PRESET: next preset did not restore Default\n";
         return 35;
+    }
+    if (headerPreset &&
+        (std::abs(headerPreset->getBounds().getCentreX()-480)>1 ||
+         std::abs(visualSteps->getBounds().getCentreX()-480)>1)) {
+        std::cerr << "UI_LAYOUT: preset and sequencer are not centered\n";
+        return 60;
     }
     if (!headerPreset || !presetTools || !presetTools->isVisible() ||
         headerPreset->getY() >= 59 || headerPreset->getHeight() > 59 ||
@@ -266,6 +410,25 @@ int main() {
     }
     // The rate/style row must never intrude into the four rotary controls.
     // This caught an earlier 29-pixel downward shift that clipped MIX.
+    auto* attackSetting=dynamic_cast<juce::Slider*>(
+        findNamed(*editor,"SETTING_GATEATTACK"));
+    if (!attackSetting || attackSetting->getTextFromValue(3.75)!="4") {
+        std::cerr << "UI_SETTINGS: advanced formatter is not whole numbers\n";
+        return 55;
+    }
+    // Checking getTextFromValue() alone misses the real bug: JUCE caches
+    // the initial four-decimal string inside the slider's Label widget.
+    juce::Label* liveReadout=nullptr;
+    for(int i=0;i<attackSetting->getNumChildComponents();++i)
+        if(auto* label=dynamic_cast<juce::Label*>(attackSetting->getChildComponent(i))) {
+            liveReadout=label;
+            break;
+        }
+    if (!liveReadout ||
+        liveReadout->getText()!=juce::String(juce::roundToInt(attackSetting->getValue()))) {
+        std::cerr << "UI_SETTINGS: real label still shows decimal places\n";
+        return 65;
+    }
     auto* reverseStyleSetting = dynamic_cast<juce::ComboBox*>(
         findNamed(*editor, "REVERSESTYLE"));
     auto* gateRateSetting = dynamic_cast<juce::ComboBox*>(
@@ -365,10 +528,10 @@ int main() {
         return 40;
     }
     auto* selectedReverse = findButton(*editor, "REVERSE");
-    auto* selectedBar = findButton(*editor, "1 Bar");
+    auto* selectedBar = findButton(*editor, "1/8");
     if (!selectedReverse || !selectedBar || !selectedReverse->getToggleState()
         || !selectedBar->getToggleState()) {
-        std::cerr << "UI_CONTROL: initial mode/loop selection not visible\n";
+        std::cerr << "UI_CONTROL: initial reverse/short-loop selection not visible\n";
         return 17;
     }
     auto* mode = findParameter("Mode");
@@ -423,8 +586,8 @@ int main() {
         }
     }
     std::cout << "LATENCY_SMOKE: aligned=6000, bypass impulse sample=6000, passed\n";
-    // Verify that the official SkellCore skull is clickable and actually
-    // changes the real editor skin; four clicks must restore the original.
+    // Verify that the official SkellCore skull cycles the three muted skins:
+    // Obsidian, Amethyst, Crimson. Bright cream Ivory is intentionally skipped.
     std::function<juce::TextButton*(juce::Component&)> findSkull;
     findSkull = [&](juce::Component& root) -> juce::TextButton* {
         if (auto* button = dynamic_cast<juce::TextButton*>(&root))
@@ -442,13 +605,24 @@ int main() {
     const auto beforeSkin = editor->createComponentSnapshot(editor->getLocalBounds(),true);
     skull->onClick();
     const auto afterSkin = editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    juce::FileOutputStream altOutput(directory.getChildFile(
+        "Skell-Glitch-Amethyst-960x720.png"));
+    if (altOutput.failedToOpen() ||
+        !png.writeImageToStream(afterSkin,altOutput)) {
+        std::cerr << "UI_THEME: could not save true alternate-theme capture\n";
+        return 63;
+    }
     if (!beforeSkin.isValid() || !afterSkin.isValid()
         || beforeSkin.getPixelAt(120,170) == afterSkin.getPixelAt(120,170)) {
         std::cerr << "SKELLCORE_SKULL: clicking skull did not change editor skin\n";
         return 23;
     }
-    for (int i = 0; i < 3; ++i) skull->onClick();
-    std::cout << "SKELLCORE_SKULL: 4-skin cycle and return passed\n";
+    for (int i = 0; i < 2; ++i) skull->onClick();
+    if (skell::theme::ivory()) {
+        std::cerr << "SKELLCORE_SKULL: unwanted bright skin in local cycle\n";
+        return 48;
+    }
+    std::cout << "SKELLCORE_SKULL: 3-dark-skin cycle and return passed\n";
     const auto elapsed = std::chrono::duration<double>(
         std::chrono::steady_clock::now() - began).count();
     std::cout << "HOST_SMOKE: processed=" << processed

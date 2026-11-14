@@ -160,8 +160,8 @@ public:
         g.setFont(regular(14));
         g.setColour(colour(gray));
         g.drawText("LOOP LENGTH",426,120,110,24,juce::Justification::centred);
-        g.drawText("FADE IN",45,340,120,26,juce::Justification::centred);
-        g.drawText("FADE OUT",794,340,120,26,juce::Justification::centred);
+        g.drawText("FADE IN",43,346,122,25,juce::Justification::centred);
+        g.drawText("FADE OUT",795,346,122,25,juce::Justification::centred);
         // The five aligned performance controls explain themselves;
         // removing the isolated MODE engraving restores visual balance.
         g.drawText("SMOOTH",43,676,120,24,juce::Justification::centred);
@@ -197,14 +197,32 @@ public:
         setVisible(false);
         addAndMakeVisible(close);
         close.setButtonText("X"); close.onClick = [this] { setVisible(false); };
-        for (auto param : {"chaos", "reversePitch", "gateAttack", "gateRelease", "gateDepth", "gateSwing", "loopMs", "gateSteps", "seed"}) {
+        for (auto param : {"chaos", "reversePitch", "gateAttack", "gateRelease", "gateSwing", "loopMs", "gateSteps"}) {
             auto slider = std::make_unique<juce::Slider>();
             slider->setSliderStyle(juce::Slider::LinearHorizontal);
-            slider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 65, 19);
+            slider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 54, 19);
             slider->setDoubleClickReturnValue(true, p.apvts.getParameter(param)->convertFrom0to1(p.apvts.getParameter(param)->getDefaultValue()));
-            labels.add(juce::String(param));
+            const juce::String key(param);
+            const juce::String label=key=="reversePitch"?"PITCH"
+                :key=="gateAttack"?"ATTACK"
+                :key=="gateRelease"?"RELEASE"
+                :key=="gateSwing"?"SWING"
+                :key=="loopMs"?"FREE LENGTH"
+                :key=="gateSteps"?"STEPS":"CHAOS";
+            labels.add(label);
+            slider->setName("SETTING_"+key.toUpperCase());
             addAndMakeVisible(*slider);
             sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.apvts, param, *slider));
+            // APVTS attachments install their own text mapping. Apply the
+            // readable whole-number formatter *after* attachment creation,
+            // without quantising the actual automatable parameter.
+            slider->setNumDecimalPlacesToDisplay(0);
+            slider->textFromValueFunction=[](double v) {
+                return juce::String(juce::roundToInt(v));
+            };
+            // The JUCE Label retains its previous string when the value is
+            // unchanged. Refresh it explicitly after replacing the formatter.
+            slider->updateText();
             sliders.push_back(std::move(slider));
         }
         addCombo("triggerSource", {"Auto", "MIDI", "Sidechain", "Manual"});
@@ -214,7 +232,7 @@ public:
         // housed here, never deleted or silently disconnected.
         addCombo("reverseStyle", {"Classic", "Tape", "Ping-Pong", "Stutter"});
         addCombo("gateRate", {"1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T"});
-        for (const auto& param : {"bandInvert", "seedLock", "deltaListen"}) {
+        for (const auto& param : {"seedLock", "deltaListen"}) {
             auto t = std::make_unique<juce::TextButton>(param);
             t->setClickingTogglesState(true);
             addAndMakeVisible(*t);
@@ -232,7 +250,7 @@ public:
         jitter.setToggleState(p.titleJitter.load(), juce::dontSendNotification);
         jitter.onClick = [this] { processor.titleJitter.store(jitter.getToggleState()); };
         addAndMakeVisible(jitter);
-        size.addItemList({"XS - 50%", "S - 75%", "M - 100%", "L - 125%"}, 1);
+        size.addItemList({"XS - 50%", "S - 67%", "M - 100%", "L - 125%"}, 1);
         size.setSelectedId(p.getSavedSize() + 1, juce::dontSendNotification);
         size.onChange = [this] { if (size.getSelectedId() > 0) resizeEditor(size.getSelectedId() - 1); };
         addAndMakeVisible(size);
@@ -254,22 +272,22 @@ public:
         g.setColour(skell::theme::colour(skell::theme::gray));
         g.setFont(skell::theme::regular(12));
         for (int i = 0; i < labels.size(); ++i)
-            g.drawText(labels[i].toUpperCase(), 18, 49 + i * 26, 130, 21, juce::Justification::centredLeft);
+            g.drawText(labels[i].toUpperCase(), 18, 53 + i * 30, 126, 22, juce::Justification::centredLeft);
         constexpr const char* comboLabels[] = {"TRIGGER SOURCE", "LATENCY", "GATE CURVE",
                                                "REVERSE STYLE", "GATE RATE"};
         for (size_t i = 0; i < 5; ++i)
-            g.drawText(comboLabels[i], 18, 295 + static_cast<int>(i) * 29, 129, 24,
+            g.drawText(comboLabels[i], 18, 282 + static_cast<int>(i) * 30, 129, 24,
                        juce::Justification::centredLeft);
-        g.drawText("WINDOW SIZE", 18, 549, 130, 20, juce::Justification::centredLeft);
+        g.drawText("WINDOW SIZE", 18, 548, 130, 20, juce::Justification::centredLeft);
     }
     void resized() override {
         close.setBounds(getWidth() - 44, 10, 28, 28);
         for (size_t i = 0; i < sliders.size(); ++i)
-            sliders[i]->setBounds(140, 49 + static_cast<int>(i) * 26, getWidth() - 154, 22);
+            sliders[i]->setBounds(140, 53 + static_cast<int>(i) * 30, getWidth() - 154, 22);
         for (size_t i = 0; i < combos.size(); ++i)
-            combos[i]->setBounds(145, 295 + static_cast<int>(i) * 29, getWidth() - 161, 25);
+            combos[i]->setBounds(145, 282 + static_cast<int>(i) * 30, getWidth() - 161, 25);
         for (size_t i = 0; i < toggles.size(); ++i)
-            toggles[i]->setBounds(15 + static_cast<int>(i) * 124, 444, 120, 29);
+            toggles[i]->setBounds(15 + static_cast<int>(i) * 183, 439, 176, 29);
         manualCopy.setBounds(15, 478, 173, 29);
         jitter.setBounds(194, 478, 175, 29);
         trigger.setBounds(15, 512, 355, 29);
@@ -300,27 +318,35 @@ private:
 };
 
 SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudioProcessor& p)
-    : juce::AudioProcessorEditor(&p), processor(p), top(p), loops(p), waveform(p), gate(p), modes(p, top.sync), presets(p), band(p) {
+    : juce::AudioProcessorEditor(&p), processor(p), top(p), loops(p), waveform(p), gate(p), modes(p, top.sync), presets(p) {
     setLookAndFeel(&look);
     canvas.setInterceptsMouseClicks(false, true);
     addAndMakeVisible(canvas);
     background = std::make_unique<Backplate>();
     canvas.addAndMakeVisible(*background);
     background->setBounds(0, 0, skell::theme::width, skell::theme::height);
-    for (juce::Component* c : std::array<juce::Component*, 11>{&top, &loops, &waveform, &gate, &modes, &presets,
-                                                         &band, &fadeIn, &fadeOut, &smooth, &mix}) canvas.addAndMakeVisible(*c);
+    for (juce::Component* c : std::array<juce::Component*, 10>{&top, &loops, &waveform, &gate, &modes, &presets,
+                                                         &fadeIn, &fadeOut, &smooth, &mix}) canvas.addAndMakeVisible(*c);
     top.setBounds(skell::theme::top);
     loops.setBounds(skell::theme::loops);
     waveform.setBounds(skell::theme::wave);
     gate.setBounds(skell::theme::gate);
-    modes.setBounds(210, 477, 545, 40);
+    modes.setBounds(skell::theme::modes);
     // The preset bar is now a single header control; no third bottom row.
-    presets.setBounds(316, 11, 340, 37);
-    band.setBounds(skell::theme::band);
-    fadeIn.setBounds(34, 190, 141, 154);
-    fadeOut.setBounds(783, 190, 141, 154);
-    smooth.setBounds(34, 539, 130, 130);
-    mix.setBounds(788, 539, 130, 130);
+    presets.setBounds(310, 11, 340, 37);
+    // Four knobs use the same width, horizontal centres, and mirrored
+    // geometry; preserve the hardware metal material and the two dividers.
+    fadeIn.setBounds(33, 198, 141, 148);
+    fadeOut.setBounds(786, 198, 141, 148);
+    smooth.setBounds(33, 532, 141, 141);
+    mix.setBounds(786, 532, 141, 141);
+    startStatus.setName("LIVE_START_STATUS");
+    startStatus.setJustificationType(juce::Justification::centred);
+    startStatus.setFont(skell::theme::mono(13.1f));
+    startStatus.setColour(juce::Label::textColourId,skell::theme::colour(skell::theme::bone));
+    startStatus.setBounds(308, 581, 344, 46);
+    startStatus.setInterceptsMouseClicks(false,false);
+    canvas.addAndMakeVisible(startStatus);
     for (auto* slider : {&fadeIn, &fadeOut, &smooth, &mix}) slider->setDoubleClickReturnValue(true, slider == &smooth ? 30. : slider == &mix ? 100. : 0.);
     fadeIn.textFromValueFunction = [](double value) { return value < .5 ? "Inst" : juce::String(value, 0) + " ms"; };
     fadeOut.textFromValueFunction = fadeIn.textFromValueFunction;
@@ -340,14 +366,22 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     top.settings.onClick = [this] { settings->setVisible(!settings->isVisible()); settings->toFront(false); };
     // Same skull-click appearance workflow as SkellKey and the SkellCore quickstart.
     top.skull.onClick = [this] {
-        const auto next = skellcore::ui::studioSkinFromIndex((static_cast<int>(look.skin()) + 1) % 4);
+        // Only the three muted SkellCore skins: charcoal green, purple,
+        // and burgundy. The washed-out cream/lime Ivory skin is omitted.
+        const auto current=look.skin();
+        const auto next=current==skellcore::ui::StudioSkin::Obsidian
+            ? skellcore::ui::StudioSkin::Amethyst
+            : current==skellcore::ui::StudioSkin::Amethyst
+                ? skellcore::ui::StudioSkin::Crimson
+                : skellcore::ui::StudioSkin::Obsidian;
         setLookAndFeel(nullptr);
         look.setSkin(next);
         setLookAndFeel(&look);
         (void)skellcore::ui::StudioSkinStore::save(next);
         background->repaint();
         top.repaint(); loops.repaint(); waveform.repaint(); gate.repaint();
-        modes.repaint(); presets.repaint(); band.repaint();
+        modes.repaint(); presets.repaint();
+        startStatus.setColour(juce::Label::textColourId,skell::theme::colour(skell::theme::bone));
         for (auto* dial : {&fadeIn, &fadeOut, &smooth, &mix}) dial->repaint();
         settings->repaint();
     };
@@ -356,6 +390,7 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     setResizeLimits(480, 360, 1200, 900);
     getConstrainer()->setFixedAspectRatio(4.0 / 3.0);
     applyWindowSize(p.getSavedSize());
+    timerCallback(); // Show Power/Default guidance before the first screenshot.
     startTimerHz(30);
 }
 SkellGlitchAudioProcessorEditor::~SkellGlitchAudioProcessorEditor() {
@@ -364,9 +399,9 @@ SkellGlitchAudioProcessorEditor::~SkellGlitchAudioProcessorEditor() {
     // JUCE removes children automatically; this instance owns the widgets and settings.
 }
 void SkellGlitchAudioProcessorEditor::applyWindowSize(int index) {
-    // 75% is precisely half the size of the old 150% screenshot.
-    // The 50% option is available for very compact DAW layouts.
-    constexpr float scales[] = {.5f, .75f, 1.f, 1.25f};
+    // Index 1 was 75%: 0.75 * 0.89 = 0.6675, exactly 11% smaller.
+    // Preserve index IDs and previous sessions' saved selections.
+    constexpr float scales[] = {.5f, .6675f, 1.f, 1.25f};
     uiScale = scales[static_cast<size_t>(std::clamp(index, 0, 3))];
     processor.setSavedSize(index);
     setSize(juce::roundToInt(skell::theme::width * uiScale),
@@ -384,12 +419,27 @@ void SkellGlitchAudioProcessorEditor::timerCallback() {
     // Rare, bounded UI-only interference. No host parameter or audio engine
     // changes; the full backplate stays cached instead of repainting at 30 Hz.
     visualPulse.tick();
+    top.setTitleGlitchEnabled(processor.titleJitter.load(std::memory_order_relaxed));
     const int pulse = visualPulse.intensity();
     if (pulse > 0 || lastPulseIntensity > 0) {
         top.setGlitchBurst(pulse, visualPulse.visualSeed());
         gate.setGlitchBurst(pulse, visualPulse.visualSeed());
     }
     lastPulseIntensity = pulse;
+    const bool powerOn = processor.apvts.getRawParameterValue("power")->load() >= .5f;
+    const int activeMode = static_cast<int>(processor.apvts.getRawParameterValue("mode")->load());
+    if (powerOn != lastPower || activeMode != lastMode) {
+        lastPower = powerOn;
+        lastMode = activeMode;
+        const juce::String modeText = activeMode==0?"REVERSE":activeMode==1?"GATE":"BOTH";
+        startStatus.setText(powerOn ? "ACTIVE  /  "+modeText+"  /  PLAY AUDIO"
+                                    : "BYPASSED  /  PRESS POWER TO START",
+                            juce::dontSendNotification);
+        startStatus.setColour(juce::Label::textColourId,
+            powerOn ? skell::theme::colour(skell::theme::neon)
+                    : skell::theme::colour(skell::theme::gray));
+        top.repaint();
+    }
     const bool on = processor.apvts.getRawParameterValue("sync")->load() >= .5f;
     const auto label = on ? juce::String("SYNC ON") : juce::String("SYNC OFF");
     if (top.sync.getButtonText() != label) top.sync.setButtonText(label);

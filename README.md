@@ -1,3 +1,16 @@
+## Default-first workflow and compact UI (review)
+
+- New instances now load an **enabled**, audible **Default** state: 1/8-note Reverse, a varied gate-step pattern for switching to Gate or Both, and explicit green ON / red OFF indicators. The host still needs to provide audio/transport; if Power is turned OFF the effect transparently bypasses as before.
+- **How to start without a preset:** insert SkellGlitch on an audio track, play the track, confirm the power icon reads ON, select Reverse/Gate/Both, and click a loop length. Click/right-click the sequencer to edit steps. The centered status readout explains whether the signal is active or bypassed.
+- Built 16 additional factory sounds (28 total), grouped under **Default, Reverse, Gate, Both**. Existing factory IDs 0–11 remain the same; the old INIT label now displays as Default and new projects are named Default.
+- Removed the visible Low Cut / High Cut slider and its compilation unit; legacy **bandLow**, **bandHigh** and **bandInvert** DSP parameters stay serialized and automatable so older saved FL Studio projects and presets load unchanged.
+- Recentered waveform, sequencer and five smaller performance buttons beneath the preserved LOOP LENGTH and lower section divider lines. Made the four hardware knobs mirror each other in horizontal position and width, preserving their established material look.
+- Reduced settings to seven useful sliders, five rhythm/routing selectors and fewer toggles; slider readouts show **whole numbers** while real parameter precision and automation are preserved. Cleaned up Tools history / snapshots / files submenus.
+- Kept only the dark SkellCore **Obsidian**, **Amethyst** and **Crimson** themes in this plugin's skull-click cycle; the too-bright cream/Ivory variant is skipped without deleting the global SkellCore asset.
+- Saved UI size index 1 changes from 75% to **66.75%** (exactly 11% smaller), preserving other size indices and fixed aspect ratio.
+- The visual glitches use `ui/GlitchPulse.h` at a 30Hz UI clock: a burst of 3–5 frames (100–167ms), then about 5.5–12s of quiet. Title jitter is a distinct `titleJitter` boolean driven by `flipCounter` at slice boundaries and can still be disabled in Settings.
+- Validation remains required for real JUCE editor renders (four sizes), Power on/off, a freshly audible Default, 28 factory presets with legacy ID mapping, DSP/CPU, no new latency, menu navigation, and save/recall in FL Studio.
+
 ## SkellGlitch true-black / rare visual glitch polish
 - Darkens the default Obsidian chassis from green-charcoal to **near-true black**, while keeping all green button, meter, pattern, and knob accents readable. Other SkellCore skins are unchanged.
 - Keeps the premium 3D knob proportions and automation positions, refining the cap lighting, brushed highlights and needle-pin relief without adding extra readouts.

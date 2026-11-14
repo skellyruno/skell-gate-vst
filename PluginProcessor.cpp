@@ -32,9 +32,9 @@ P::ParameterLayout SkellGlitchAudioProcessor::makeLayout() {
         juce::NormalisableRange<float> range(lo, hi, interval, skew);
         v.push_back(std::make_unique<juce::AudioParameterFloat>(APID{id, 1}, name, range, def));
     };
-    boolean("power", "Power", false);
+    boolean("power", "Power", true); // New instances start ready; saved project states are unchanged.
     boolean("sync", "Tempo sync", true);
-    choice("loopLength", "Loop length", loopLabels, 5);
+    choice("loopLength", "Loop length", loopLabels, 2); // Audible 1/8-note reverse sooner.
     number("loopMs", "Free length", 10, 8000, 500);
     choice("mode", "Mode", {"Reverse", "Gate", "Both"}, 0);
     choice("reverseStyle", "Reverse style", {"Classic", "Tape", "PingPong", "Stutter"}, 0);
@@ -55,7 +55,8 @@ P::ParameterLayout SkellGlitchAudioProcessor::makeLayout() {
     for (int i = 1; i <= 32; ++i) {
         auto id = "step" + juce::String(i);
         v.push_back(std::make_unique<juce::AudioParameterChoice>(APID{id + "_state", 1},
-            "Step " + juce::String(i) + " state", juce::StringArray{"Off", "On", "Accent", "Reverse"}, 1));
+            "Step " + juce::String(i) + " state", juce::StringArray{"Off", "On", "Accent", "Reverse"},
+            ((i - 1) % 8 == 3 || (i - 1) % 8 == 6) ? 0 : 1));
         v.push_back(std::make_unique<juce::AudioParameterFloat>(APID{id + "_prob", 1},
             "Step " + juce::String(i) + " probability", juce::NormalisableRange<float>(0.f, 100.f, 1.f), 100.f));
     }
@@ -85,7 +86,7 @@ SkellGlitchAudioProcessor::SkellGlitchAudioProcessor()
     }
     apvts.state.setProperty("windowSize", 1, nullptr);  // 75%: half the size of old 150% screenshot
     apvts.state.setProperty("uiScaleVersion", 2, nullptr);
-    apvts.state.setProperty("presetName", "INIT", nullptr);
+    apvts.state.setProperty("presetName", "Default", nullptr);
     apvts.state.setProperty("gateFirst", false, nullptr);
     apvts.state.setProperty("titleJitter", true, nullptr);
 }
@@ -419,28 +420,40 @@ void SkellGlitchAudioProcessor::setSavedSize(int v) {
     apvts.state.setProperty("windowSize", juce::jlimit(0, 3, v), nullptr);
     apvts.state.setProperty("uiScaleVersion", 2, nullptr);
 }
-juce::String SkellGlitchAudioProcessor::currentPresetName() const { return apvts.state.getProperty("presetName", "INIT").toString(); }
+juce::String SkellGlitchAudioProcessor::currentPresetName() const {
+    const auto name=apvts.state.getProperty("presetName", "Default").toString();
+    return name == "INIT" ? "Default" : name;
+}
 void SkellGlitchAudioProcessor::setPresetName(const juce::String& name) { apvts.state.setProperty("presetName", name, nullptr); }
 void SkellGlitchAudioProcessor::setPattern(const std::array<int, 16>& pattern) {
     for (int i = 0; i < 16; ++i) writeParam(apvts, "step" + juce::String(i + 1) + "_state", static_cast<float>(pattern[static_cast<size_t>(i)]));
 }
 juce::StringArray SkellGlitchAudioProcessor::factoryPresetNames() {
+    // Factory IDs 0..11 are permanent: old projects and automation scripts
+    // can still reference the exact same programs. New programs append only.
     return {"Classic Reverse Bar", "Half-Time Flip", "Trap Chop", "Triplet Gate", "Rage Stutter",
             "Tape Reverse Swell", "Ping-Pong Glitch", "Offbeat Pump", "Vocal Tail Flip",
-            "Drum Buss Chop", "Snare Reverse Lead-In", "INIT"};
+            "Drum Buss Chop", "Snare Reverse Lead-In", "Default",
+            "Fast Flip", "Glass Backspin", "Vinyl Brake", "Vocal Pickup", "Pitch Down",
+            "Sharp Sixteenths", "Triplet Pulse", "Sparse Pump", "Kick Duck", "Double Cut",
+            "Stutter Driver", "Reverse Storm", "Chop And Flip", "Slow Motion",
+            "Breakbeat Scatter", "Micro Chop"};
 }
 void SkellGlitchAudioProcessor::loadFactoryPreset(int index) {
-    index = juce::jlimit(0, 11, index);
-    // Reset all parameters to their declared defaults, then apply the preset changes.
+    const auto names=factoryPresetNames();
+    if (index<0 || index>=names.size()) return;
+    // Reset to the declared parameter defaults first. Existing APVTS IDs and
+    // incoming FL Studio project states remain untouched.
     for (auto* p : getParameters()) if (auto* r = dynamic_cast<juce::RangedAudioParameter*>(p)) {
         r->beginChangeGesture();
         r->setValueNotifyingHost(r->getDefaultValue());
         r->endChangeGesture();
     }
-    std::array<int, 16> pattern{}; pattern.fill(1);
-    if (index != 11) setParameter("power", 1);
+    std::array<int, 16> pattern{};
+    for(int i=0;i<16;++i) pattern[static_cast<size_t>(i)] =
+        ((i%8)==3 || (i%8)==6) ? 0 : 1;
     switch (index) {
-    case 0: break;
+    case 0: setParameter("loopLength",5); break;
     case 1: setParameter("loopLength", 4); setParameter("smooth", 42); break;
     case 2: setParameter("mode", 2); setParameter("gateRate", 2); for (int i = 0; i < 16; ++i) pattern[i] = i % 4 == 0 ? 2 : (i % 2 ? 0 : 1); break;
     case 3: setParameter("mode", 1); setParameter("gateRate", 4); for (int i = 0; i < 16; ++i) pattern[i] = i % 3 == 0 ? 2 : 0; break;
@@ -451,10 +464,27 @@ void SkellGlitchAudioProcessor::loadFactoryPreset(int index) {
     case 8: setParameter("loopLength", 2); setParameter("mix", 45); setParameter("fadeIn", 16); setParameter("fadeOut", 60); break;
     case 9: setParameter("mode", 2); setParameter("smooth", 60); setParameter("mix", 55); for (int i = 0; i < 16; ++i) pattern[i] = i % 4 == 0 ? 2 : 1; break;
     case 10: setParameter("loopLength", 1); setParameter("smooth", 15); setParameter("mix", 66); break;
-    case 11: setParameter("power", 0); break;
+    case 11: break; // Default is an audible, enabled starter program.
+    case 12: setParameter("loopLength",0); setParameter("smooth",12); break;
+    case 13: setParameter("reverseStyle",2); setParameter("loopLength",1); setParameter("mix",85); break;
+    case 14: setParameter("reverseStyle",1); setParameter("fadeIn",35); setParameter("fadeOut",110); setParameter("loopLength",4); break;
+    case 15: setParameter("loopLength",1); setParameter("mix",57); setParameter("smooth",45); break;
+    case 16: setParameter("reversePitch",-5); setParameter("loopLength",3); setParameter("mix",74); break;
+    case 17: setParameter("mode",1); setParameter("gateRate",2); for(int i=0;i<16;++i) pattern[i]=i%4==0?2:(i%2==0?1:0); break;
+    case 18: setParameter("mode",1); setParameter("gateRate",4); for(int i=0;i<16;++i) pattern[i]=i%3==0?2:(i%3==1?1:0); break;
+    case 19: setParameter("mode",1); setParameter("gateRate",1); for(int i=0;i<16;++i) pattern[i]=i%4==0?1:0; break;
+    case 20: setParameter("mode",1); setParameter("gateRate",2); for(int i=0;i<16;++i) pattern[i]=i%4==0?0:1; break;
+    case 21: setParameter("mode",1); setParameter("gateRate",3); for(int i=0;i<16;++i) pattern[i]=(i%4)<2?1:0; break;
+    case 22: setParameter("mode",2); setParameter("reverseStyle",3); setParameter("loopLength",1); setParameter("smooth",9); break;
+    case 23: setParameter("mode",2); setParameter("chaos",36); setParameter("loopLength",2); setParameter("mix",90); break;
+    case 24: setParameter("mode",2); setParameter("loopLength",1); for(int i=0;i<16;++i) pattern[i]=i%3==0?3:(i%3==1?1:0); break;
+    case 25: setParameter("mode",2); setParameter("loopLength",6); setParameter("reversePitch",-7); setParameter("mix",60); break;
+    case 26: setParameter("mode",2); setParameter("chaos",48); for(int i=0;i<16;++i) pattern[i]=i%4==0?2:(i%4==3?0:1); break;
+    case 27: setParameter("mode",2); setParameter("loopLength",0); setParameter("gateRate",3); setParameter("smooth",7); break;
+    default: break;
     }
     setPattern(pattern);
-    setPresetName(factoryPresetNames()[index]);
+    setPresetName(names[index]);
 }
 void SkellGlitchAudioProcessor::snapshotAB(int slot) {
     if (slot < 0 || slot > 1) return;

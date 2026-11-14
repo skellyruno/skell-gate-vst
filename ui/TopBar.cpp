@@ -131,8 +131,12 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
             ? neon.darker(active ? .06f : .32f)
             : skell::theme::colour(skell::theme::dim).darker(.35f);
         if (active) {
-            g.setColour(neon.withAlpha(.085f));
-            g.fillEllipse(ellipse(radius - 5.f));
+            // Switch ON: green illuminated metal barrel and unmistakable
+            // power glyph; OFF: dark barrel, warm red status LED.
+            g.setColour(neon.withAlpha(.20f));
+            g.fillEllipse(ellipse(radius - 4.f));
+            g.setColour(neon.withAlpha(.17f));
+            g.drawEllipse(ellipse(radius - 2.6f),1.8f);
         }
         juce::Path powerArc;
         powerArc.addCentredArc(c.x,c.y+1.f,9.f,9.f,0.f,.68f,
@@ -142,12 +146,16 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
         g.setColour(juce::Colours::black.withAlpha(.49f));
         g.strokePath(powerArc,juce::PathStrokeType(5.f));
         g.drawLine(c.x+1.3f,c.y-11.8f,c.x+1.3f,c.y+.5f,4.5f);
-        g.setColour(olive);
+        g.setColour(active ? neon.brighter(.35f) : skell::theme::colour(skell::theme::gray).darker(.36f));
         g.strokePath(powerArc,thick);
         g.drawLine(c.x,c.y-11.f,c.x,c.y+.5f,3.5f);
-        g.setColour(neon.darker(.24f).withAlpha(.83f));
-        g.strokePath(powerArc,juce::PathStrokeType(1.15f));
-        g.drawLine(c.x-.8f,c.y-10.1f,c.x-.8f,c.y-1.f,1.f);
+        if (active) {
+            g.setColour(juce::Colour(0xffe9ffde).withAlpha(.74f));
+            g.strokePath(powerArc,juce::PathStrokeType(.95f));
+            g.drawLine(c.x-.8f,c.y-10.1f,c.x-.8f,c.y-1.f,1.f);
+        }
+        g.setColour(active ? neon : juce::Colour(0xffe77766));
+        g.fillEllipse(c.x+8.5f,c.y+7.8f,4.9f,4.9f);
     }
     if(hover || down) {
         g.setColour(neon.withAlpha(down?.12f:.055f));
@@ -163,7 +171,7 @@ TopBar::TopBar(SkellGlitchAudioProcessor& p) : processor(p) {
     power.setName("HEADER_POWER");
     skull.setTooltip("SKELL appearance: click skull to cycle the shared SkellCore skins");
     settings.setTooltip("Engine settings and window sizes");
-    power.setTooltip("Click-free effect bypass");
+    power.setTooltip("POWER: green ON processes audio; red OFF bypasses the effect");
 }
 void TopBar::resized() {
     skull.setBounds(10,4,49,50);
@@ -197,7 +205,7 @@ void TopBar::paint(juce::Graphics& g) {
         g.setColour(green);
         g.drawText("GLITCH",137,7,102,30,juce::Justification::centredLeft);
     }
-    if (glitchIntensity > 0 && skell::theme::matteBlack()) {
+    if (glitchIntensity > 0 && titleGlitchEnabled && skell::theme::matteBlack()) {
         // Tiny occasional displacement of the title's green signal and a
         // few packet-loss bars. This is visual only, not a color/theme switch.
         juce::Graphics::ScopedSaveState burst(g);
@@ -209,7 +217,7 @@ void TopBar::paint(juce::Graphics& g) {
         g.drawText("GLITCH",juce::roundToInt(137.f+dx),7,102,30,
                    juce::Justification::centredLeft);
     }
-    if (glitchIntensity > 0 && skell::theme::matteBlack()) {
+    if (glitchIntensity > 0 && titleGlitchEnabled && skell::theme::matteBlack()) {
         std::uint32_t bits=glitchVariant ^ 0xd3c4f2a1u;
         for (int i=0;i<5;++i) {
             bits ^= bits<<13; bits ^= bits>>17; bits ^= bits<<5;
@@ -230,6 +238,10 @@ void TopBar::paint(juce::Graphics& g) {
     const int latency=processor.displayLatency.load(std::memory_order_relaxed);
     g.setFont(skell::theme::mono(12.f));
     g.setColour(dark.withAlpha(.93f));
-    g.drawText(juce::String(sr>0?sr/1000.0:48.0,1)+" kHz  •  "+juce::String(latency)+" samples",
-               653,18,206,25,juce::Justification::centredRight);
+    g.drawText(juce::String(sr>0?sr/1000.0:48.0,1)+" kHz  •  "+juce::String(latency)+" smp",
+               655,18,165,25,juce::Justification::centredRight);
+    const bool enabled=processor.apvts.getRawParameterValue("power")->load()>=.5f;
+    g.setFont(skell::theme::display(10.4f));
+    g.setColour(enabled ? green.brighter(.16f) : juce::Colour(0xffec8d80));
+    g.drawText(enabled ? "ON" : "OFF",824,19,53,23,juce::Justification::centredRight);
 }
