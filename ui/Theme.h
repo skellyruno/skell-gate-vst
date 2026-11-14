@@ -132,10 +132,10 @@ inline void roundTile(juce::Graphics& g, juce::Rectangle<float> bounds, float co
 }
 inline const juce::Rectangle<int> top{0,0,width,59};
 inline const juce::Rectangle<int> loops{22,72,924,71};
-inline const juce::Rectangle<int> wave{210,178,540,212};
-inline const juce::Rectangle<int> gate{210,399,545,85};
-inline const juce::Rectangle<int> modes{210,491,545,41};
-inline const juce::Rectangle<int> presets{316,11,340,37};
+inline const juce::Rectangle<int> wave{208,178,544,212};
+inline const juce::Rectangle<int> gate{208,399,544,85};
+inline const juce::Rectangle<int> modes{208,491,544,41};
+inline const juce::Rectangle<int> presets{310,11,340,37};
 // Filter parameters remain serialized for backwards compatibility;
 // the low/high cut widget is intentionally absent from the editor.
 }
