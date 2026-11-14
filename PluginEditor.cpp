@@ -216,6 +216,7 @@ public:
                 :key=="loopMs"?"FREE LENGTH"
                 :key=="gateSteps"?"STEPS":"CHAOS";
             labels.add(label);
+            slider->setName("SETTING_"+key.toUpperCase());
             addAndMakeVisible(*slider);
             sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.apvts, param, *slider));
             sliders.push_back(std::move(slider));
