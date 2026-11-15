@@ -426,6 +426,7 @@ juce::String SkellGlitchAudioProcessor::currentPresetName() const {
 }
 void SkellGlitchAudioProcessor::setPresetName(const juce::String& name) { apvts.state.setProperty("presetName", name, nullptr); }
 void SkellGlitchAudioProcessor::setPattern(const std::array<int, 16>& pattern) {
+    apvts.state.setProperty("patternName", "Custom", nullptr);
     for (int i = 0; i < 16; ++i) writeParam(apvts, "step" + juce::String(i + 1) + "_state", static_cast<float>(pattern[static_cast<size_t>(i)]));
 }
 juce::StringArray SkellGlitchAudioProcessor::factoryPresetNames() {
