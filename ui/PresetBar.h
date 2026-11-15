@@ -21,7 +21,7 @@ private:
     void openPreset();
 
     juce::TextButton previous{"<"}, next{">"};
-    juce::TextButton presetSelector{"Default  \u25be"};
+    juce::TextButton presetSelector{"Default"};
     juce::TextButton undo{"UNDO"}, redo{"REDO"};
     juce::String lastShownName;
     std::unique_ptr<juce::FileChooser> chooser;
