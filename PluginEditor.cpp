@@ -327,6 +327,24 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     background->setBounds(0, 0, skell::theme::width, skell::theme::height);
     for (juce::Component* c : std::array<juce::Component*, 10>{&top, &loops, &waveform, &gate, &modes, &presets,
                                                          &fadeIn, &fadeOut, &smooth, &mix}) canvas.addAndMakeVisible(*c);
+    previousPattern.setName("STEP_PATTERN_PREVIOUS");
+    nextPattern.setName("STEP_PATTERN_NEXT");
+    previousPattern.setTooltip("Previous step pattern");
+    nextPattern.setTooltip("Next step pattern");
+    previousPattern.onClick = [this] {
+        const auto name=gate.cyclePattern(-1);
+        previousPattern.setTooltip("Pattern: "+name+" (previous)");
+        nextPattern.setTooltip("Pattern: "+name+" (next)");
+    };
+    nextPattern.onClick = [this] {
+        const auto name=gate.cyclePattern(1);
+        previousPattern.setTooltip("Pattern: "+name+" (previous)");
+        nextPattern.setTooltip("Pattern: "+name+" (next)");
+    };
+    canvas.addAndMakeVisible(previousPattern);
+    canvas.addAndMakeVisible(nextPattern);
+    previousPattern.setBounds(169,411,31,32);
+    nextPattern.setBounds(760,411,31,32);
     top.setBounds(skell::theme::top);
     loops.setBounds(skell::theme::loops);
     waveform.setBounds(skell::theme::wave);
@@ -380,7 +398,7 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
         (void)skellcore::ui::StudioSkinStore::save(next);
         background->repaint();
         top.repaint(); loops.repaint(); waveform.repaint(); gate.repaint();
-        modes.repaint(); presets.repaint();
+        modes.repaint(); presets.repaint(); previousPattern.repaint(); nextPattern.repaint();
         startStatus.setColour(juce::Label::textColourId,skell::theme::colour(skell::theme::bone));
         for (auto* dial : {&fadeIn, &fadeOut, &smooth, &mix}) dial->repaint();
         settings->repaint();
