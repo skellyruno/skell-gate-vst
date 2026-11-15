@@ -73,7 +73,7 @@ void PresetBar::timerCallback() {
     const auto name=processor.currentPresetName();
     if (name!=lastShownName) {
         lastShownName=name;
-        presetSelector.setButtonText(name+"  \u25be");
+        presetSelector.setButtonText(name+"  "+juce::String::fromUTF8("\xE2\x96\xBE"));
     }
     const bool canUndo=processor.undo.canUndo();
     const bool canRedo=processor.undo.canRedo();
