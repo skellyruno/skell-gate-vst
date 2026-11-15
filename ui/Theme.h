@@ -85,11 +85,18 @@ inline void raised(juce::Graphics& g, juce::Rectangle<float> bounds, float radiu
         g.fillRoundedRectangle(bounds, radius);
         auto face = bounds.reduced(2.6f, 2.8f);
         g.setGradientFill(juce::ColourGradient(
-            pressed ? juce::Colour(0xff18321b) : metal.brighter(selected ? .30f : .13f),
+            pressed ? juce::Colour(0xff18321b) : metal.brighter(selected ? .36f : .20f),
             face.getCentreX(), face.getY(),
             selected ? juce::Colour(0xff17351d) : juce::Colour(0xff0d140f),
             face.getCentreX(), face.getBottom(), false));
-        g.fillRoundedRectangle(face, std::max(2.f, radius-2.f));
+        const float faceRadius=std::max(2.f,radius-2.f);
+        g.fillRoundedRectangle(face,faceRadius);
+        // Dual-depth bezel: softly inset steel edge and raised glass-metal
+        // face, but NO bar/underline through the selected switch.
+        g.setColour(juce::Colours::black.withAlpha(pressed ? .68f : .44f));
+        g.drawRoundedRectangle(face.reduced(.5f),std::max(1.f,faceRadius-.5f),1.25f);
+        g.setColour(juce::Colour(0xffb5c8b3).withAlpha(selected ? .24f : .15f));
+        g.drawRoundedRectangle(face.reduced(1.65f),std::max(1.f,faceRadius-1.5f),.55f);
         // Keep a clear machined face. No horizontal glints or light
         // underline on selected buttons: selected state is the perimeter
         // halo and dimensional fill only.
