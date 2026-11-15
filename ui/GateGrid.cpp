@@ -121,7 +121,8 @@ void GateGrid::paint(juce::Graphics& g) {
 }
 void GateGrid::setStep(int index, int value) {
     // A manually touched pattern is no longer a factory step pattern.
-    processor.apvts.state.setProperty("patternName", "Custom", nullptr);
+    if (processor.apvts.state.getProperty("patternName") != "Custom")
+        processor.apvts.state.setProperty("patternName", "Custom", nullptr);
     const auto key = "step" + juce::String(index + 1) + "_state";
     if (auto* p = processor.apvts.getParameter(key)) {
         p->beginChangeGesture();
@@ -254,7 +255,6 @@ void GateGrid::loadPattern(int index) {
     const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);
     index = std::clamp(index, 0, 12);
     const auto name = juce::String(patternNames[index]);
-    processor.apvts.state.setProperty("patternName", name, nullptr);
     for (int i = 0; i < steps; ++i) {
         int value = 1;
         switch (index) {
@@ -268,5 +268,6 @@ void GateGrid::loadPattern(int index) {
         }
         setStep(i, value);
     }
+    processor.apvts.state.setProperty("patternName", name, nullptr);
     repaint();
 }
