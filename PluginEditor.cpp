@@ -109,8 +109,8 @@ public:
             // Small, flush six-sided socket fasteners. The old bright X
             // heads overlapped the loop buttons, so mount these below the
             // loop section and in the free lower chassis margins.
-            for (const auto& loc : {juce::Point<float>{17.f,157.f},
-                                    juce::Point<float>{943.f,157.f},
+            for (const auto& loc : {juce::Point<float>{17.f,65.f},
+                                    juce::Point<float>{943.f,65.f},
                                     juce::Point<float>{17.f,697.f},
                                     juce::Point<float>{943.f,697.f}}) {
                 constexpr float headR = 5.25f;
@@ -160,12 +160,12 @@ public:
         g.setFont(regular(14));
         g.setColour(colour(gray));
         g.drawText("LOOP LENGTH",426,120,110,24,juce::Justification::centred);
-        g.drawText("FADE IN",43,346,122,25,juce::Justification::centred);
-        g.drawText("FADE OUT",795,346,122,25,juce::Justification::centred);
+        g.drawText("FADE IN",63,346,122,25,juce::Justification::centred);
+        g.drawText("FADE OUT",775,346,122,25,juce::Justification::centred);
         // The five aligned performance controls explain themselves;
         // removing the isolated MODE engraving restores visual balance.
-        g.drawText("SMOOTH",43,676,120,24,juce::Justification::centred);
-        g.drawText("MIX",793,676,120,24,juce::Justification::centred);
+        g.drawText("SMOOTH",64,676,120,24,juce::Justification::centred);
+        g.drawText("MIX",776,676,120,24,juce::Justification::centred);
         // The version is engraved alongside the brand in the header.
     }
 };
@@ -336,10 +336,10 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     presets.setBounds(310, 11, 340, 37);
     // Four knobs use the same width, horizontal centres, and mirrored
     // geometry; preserve the hardware metal material and the two dividers.
-    fadeIn.setBounds(33, 198, 141, 148);
-    fadeOut.setBounds(786, 198, 141, 148);
-    smooth.setBounds(33, 532, 141, 141);
-    mix.setBounds(786, 532, 141, 141);
+    fadeIn.setBounds(53, 198, 141, 148);
+    fadeOut.setBounds(766, 198, 141, 148);
+    smooth.setBounds(53, 532, 141, 141);
+    mix.setBounds(766, 532, 141, 141);
     startStatus.setName("LIVE_START_STATUS");
     startStatus.setJustificationType(juce::Justification::centred);
     startStatus.setFont(skell::theme::mono(13.1f));
