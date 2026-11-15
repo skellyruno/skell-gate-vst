@@ -81,7 +81,7 @@ void PresetBar::timerCallback() {
     if (redo.isEnabled()!=canRedo) redo.setEnabled(canRedo);
 }
 
-void PresetBar::showPresetMenu() {
+juce::PopupMenu PresetBar::buildPresetMenu() const {
     juce::PopupMenu menu;
     const auto names=SkellGlitchAudioProcessor::factoryPresetNames();
     const auto selected=processor.currentPresetName();
@@ -109,6 +109,11 @@ void PresetBar::showPresetMenu() {
     snapshots.addItem(captureBId,"Capture B");
     snapshots.addItem(recallBId,"Recall B");
     menu.addSubMenu("A / B snapshots",snapshots);
+    return menu;
+}
+
+void PresetBar::showPresetMenu() {
+    auto menu=buildPresetMenu();
     juce::Component::SafePointer<PresetBar> safe(this);
     menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&presetSelector),
         [safe](int choice) {
