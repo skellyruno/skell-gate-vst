@@ -28,6 +28,7 @@ private:
     LoopRow loops;
     WaveDisplay waveform;
     GateGrid gate;
+    juce::TextButton previousPattern{"<"}, nextPattern{">"};
     ModeRow modes;
     PresetBar presets;
     juce::Label startStatus;
