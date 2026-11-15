@@ -403,6 +403,11 @@ int main() {
         std::cerr << "UI_PRESET: next preset did not restore Default\n";
         return 35;
     }
+    if (!selection->getButtonText().endsWith(
+            juce::String::fromUTF8("\xE2\x96\xBE"))) {
+        std::cerr << "UI_PRESET: preset dropdown arrow became a missing-codepage glyph\n";
+        return 73;
+    }
     // Verify real PopupMenu category submenus and in-menu Save/Open commands
     // rather than a flat ComboBox or a duplicate TOOLS control.
     auto popup=headerPreset->buildPresetMenu();
