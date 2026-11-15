@@ -11,6 +11,7 @@ public:
     void resized() override;
     void paint(juce::Graphics&) override;
     void showPresetMenu();
+    juce::PopupMenu buildPresetMenu() const;
 private:
     SkellGlitchAudioProcessor& processor;
     void timerCallback() override;
