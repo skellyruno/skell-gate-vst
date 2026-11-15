@@ -20,6 +20,9 @@ public:
     void mouseMove(const juce::MouseEvent&) override;
     void mouseExit(const juce::MouseEvent&) override;
     void resized() override;
+    // Cycling uses the existing contextual-menu patterns, not a second
+    // pattern library. Steps and probabilities remain host-automatable.
+    juce::String cyclePattern(int direction);
 private:
     void timerCallback() override;
     void edit(const juce::MouseEvent&);
