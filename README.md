@@ -1,3 +1,14 @@
+## SkellGlitch hardware controls / step-pattern navigation (review candidate)
+
+- Fixed the Fade In/Out **green light appearing stuck**. The old arc was hard-coded to 71.5% of its range: the inlaid marker moved, but the bright segment did not. Both Fade rings now render a short green segment centered on the real host-automated value, even at the instant endpoint.
+- Shifted all four machined knobs 20px toward the central readout, still mirroring around x=480 with consistent size and keeping both engraved separator rules.
+- Moved the two small upper hex fasteners from y=157 to y=65, on the exposed chassis edge above the loop buttons.
+- Added left/right step-pattern arrow buttons on either side of the sequencer, using the **same TextButton styling and angle brackets as the preset strip**, not a new bar. They cycle all 13 existing named patterns and wrap around; clicking/right-clicking the cells and their context menu still work. Named pattern status is saved in the existing state property; manual step edits mark the selection Custom.
+- Redesigned the preset strip: native themed cascading **Reverse**, **Gate**, **Both** submenus; Default plus Save/Open preset actions in the same dropdown; **Undo** and **Redo** are now standalone compact hardware buttons. The TOOLS button is removed. A/B snapshot commands remain available in the Preset dropdown's A/B submenu, with unchanged callback semantics and factory preset IDs.
+- Improved face/bezel depth on the hardware buttons without reinstating the unwanted illuminated horizontal underline across active switches.
+- Expanded JUCE UI smoke coverage: real rendered before/after green ring pixels on *both* fade knobs, arrow-to-pattern parameter changes, submenu hierarchy and Save/Open entries, centered controls, and the prior DSP, automation, presets, latency and four-size UI regressions.
+- **No new VST3 parameter IDs** and no changes to the audio algorithm. Stored project states and old presets remain supported. FL Studio live validation is still a distinct release gate.
+
 ## Default-first workflow and compact UI (review)
 
 - New instances now load an **enabled**, audible **Default** state: 1/8-note Reverse, a varied gate-step pattern for switching to Gate or Both, and explicit green ON / red OFF indicators. The host still needs to provide audio/transport; if Power is turned OFF the effect transparently bypasses as before.

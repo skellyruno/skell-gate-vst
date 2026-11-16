@@ -161,13 +161,19 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     g.setColour(skell::theme::colour(skell::theme::dim).darker(.15f).withAlpha(.82f));
     g.strokePath(track,juce::PathStrokeType(3.5f,juce::PathStrokeType::curved,
                                            juce::PathStrokeType::rounded));
-    // The fade knob's short neon arc is an illuminated backplate. The small
-    // moving dot remains the honest automation position at Inst / 0 ms.
-    juce::Path illuminated = progress;
+    // The fade glow MUST track its automatable value. Previously the fade
+    // arc was deliberately fixed at 71.5% of the track, so it appeared
+    // broken even though the pointer dot moved. A short active green sweep
+    // now follows the dial at every position, including the Inst endpoint.
+    // Other knobs retain a fill-from-start value meter.
+    juce::Path illuminated;
     if (fade) {
-        illuminated.clear();
+        const float segment = (end-start)*.12f;
+        const float from = std::clamp(angle-segment*.5f,start,end-segment);
         illuminated.addCentredArc(c.x,c.y,ringRadius,ringRadius,0.f,
-                                 start,start+(end-start)*.715f,true);
+                                 from,from+segment,true);
+    } else {
+        illuminated = progress;
     }
     g.setColour(neon.darker(.46f).withAlpha(.65f));
     g.strokePath(illuminated,juce::PathStrokeType(7.f,juce::PathStrokeType::curved,

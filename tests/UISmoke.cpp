@@ -9,6 +9,7 @@
 #include "../ui/GlitchPulse.h"
 #include "../ui/TopBar.h"
 #include "../ui/GateGrid.h"
+#include "../ui/PresetBar.h"
 #include "../PluginProcessor.h"
 
 // Reuse the exact processor factory linked into the VST3 wrapper.
@@ -369,43 +370,105 @@ int main() {
         std::cerr << "UI_LAYOUT: four hardware knobs are not symmetrical\n";
         return 59;
     }
-    auto* headerPreset = findNamed(*editor, "HEADER_PRESET_BAR");
-    auto* presetTools = findNamed(*editor, "PRESET_TOOLS_MENU");
+    auto* headerPreset = dynamic_cast<PresetBar*>(
+        findNamed(*editor, "HEADER_PRESET_BAR"));
     auto* previousPreset = dynamic_cast<juce::TextButton*>(
         findNamed(*editor, "PRESET_PREVIOUS"));
     auto* nextPreset = dynamic_cast<juce::TextButton*>(
         findNamed(*editor, "PRESET_NEXT"));
-    auto* selection = dynamic_cast<juce::ComboBox*>(
+    auto* selection = dynamic_cast<juce::TextButton*>(
         findNamed(*editor, "HEADER_PRESET_SELECTION"));
-    if (findButton(*editor,"EDIT") || findButton(*editor,"PATTERNS") ||
-        !findNamed(*editor,"SEQUENCER_GRID") ||
-        !previousPreset || !nextPreset || !selection ||
+    auto* undoButton = dynamic_cast<juce::TextButton*>(
+        findNamed(*editor, "PRESET_UNDO"));
+    auto* redoButton = dynamic_cast<juce::TextButton*>(
+        findNamed(*editor, "PRESET_REDO"));
+    if (!headerPreset || !previousPreset || !nextPreset || !selection ||
+        !undoButton || !redoButton ||
         !previousPreset->onClick || !nextPreset->onClick ||
-        !presetTools || dynamic_cast<juce::TextButton*>(presetTools)->getButtonText() != "TOOLS") {
-        std::cerr << "UI_LAYOUT: sequencer or descriptive preset controls missing\n";
+        !selection->onClick || !undoButton->onClick || !redoButton->onClick ||
+        findNamed(*editor,"PRESET_TOOLS_MENU") ||
+        previousPreset->getParentComponent()!=headerPreset ||
+        undoButton->getParentComponent()!=headerPreset ||
+        redoButton->getParentComponent()!=headerPreset) {
+        std::cerr << "UI_LAYOUT: compact preset selector, Undo/Redo or arrows missing\n";
         return 26;
     }
     previousPreset->onClick();
-    if (selection->getSelectedId() == 12) {
+    if (engine->currentPresetName()=="Default") {
         std::cerr << "UI_PRESET: previous preset did not navigate\n";
         return 34;
     }
     nextPreset->onClick();
-    if (selection->getSelectedId() != 12) {
+    if (engine->currentPresetName()!="Default") {
         std::cerr << "UI_PRESET: next preset did not restore Default\n";
         return 35;
     }
-    if (headerPreset &&
-        (std::abs(headerPreset->getBounds().getCentreX()-480)>1 ||
-         std::abs(visualSteps->getBounds().getCentreX()-480)>1)) {
-        std::cerr << "UI_LAYOUT: preset and sequencer are not centered\n";
-        return 60;
+    if (!selection->getButtonText().endsWith(
+            juce::String::fromUTF8("\xE2\x96\xBE"))) {
+        std::cerr << "UI_PRESET: preset dropdown arrow became a missing-codepage glyph\n";
+        return 73;
     }
-    if (!headerPreset || !presetTools || !presetTools->isVisible() ||
-        headerPreset->getY() >= 59 || headerPreset->getHeight() > 59 ||
-        headerPreset->getWidth() < 250 ||
-        presetTools->getParentComponent() != headerPreset) {
-        std::cerr << "UI_LAYOUT: header preset control/menu missing or incorrectly placed\n";
+    // Verify real PopupMenu category submenus and in-menu Save/Open commands
+    // rather than a flat ComboBox or a duplicate TOOLS control.
+    auto popup=headerPreset->buildPresetMenu();
+    bool reverseCategory=false,gateCategory=false,bothCategory=false;
+    bool saveItem=false,openItem=false,snapshots=false;
+    juce::PopupMenu::MenuItemIterator topItems(popup);
+    while(topItems.next()) {
+        const auto& item=topItems.getItem();
+        if(item.text=="Reverse" && item.subMenu) reverseCategory=true;
+        if(item.text=="Gate" && item.subMenu) gateCategory=true;
+        if(item.text=="Both" && item.subMenu) bothCategory=true;
+        if(item.text=="A / B snapshots" && item.subMenu) snapshots=true;
+    }
+    juce::PopupMenu::MenuItemIterator allItems(popup,true);
+    while(allItems.next()) {
+        const auto& item=allItems.getItem();
+        if(item.itemID==1001) saveItem=true;
+        if(item.itemID==1002) openItem=true;
+    }
+    if(!reverseCategory || !gateCategory || !bothCategory ||
+       !saveItem || !openItem || !snapshots) {
+        std::cerr << "UI_PRESET: cascade categories or Save/Open commands missing\n";
+        return 66;
+    }
+    auto* stepBack = dynamic_cast<juce::TextButton*>(
+        findNamed(*editor,"STEP_PATTERN_PREVIOUS"));
+    auto* stepNext = dynamic_cast<juce::TextButton*>(
+        findNamed(*editor,"STEP_PATTERN_NEXT"));
+    if (!stepBack || !stepNext || !stepBack->onClick || !stepNext->onClick ||
+        stepBack->getButtonText()!=previousPreset->getButtonText() ||
+        stepNext->getButtonText()!=nextPreset->getButtonText() ||
+        stepBack->getY()>=visualSteps->getBottom() ||
+        stepNext->getY()>=visualSteps->getBottom()) {
+        std::cerr << "UI_PATTERN: matching navigational arrows missing\n";
+        return 67;
+    }
+    stepNext->onClick();
+    if (engine->apvts.state.getProperty("patternName").toString()!="Straight" ||
+        engine->apvts.getRawParameterValue("step1_state")->load()!=1.f) {
+        std::cerr << "UI_PATTERN: right arrow did not load first pattern\n";
+        return 68;
+    }
+    stepNext->onClick();
+    if (engine->apvts.state.getProperty("patternName").toString()!="Offbeat" ||
+        engine->apvts.getRawParameterValue("step1_state")->load()!=0.f) {
+        std::cerr << "UI_PATTERN: right arrow did not advance pattern\n";
+        return 69;
+    }
+    stepBack->onClick();
+    if (engine->apvts.state.getProperty("patternName").toString()!="Straight") {
+        std::cerr << "UI_PATTERN: left arrow did not reverse pattern\n";
+        return 70;
+    }
+    engine->loadFactoryPreset(11);
+    if (std::abs(headerPreset->getBounds().getCentreX()-480)>1 ||
+        std::abs(visualSteps->getBounds().getCentreX()-480)>1 ||
+        std::abs(stepBack->getBounds().getCentreX()+
+                 stepNext->getBounds().getCentreX()-960)>2 ||
+        headerPreset->getY()>=59 || headerPreset->getHeight()>59 ||
+        headerPreset->getWidth()<250) {
+        std::cerr << "UI_LAYOUT: header, steps or pattern arrows not centered\n";
         return 27;
     }
     // The rate/style row must never intrude into the four rotary controls.
@@ -466,16 +529,49 @@ int main() {
     const auto dialBefore = editor->createComponentSnapshot(editor->getLocalBounds(), true);
     fadeInKnob->setValue(100.0, juce::sendNotificationSync);
     const auto dialAfter = editor->createComponentSnapshot(editor->getLocalBounds(), true);
-    int dialChangedPixels = 0;
-    for (int y = 190; y < 344; y += 2)
-        for (int x = 34; x < 175; x += 2)
+    int dialChangedPixels = 0, movingFadeArcPixels=0;
+    const auto countArcChanges=[&](const juce::Image& a,const juce::Image& b,
+                                  float cx,float cy) {
+        int changed=0;
+        for (int y=int(cy)-56;y<int(cy)+56;++y)
+            for (int x=int(cx)-56;x<int(cx)+56;++x) {
+                const float r=std::hypot(float(x)-cx,float(y)-cy);
+                if (r<42.f || r>55.f) continue;
+                const auto before=a.getPixelAt(x,y);
+                const auto after=b.getPixelAt(x,y);
+                const auto green=[](juce::Colour p) {
+                    return p.getGreen()>120 &&
+                           p.getGreen()>p.getRed()+30 &&
+                           p.getGreen()>p.getBlue()+20;
+                };
+                if(green(before)!=green(after)) ++changed;
+            }
+        return changed;
+    };
+    for (int y = 198; y < 346; y += 2)
+        for (int x = 53; x < 194; x += 2)
             if (dialBefore.getPixelAt(x, y) != dialAfter.getPixelAt(x, y))
                 ++dialChangedPixels;
-    if (std::abs(fadeParameter->getValue() - .2f) > .005f || dialChangedPixels < 50) {
-        std::cerr << "UI_CONTROL: rotary dial didn't automate or update its indicator\n";
+    movingFadeArcPixels=countArcChanges(dialBefore,dialAfter,123.5f,272.f);
+    if (std::abs(fadeParameter->getValue() - .2f) > .005f ||
+        dialChangedPixels < 50 || movingFadeArcPixels<24) {
+        std::cerr << "UI_CONTROL: Fade In automation or moving green light broken\n";
         return 30;
     }
     fadeInKnob->setValue(0.0, juce::sendNotificationSync);
+    auto* fadeOutKnob=dynamic_cast<juce::Slider*>(findNamed(*editor,"FADE OUT"));
+    if(!fadeOutKnob) return 71;
+    const auto outBefore=editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    fadeOutKnob->setValue(250.0,juce::sendNotificationSync);
+    const auto outAfter=editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    const int outArcChanges=countArcChanges(outBefore,outAfter,836.5f,272.f);
+    fadeOutKnob->setValue(0.0,juce::sendNotificationSync);
+    if (outArcChanges<24) {
+        std::cerr << "UI_CONTROL: Fade Out green arc remains fixed\n";
+        return 72;
+    }
+    std::cout << "UI_CONTROL: moving fade arcs in="<<movingFadeArcPixels
+              << " out="<<outArcChanges<<" pixels\n";
     std::cout << "UI_CONTROL: knob automation and live rotary rendering passed\n";
     if (!modeButton || !knobMix || !knobSmooth ||
         modeButton->getParentComponent()->getBounds().intersects(knobMix->getBounds()) ||
