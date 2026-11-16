@@ -38,6 +38,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
       - uses: actions/checkout@v4
         with:
           repository: juce-framework/JUCE
@@ -85,6 +88,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Windows VST3 package verification failed (exit $LASTEXITCODE)" }
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Verified Windows VST3 package"
           Get-Content -LiteralPath $manifest | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+      - name: Validate packaged VST3 with pluginval
+        uses: Tracktion/pluginval/validate@v2.0.0-beta3
+        with:
+          plugins: release-package/SkellGlitch.vst3
+          strictness-level: 5
+          pluginval-version: v2.0.0-beta3
       - name: Upload real JUCE UI snapshots
         uses: actions/upload-artifact@v4
         with:
