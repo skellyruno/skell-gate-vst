@@ -48,7 +48,7 @@ juce_add_plugin(SkellGlitch
     PLUGIN_CODE SkGl
     PRODUCT_NAME "SkellGlitch"
     PLUGIN_NAME "SkellGlitch"
-    FORMATS VST3 Standalone
+    FORMATS VST3
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
