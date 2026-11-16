@@ -268,7 +268,7 @@ Expected bundle: `build/SkellGlitch_artefacts/Release/VST3/SkellGlitch.vst3`. Th
 python scripts/verify_windows_vst3.py "build/SkellGlitch_artefacts/Release/VST3/SkellGlitch.vst3" --source-sha (git rev-parse HEAD) --manifest-out release-manifest.json
 ```
 
-The verifier checks the CMake product/vendor/version identity, Steinberg module metadata (including trailing commas emitted by the official JSON5 writer), exactly one VST3 module, no Standalone executable, AMD64 PE32+ headers, and SHA-256. Install the resulting `SkellGlitch.vst3` bundle under `C:\Program Files\Common Files\VST3\` only after the build and verification succeed, then rescan the DAW. The Windows workflow runs pluginval strictness 5. The Actions artifact is a private-test candidate, not a commercial release; FL Studio, audio A/B, licensing and rollback remain separate acceptance gates.
+The verifier checks the CMake product/vendor/version identity, Steinberg module metadata (including trailing commas emitted by the official JSON5 writer), exactly one VST3 module, no Standalone executable, AMD64 PE32+ headers, SHA-256, the actual PR head commit, and the Actions run ID/attempt. Install the resulting `SkellGlitch.vst3` bundle under `C:\Program Files\Common Files\VST3\` only after the build and verification succeed, then rescan the DAW. The Windows workflow runs pluginval strictness 5. The Actions artifact is a private-test candidate, not a commercial release; FL Studio, audio A/B, licensing and rollback remain separate acceptance gates.
 
 ## Lightweight DSP tests without JUCE
 

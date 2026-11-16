@@ -152,6 +152,10 @@ def verify_bundle(bundle: Path, cmake_file: Path, source_sha: str = "") -> dict[
         "module_sha256": _sha256(binary),
         "moduleinfo_sha256": _sha256(moduleinfo),
         "source_sha": source_sha or os.environ.get("GITHUB_SHA", ""),
+        "workflow_run_id": os.environ.get("GITHUB_RUN_ID", ""),
+        "workflow_run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT", ""),
+        "workflow_event": os.environ.get("GITHUB_EVENT_NAME", ""),
+        "workflow_ref": os.environ.get("GITHUB_REF", ""),
     }
 
 

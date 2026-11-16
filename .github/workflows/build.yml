@@ -84,7 +84,12 @@ jobs:
           New-Item -ItemType Directory -Force -Path $package | Out-Null
           Copy-Item -LiteralPath $bundle -Destination $package -Recurse
           $manifest = Join-Path $package 'release-manifest.json'
-          python scripts/verify_windows_vst3.py (Join-Path $package 'SkellGlitch.vst3') --source-sha $env:GITHUB_SHA --manifest-out $manifest
+          $sourceSha = $env:GITHUB_SHA
+          if ($env:GITHUB_EVENT_NAME -eq 'pull_request') {
+            $event = Get-Content -LiteralPath $env:GITHUB_EVENT_PATH -Raw | ConvertFrom-Json
+            $sourceSha = [string]$event.pull_request.head.sha
+          }
+          python scripts/verify_windows_vst3.py (Join-Path $package 'SkellGlitch.vst3') --source-sha $sourceSha --manifest-out $manifest
           if ($LASTEXITCODE -ne 0) { throw "Windows VST3 package verification failed (exit $LASTEXITCODE)" }
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Verified Windows VST3 package"
           Get-Content -LiteralPath $manifest | Add-Content -Path $env:GITHUB_STEP_SUMMARY

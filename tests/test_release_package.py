@@ -1,8 +1,10 @@
 import json
+import os
 import struct
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
@@ -73,6 +75,21 @@ class WindowsVST3PackageTests(unittest.TestCase):
         self.assertEqual(len(result["module_sha256"]), 64)
         self.assertEqual(len(result["moduleinfo_sha256"]), 64)
         self.assertEqual(result["source_sha"], "0123456789abcdef")
+
+    def test_manifest_records_workflow_run_provenance(self):
+        env = {
+            "GITHUB_RUN_ID": "43935558026",
+            "GITHUB_RUN_ATTEMPT": "2",
+            "GITHUB_EVENT_NAME": "pull_request",
+            "GITHUB_REF": "refs/pull/8/merge",
+        }
+        with patch.dict(os.environ, env):
+            result = verify_bundle(self.bundle, self.cmake, "head-commit-sha")
+        self.assertEqual(result["source_sha"], "head-commit-sha")
+        self.assertEqual(result["workflow_run_id"], "43935558026")
+        self.assertEqual(result["workflow_run_attempt"], "2")
+        self.assertEqual(result["workflow_event"], "pull_request")
+        self.assertEqual(result["workflow_ref"], "refs/pull/8/merge")
 
     def test_rejects_missing_module(self):
         self.module.unlink()
