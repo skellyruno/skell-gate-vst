@@ -259,7 +259,7 @@ cmake -S . -B build -DJUCE_DIR="$PWD/JUCE" -DSKELL_BUILD_UI_SMOKE=ON
 cmake --build build --config Release --target SkellGlitch_VST3 SkellGlitchUISmoke --parallel 4
 cmake --build build --config Release --target skell_dsp_tests --parallel 2
 ctest --test-dir build -C Release --output-on-failure
-python -m unittest discover -s tests -p "test_release_package.py" -v
+python -m unittest discover -s tests -p "test_release_*.py" -v
 ```
 
 Expected bundle: `build/SkellGlitch_artefacts/Release/VST3/SkellGlitch.vst3`. The module must be at `Contents/x86_64-win/SkellGlitch.vst3` and metadata at `Contents/Resources/moduleinfo.json`. Verify the exact bundle and write a provenance manifest with:
@@ -268,7 +268,7 @@ Expected bundle: `build/SkellGlitch_artefacts/Release/VST3/SkellGlitch.vst3`. Th
 python scripts/verify_windows_vst3.py "build/SkellGlitch_artefacts/Release/VST3/SkellGlitch.vst3" --source-sha (git rev-parse HEAD) --manifest-out release-manifest.json
 ```
 
-The verifier checks the CMake product/vendor/version identity, Steinberg module metadata (including trailing commas emitted by the official JSON5 writer), exactly one VST3 module, no Standalone executable, AMD64 PE32+ headers, SHA-256, the actual PR head commit, and the Actions run ID/attempt. Install the resulting `SkellGlitch.vst3` bundle under `C:\Program Files\Common Files\VST3\` only after the build and verification succeed, then rescan the DAW. The Windows workflow runs pluginval strictness 5. The Actions artifact is a private-test candidate, not a commercial release; FL Studio, audio A/B, licensing and rollback remain separate acceptance gates.
+The verifier checks the CMake product/vendor/version identity, Steinberg module metadata (including trailing commas emitted by the official JSON5 writer), exactly one VST3 module, no Standalone executable, AMD64 PE32+ headers, SHA-256, the actual PR head commit, and the Actions run ID/attempt. Install the resulting `SkellGlitch.vst3` bundle under `C:\Program Files\Common Files\VST3\` only after the build and verification succeed, then rescan the DAW. The Windows workflow runs pluginval strictness 5, then builds a deterministic private-preview ZIP with an embedded file-level SHA256SUMS.txt and a detached .zip.sha256 sidecar. The package includes a manual install/rollback notice and refuses to overwrite existing archive or checksum files. The Actions artifact is private-test only, unsigned, and not an installer or commercial release; FL Studio, audio A/B, licensing and vendor/support metadata remain separate acceptance gates.
 
 ## Lightweight DSP tests without JUCE
 
@@ -286,7 +286,10 @@ The regression test includes host-grid boundary checks, 1-, 64-, 512-, 4096- and
 - `PluginEditor.{h,cpp}` — scaled JUCE canvas and settings
 - `ui/` — theme, TopBar, LoopRow, GlitchKnob, WaveDisplay, GateGrid, ModeRow, BandSlider, PresetBar, LookAndFeel
 - `dsp/` — TempoClock, SliceCapture, Reverser, GateSequencer, GateShaper, BandSplitter, Crossfader, TriggerRouter, GlitchRandomizer
-- `tests/DSPTests.cpp` — portable regression tests
-- `.github/workflows/build.yml` — portable DSP/verifier tests plus Windows x64 VST3 build, real JUCE UI smoke, package identity and provenance checks
+- `tests/DSPTests.cpp` — portable DSP regression tests
+- `scripts/package_windows_vst3.py` — deterministic preview ZIP and SHA-256 sidecars
+- `tests/test_release_package.py` / `tests/test_release_archive.py` — bundle and archive regressions
+- `docs/WINDOWS-VST3-PRIVATE-PREVIEW.txt` — private-preview, install and rollback instructions
+- `.github/workflows/build.yml` — portable DSP/package tests plus Windows x64 VST3 build, real JUCE UI smoke, pluginval, provenance and preview archive checks
 
 **Branding**: Original Skell-Glitch source / original logo art. Reference screenshot is not bundled and no competitor branding is redistributed.
