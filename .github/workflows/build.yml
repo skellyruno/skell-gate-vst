@@ -23,8 +23,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
-      - name: Test Windows VST3 release verifier
-        run: python -m unittest discover -s tests -p "test_release_package.py" -v
+      - name: Test Windows VST3 release verifier and preview archive
+        run: python -m unittest discover -s tests -p "test_release_*.py" -v
       - name: Configure C++ DSP regression
         run: cmake -S . -B build-dsp -DCMAKE_BUILD_TYPE=Release -DSKELL_DSP_ONLY=ON
       - name: Compile DSP tests
@@ -106,13 +106,23 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           path: build/ui-snapshots/**
-      - name: Upload verified Windows VST3 bundle and manifest
+      - name: Build deterministic private-preview ZIP and checksums
+        shell: pwsh
+        run: |
+          Copy-Item -LiteralPath 'docs/WINDOWS-VST3-PRIVATE-PREVIEW.txt' -Destination 'release-package/WINDOWS-VST3-PRIVATE-PREVIEW.txt'
+          python scripts/package_windows_vst3.py --package-dir release-package --output SkellGlitch-Windows-VST3-Preview-1.7.3.zip
+          if ($LASTEXITCODE -ne 0) { throw "Private preview archive creation failed (exit $LASTEXITCODE)" }
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Deterministic private-preview archive"
+          Get-Content -LiteralPath 'SkellGlitch-Windows-VST3-Preview-1.7.3.zip.sha256' | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+      - name: Upload verified Windows VST3 private preview archive
         uses: actions/upload-artifact@v4
         with:
-          name: Skell-Glitch-Windows-VST3
+          name: Skell-Glitch-Windows-VST3-Preview
           if-no-files-found: error
           retention-days: 7
-          path: release-package/
+          path: |
+            SkellGlitch-Windows-VST3-Preview-1.7.3.zip
+            SkellGlitch-Windows-VST3-Preview-1.7.3.zip.sha256
       - name: Upload failure diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
@@ -123,3 +133,4 @@ jobs:
           path: |
             build/Testing/Temporary/LastTest.log
             build/ui-snapshots/**
+            release-package/**
