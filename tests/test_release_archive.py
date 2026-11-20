@@ -102,6 +102,16 @@ class PreviewArchiveTests(unittest.TestCase):
         self.assertTrue(sidecar.is_file())
         self.assertEqual(hashlib.sha256(self.output.read_bytes()).hexdigest(), digest)
 
+    def test_public_repository_product_artifact_upload_is_withheld(self):
+        workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "build.yml"
+        content = workflow.read_text(encoding="utf-8")
+        upload_step = content.split(
+            "name: Upload verified Windows VST3 preview archive (private repositories only)", 1
+        )[1].split("      - name:", 1)[0]
+        self.assertIn("if: github.event.repository.private == true", upload_step)
+        self.assertIn("if: github.event.repository.private != true", content)
+        self.assertIn("not private downloads", content)
+
     def test_refuses_to_overwrite_existing_archive(self):
         self.output.write_bytes(b"protected archive")
         with self.assertRaises(ValueError):

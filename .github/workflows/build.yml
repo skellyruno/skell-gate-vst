@@ -114,7 +114,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Private preview archive creation failed (exit $LASTEXITCODE)" }
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Deterministic private-preview archive"
           Get-Content -LiteralPath 'SkellGlitch-Windows-VST3-Preview-1.7.3.zip.sha256' | Add-Content -Path $env:GITHUB_STEP_SUMMARY
-      - name: Upload verified Windows VST3 private preview archive
+      - name: Report product preview withheld for public repository
+        if: github.event.repository.private != true
+        shell: pwsh
+        run: |
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "Product preview ZIP was built and validated but not uploaded because this repository is public. GitHub Actions artifacts from public repositories are publicly accessible, not private downloads."
+      - name: Upload verified Windows VST3 preview archive (private repositories only)
+        if: github.event.repository.private == true
         uses: actions/upload-artifact@v4
         with:
           name: Skell-Glitch-Windows-VST3-Preview
