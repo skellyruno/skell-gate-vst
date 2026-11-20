@@ -102,6 +102,11 @@ class PreviewArchiveTests(unittest.TestCase):
         self.assertTrue(sidecar.is_file())
         self.assertEqual(hashlib.sha256(self.output.read_bytes()).hexdigest(), digest)
 
+    def test_release_branches_trigger_push_ci(self):
+        workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "build.yml"
+        content = workflow.read_text(encoding="utf-8")
+        self.assertIn("  push:\n    branches:\n      - main\n      - 'release/**'", content)
+
     def test_public_repository_product_artifact_upload_is_withheld(self):
         workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "build.yml"
         content = workflow.read_text(encoding="utf-8")
