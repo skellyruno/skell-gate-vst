@@ -102,6 +102,16 @@ class PreviewArchiveTests(unittest.TestCase):
         self.assertTrue(sidecar.is_file())
         self.assertEqual(hashlib.sha256(self.output.read_bytes()).hexdigest(), digest)
 
+    def test_workflow_actions_use_node24_compatible_majors(self):
+        workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "build.yml"
+        content = workflow.read_text(encoding="utf-8")
+        self.assertIn("actions/checkout@v7", content)
+        self.assertIn("actions/setup-python@v7", content)
+        self.assertIn("actions/upload-artifact@v7", content)
+        self.assertNotIn("actions/checkout@v4", content)
+        self.assertNotIn("actions/setup-python@v5", content)
+        self.assertNotIn("actions/upload-artifact@v4", content)
+
     def test_release_branches_trigger_push_ci(self):
         workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "build.yml"
         content = workflow.read_text(encoding="utf-8")

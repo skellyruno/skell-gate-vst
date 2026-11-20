@@ -21,8 +21,8 @@ jobs:
     name: Portable DSP and release-verifier tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.x'
       - name: Test Windows VST3 release verifier and preview archive
@@ -39,16 +39,16 @@ jobs:
     needs: source-and-dsp
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.x'
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: juce-framework/JUCE
           ref: 8.0.12
           path: JUCE
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: skellyruno/skellcore-vst-template
           ref: d02d50849123f28bbc2e32cded0e78aced15afb3
@@ -102,7 +102,7 @@ jobs:
           strictness-level: 5
           pluginval-version: v2.0.0-beta3
       - name: Upload real JUCE UI snapshots
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Skell-Glitch-UI-Snapshots
           if-no-files-found: error
@@ -123,7 +123,7 @@ jobs:
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "Product preview ZIP was built and validated but not uploaded because this repository is public. GitHub Actions artifacts from public repositories are publicly accessible, not private downloads."
       - name: Upload verified Windows VST3 preview archive (private repositories only)
         if: github.event.repository.private == true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Skell-Glitch-Windows-VST3-Preview
           if-no-files-found: error
@@ -133,7 +133,7 @@ jobs:
             SkellGlitch-Windows-VST3-Preview-1.7.3.zip.sha256
       - name: Upload failure diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Skell-Glitch-Windows-Diagnostics
           if-no-files-found: warn
