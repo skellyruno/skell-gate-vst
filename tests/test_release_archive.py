@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 import zipfile
+from unittest.mock import patch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
@@ -75,6 +76,31 @@ class PreviewArchiveTests(unittest.TestCase):
         second_hash, _ = build_archive(second_package, second_output)
         self.assertEqual(first_hash, second_hash)
         self.assertEqual(self.output.read_bytes(), second_output.read_bytes())
+
+    def test_failed_archive_write_cleans_generated_checksums_and_can_retry(self):
+        original_writestr = zipfile.ZipFile.writestr
+        write_calls = 0
+
+        def fail_first_write(archive, *args, **kwargs):
+            nonlocal write_calls
+            write_calls += 1
+            if write_calls == 1:
+                raise OSError("simulated archive write failure")
+            return original_writestr(archive, *args, **kwargs)
+
+        with patch.object(zipfile.ZipFile, "writestr", new=fail_first_write):
+            with self.assertRaisesRegex(OSError, "simulated archive write failure"):
+                build_archive(self.package, self.output)
+
+        self.assertFalse((self.package / "SHA256SUMS.txt").exists())
+        self.assertFalse(self.output.exists())
+        self.assertFalse(self.output.with_suffix(self.output.suffix + ".sha256").exists())
+
+        # A retry in the same workspace must succeed without manual cleanup.
+        digest, sidecar = build_archive(self.package, self.output)
+        self.assertTrue(self.output.is_file())
+        self.assertTrue(sidecar.is_file())
+        self.assertEqual(hashlib.sha256(self.output.read_bytes()).hexdigest(), digest)
 
     def test_refuses_to_overwrite_existing_archive(self):
         self.output.write_bytes(b"protected archive")

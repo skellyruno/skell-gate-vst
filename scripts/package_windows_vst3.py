@@ -100,13 +100,29 @@ def _validate_package(package_dir: Path) -> tuple[dict, list[Path]]:
 
 def _write_checksums(package_dir: Path, files: Iterable[Path]) -> Path:
     checksum_file = package_dir / "SHA256SUMS.txt"
-    if checksum_file.exists() or checksum_file.is_symlink():
-        _fail("Refusing to overwrite an existing SHA256SUMS.txt")
     lines = []
     for path in files:
         relative = path.relative_to(package_dir).as_posix()
         lines.append(f"{_sha256(path)}  {relative}")
-    checksum_file.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    payload = "\n".join(lines) + "\n"
+
+    # Exclusive creation closes the check-then-write race: an existing file is never
+    # truncated, even if another process creates it after our initial package check.
+    created = False
+    try:
+        with checksum_file.open("x", encoding="utf-8", newline="\n") as stream:
+            created = True
+            stream.write(payload)
+    except FileExistsError:
+        _fail("Refusing to overwrite an existing SHA256SUMS.txt")
+    except Exception:
+        # A failed write must not strand a partial checksum file that blocks retry.
+        if created:
+            try:
+                checksum_file.unlink()
+            except OSError:
+                pass
+        raise
     return checksum_file
 
 
@@ -123,16 +139,19 @@ def build_archive(package_dir: Path, output_zip: Path) -> tuple[str, Path]:
     if output_zip.parent == package_dir or package_dir in output_zip.parents:
         _fail("Preview archive must be written outside the package directory")
 
-    _, files = _validate_package(package_dir)
-    _write_checksums(package_dir, files)
-    archive_files = _regular_files(package_dir)
-
-    output_zip.parent.mkdir(parents=True, exist_ok=True)
-    # ZIP_STORED plus normalized timestamps/permissions makes the archive byte-stable
-    # across repeated runs with the same package contents.
+    checksum_file = package_dir / "SHA256SUMS.txt"
+    checksums_created = False
     archive_created = False
     sidecar_created = False
     try:
+        _, files = _validate_package(package_dir)
+        _write_checksums(package_dir, files)
+        checksums_created = True
+        archive_files = _regular_files(package_dir)
+
+        output_zip.parent.mkdir(parents=True, exist_ok=True)
+        # ZIP_STORED plus normalized timestamps/permissions makes the archive byte-stable
+        # across repeated runs with the same package contents.
         with output_zip.open("xb") as stream:
             archive_created = True
             with zipfile.ZipFile(stream, "w", compression=zipfile.ZIP_STORED, strict_timestamps=True) as archive:
@@ -149,11 +168,13 @@ def build_archive(package_dir: Path, output_zip: Path) -> tuple[str, Path]:
             sidecar_created = True
             stream.write(f"{archive_hash}  {output_zip.name}\n")
     except Exception:
-        # Only remove files created by this invocation; a racing process's files stay intact.
+        # Remove only files created by this invocation. Pre-existing files remain untouched.
         if archive_created and output_zip.exists():
             output_zip.unlink()
         if sidecar_created and sidecar.exists():
             sidecar.unlink()
+        if checksums_created and checksum_file.exists() and not checksum_file.is_symlink():
+            checksum_file.unlink()
         raise
     return archive_hash, sidecar
 
