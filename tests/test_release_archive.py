@@ -41,14 +41,17 @@ class PreviewArchiveTests(unittest.TestCase):
         }
         (self.package / "release-manifest.json").write_text(json.dumps(self.manifest), encoding="utf-8")
         (self.package / "WINDOWS-VST3-PRIVATE-PREVIEW.txt").write_text(
-            "private preview and manual install/rollback\n", encoding="utf-8"
+            "private preview and install/rollback instructions\n", encoding="utf-8"
+        )
+        (self.package / "Install-SkellGlitchPreview.ps1").write_text(
+            "# synthetic installer fixture\n", encoding="utf-8"
         )
         self.output = self.root / "SkellGlitch-Windows-VST3-Preview-1.7.3.zip"
 
     def tearDown(self):
         self.temp.cleanup()
 
-    def test_builds_archive_with_manifest_notice_and_internal_checksums(self):
+    def test_builds_archive_with_manifest_notice_installer_and_internal_checksums(self):
         digest, sidecar = build_archive(self.package, self.output)
         self.assertTrue(self.output.is_file())
         self.assertTrue(sidecar.is_file())
@@ -60,6 +63,7 @@ class PreviewArchiveTests(unittest.TestCase):
             self.assertIn("SkellGlitch.vst3/Contents/x86_64-win/SkellGlitch.vst3", names)
             self.assertIn("release-manifest.json", names)
             self.assertIn("WINDOWS-VST3-PRIVATE-PREVIEW.txt", names)
+            self.assertIn("Install-SkellGlitchPreview.ps1", names)
             self.assertIn("SHA256SUMS.txt", names)
             sums = archive.read("SHA256SUMS.txt").decode("utf-8").splitlines()
             for line in sums:
@@ -126,6 +130,23 @@ class PreviewArchiveTests(unittest.TestCase):
         self.assertIn("if: github.event.repository.private == true", upload_step)
         self.assertIn("if: github.event.repository.private != true", content)
         self.assertIn("not private downloads", content)
+
+    def test_workflow_runs_windows_installer_regressions_before_archive_creation(self):
+        workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "build.yml"
+        content = workflow.read_text(encoding="utf-8")
+        copy_step = "Copy-Item -LiteralPath 'scripts/Install-SkellGlitchPreview.ps1' -Destination 'release-package/Install-SkellGlitchPreview.ps1'"
+        test_step = "pwsh -NoLogo -NoProfile -File tests/Test-SkellGlitchPreviewInstaller.ps1"
+        package_step = "python scripts/package_windows_vst3.py"
+        self.assertIn(copy_step, content)
+        self.assertIn(test_step, content)
+        self.assertLess(content.index(copy_step), content.index(test_step))
+        self.assertLess(content.index(test_step), content.index(package_step))
+
+    def test_requires_the_per_user_installer(self):
+        (self.package / "Install-SkellGlitchPreview.ps1").unlink()
+        with self.assertRaisesRegex(ValueError, "Missing required preview sidecar"):
+            build_archive(self.package, self.output)
+        self.assertFalse(self.output.exists())
 
     def test_refuses_to_overwrite_existing_archive(self):
         self.output.write_bytes(b"protected archive")
