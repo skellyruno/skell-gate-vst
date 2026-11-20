@@ -1,0 +1,29 @@
+SKELLGLITCH 1.7.3 — PRIVATE PREVIEW ONLY
+
+STATUS AND PERMITTED USE
+
+This package is supplied only for authorized, private evaluation. It is not a commercial release, is not digitally signed, is not an installer, and must not be redistributed or used commercially.
+
+No final end-user license agreement, third-party attribution notice, vendor website, or support contact has been approved for this build. Do not treat the preview as permission to redistribute the software.
+
+The release-manifest.json records the source commit and GitHub Actions build provenance. SHA256SUMS.txt verifies the files inside this package; the adjacent .zip.sha256 file verifies the complete archive.
+
+MANUAL WINDOWS VST3 INSTALL
+
+1. Close FL Studio and every other DAW before changing files.
+2. Verify the downloaded archive with its adjacent .zip.sha256 file. In PowerShell:
+   Get-FileHash .\SkellGlitch-Windows-VST3-Preview-1.7.3.zip -Algorithm SHA256
+   Compare the result with the hash in the .zip.sha256 sidecar.
+3. Extract the ZIP. Confirm it contains one SkellGlitch.vst3 bundle, release-manifest.json, this notice, and SHA256SUMS.txt. Verify the internal checksums before installation.
+4. Open C:\Program Files\Common Files\VST3. If SkellGlitch.vst3 already exists, copy it to a new backup name such as SkellGlitch.vst3.backup-YYYYMMDD-HHMM. Never overwrite an existing backup.
+5. Copy the extracted SkellGlitch.vst3 folder into C:\Program Files\Common Files\VST3. Approve administrator permission only for this copy. Do not copy a Standalone executable; this product is VST3-only.
+6. Start the DAW, rescan VST3 plugins, and test in a disposable project first. Keep existing FL Studio projects, presets, and automation data untouched until compatibility and state recall are accepted.
+
+ROLLBACK
+
+1. Close every DAW.
+2. Remove only the preview SkellGlitch.vst3 folder you installed.
+3. Rename your dated backup folder back to SkellGlitch.vst3.
+4. Reopen the DAW and rescan plugins. If you did not have a previous version, simply remove the preview bundle.
+
+Do not overwrite an existing installation or backup. If a file is locked, stop and close the host instead of forcing replacement. This guide does not provide an updater, installer, signing, or automatic rollback tool.

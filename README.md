@@ -212,7 +212,7 @@
 
 This revision is validated by dependency-free tests locally; native host/plugin validation is tracked by GitHub Actions.
 
-A new, original **JUCE 8 C++** audio-effect source project for tempo-locked reverse slices, step gating, or both. Builds as **VST3** and **Standalone** on Windows/macOS when JUCE and a matching native compiler are available.
+A new, original **JUCE 8 C++** audio-effect source project for tempo-locked reverse slices, step gating, or both. The release target is **Windows x64 VST3 only**; no Standalone executable or macOS target is produced.
 
 > **Verification:** The dependency-free DSP regression tests compile and pass on Linux (GCC 14). The complete JUCE plugin and user interface have **not** been compiled, executed or pluginval-tested in this delivery, because JUCE and network download are not available in the execution environment. Treat this as a substantial source implementation that still requires real host/GUI verification, not a release-ready binary.
 
@@ -240,7 +240,7 @@ The audio path uses only preallocated buffers during steady-state `processBlock`
 
 ### Known behavioral limits / unfinished items
 
-- **Host/UI builds:** source exists but full VST3/Standalone compile, FL Studio, Ableton, Logic and pluginval acceptance have not yet been verified.
+- **Host/UI builds:** the Windows x64 VST3 and real JUCE UI smoke must pass in CI; FL Studio, pluginval, audio A/B and real host acceptance remain separate release gates.
 - **FFT spectral flux sidechain:** current trigger is an envelope-difference onset proxy, not true multi-bin spectral-flux analysis.
 - **MIDI learn and numeric popups:** right-click MIDI learn and direct numeric entry on the custom band slider are not built yet. Gate step painting changes parameters with complete per-step gestures; not a single batched gesture.
 - **DSP refinements:** Tape mode uses a shaped reverse read index instead of a calibrated physically modeled tape transport; granular pitch does not preserve formants; gate curves approximate linear/exponential/S-curve; the shaper currently uses short fade-to-silence envelopes at slice edges, not full adjacent-slice overlap. The band split reconstructs exactly without processing, but perfect *phase alignment of individually processed bands* has not been proven.
@@ -251,29 +251,24 @@ The audio path uses only preallocated buffers during steady-state `processBlock`
 
 ## Build on Windows (MSVC)
 
-Requires **CMake 3.22+**, **Visual Studio 2022 or 2026 C++ tools** and a local JUCE 8 checkout. Use a local JUCE path to avoid fetching dependencies during configuration:
+SkellGlitch is a **Windows x64 VST3-only** release. It does not build a Standalone executable or a macOS target. Requires **CMake 3.22+**, **Visual Studio 2022/2026 C++ tools**, Python 3, and the pinned **JUCE 8.0.12** dependency. The project pins SkellCore to the immutable commit in `CMakeLists.txt`.
 
 ```powershell
-git clone --branch 8.0.10 --depth 1 https://github.com/juce-framework/JUCE.git JUCE
-cmake -S . -B build -DJUCE_DIR="$PWD/JUCE"
-cmake --build build --config Release --target SkellGlitch_VST3 SkellGlitch_Standalone --parallel 4
+git clone --branch 8.0.12 --depth 1 https://github.com/juce-framework/JUCE.git JUCE
+cmake -S . -B build -DJUCE_DIR="$PWD/JUCE" -DSKELL_BUILD_UI_SMOKE=ON
+cmake --build build --config Release --target SkellGlitch_VST3 SkellGlitchUISmoke --parallel 4
+cmake --build build --config Release --target skell_dsp_tests --parallel 2
 ctest --test-dir build -C Release --output-on-failure
+python -m unittest discover -s tests -p "test_release_*.py" -v
 ```
 
-Expected VST3 bundle: `build/SkellGlitch_artefacts/Release/VST3/Skell-Glitch.vst3`; Standalone: `build/SkellGlitch_artefacts/Release/Standalone/Skell-Glitch.exe` (path or extensions can differ by JUCE/toolchain). To manually install a Windows VST3, copy the `.vst3` bundle under `C:\Program Files\Common Files\VST3\` and rescan your DAW after successful compilation.
+Expected bundle: `build/SkellGlitch_artefacts/Release/VST3/SkellGlitch.vst3`. The module must be at `Contents/x86_64-win/SkellGlitch.vst3` and metadata at `Contents/Resources/moduleinfo.json`. Verify the exact bundle and write a provenance manifest with:
 
-## Build on macOS (Xcode/Clang)
-
-```bash
-git clone --branch 8.0.10 --depth 1 https://github.com/juce-framework/JUCE.git JUCE
-cmake -S . -B build -G Xcode -DJUCE_DIR="$PWD/JUCE"
-cmake --build build --config Release --target SkellGlitch_VST3 SkellGlitch_Standalone --parallel 4
-ctest --test-dir build -C Release --output-on-failure
+```powershell
+python scripts/verify_windows_vst3.py "build/SkellGlitch_artefacts/Release/VST3/SkellGlitch.vst3" --source-sha (git rev-parse HEAD) --manifest-out release-manifest.json
 ```
 
-Expected VST3 bundle: `build/SkellGlitch_artefacts/Release/VST3/Skell-Glitch.vst3` and Standalone `.app` under `build/SkellGlitch_artefacts/Release/Standalone/`. For DAW use, install under `~/Library/Audio/Plug-Ins/VST3` or `/Library/Audio/Plug-Ins/VST3` after a successful build.
-
-If `JUCE_DIR` is omitted and no JUCE CMake package is installed, the project uses CMake `FetchContent` to download pinned JUCE 8.0.10 during configuration; that requires an internet connection.
+The verifier checks the CMake product/vendor/version identity, Steinberg module metadata (including trailing commas emitted by the official JSON5 writer), exactly one VST3 module, no Standalone executable, AMD64 PE32+ headers, SHA-256, the actual PR head commit, and the Actions run ID/attempt. Install the resulting `SkellGlitch.vst3` bundle under `C:\Program Files\Common Files\VST3\` only after the build and verification succeed, then rescan the DAW. The Windows workflow runs pluginval strictness 5, then builds a deterministic private-preview ZIP with an embedded file-level SHA256SUMS.txt and a detached .zip.sha256 sidecar. The package includes a manual install/rollback notice and refuses to overwrite existing archive or checksum files. The product ZIP is uploaded as an Actions artifact only when `github.event.repository.private == true`. This repository is currently public, so CI builds and verifies the ZIP but withholds the product download; Actions artifacts from public repositories are not private. The earlier PR #8 VST3 artifact remains publicly accessible and this workflow change cannot retroactively restrict it. FL Studio, audio A/B, licensing and vendor/support metadata remain separate acceptance gates.
 
 ## Lightweight DSP tests without JUCE
 
@@ -291,7 +286,10 @@ The regression test includes host-grid boundary checks, 1-, 64-, 512-, 4096- and
 - `PluginEditor.{h,cpp}` — scaled JUCE canvas and settings
 - `ui/` — theme, TopBar, LoopRow, GlitchKnob, WaveDisplay, GateGrid, ModeRow, BandSlider, PresetBar, LookAndFeel
 - `dsp/` — TempoClock, SliceCapture, Reverser, GateSequencer, GateShaper, BandSplitter, Crossfader, TriggerRouter, GlitchRandomizer
-- `tests/DSPTests.cpp` — portable regression tests
-- `.github/workflows/build.yml` — CI for portable tests and Windows/macOS build targets
+- `tests/DSPTests.cpp` — portable DSP regression tests
+- `scripts/package_windows_vst3.py` — deterministic preview ZIP and SHA-256 sidecars
+- `tests/test_release_package.py` / `tests/test_release_archive.py` — bundle and archive regressions
+- `docs/WINDOWS-VST3-PRIVATE-PREVIEW.txt` — private-preview, install and rollback instructions
+- `.github/workflows/build.yml` — portable DSP/package tests plus Windows x64 VST3 build, real JUCE UI smoke, pluginval, provenance and preview archive checks
 
 **Branding**: Original Skell-Glitch source / original logo art. Reference screenshot is not bundled and no competitor branding is redistributed.

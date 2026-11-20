@@ -19,10 +19,10 @@ endif()
 if(DEFINED JUCE_DIR AND EXISTS "${JUCE_DIR}/CMakeLists.txt")
     add_subdirectory("${JUCE_DIR}" "${CMAKE_BINARY_DIR}/juce" EXCLUDE_FROM_ALL)
 else()
-    find_package(JUCE 8 CONFIG QUIET)
+    find_package(JUCE 8.0.12 EXACT CONFIG QUIET)
     if(NOT JUCE_FOUND)
         include(FetchContent)
-        FetchContent_Declare(JUCE GIT_REPOSITORY https://github.com/juce-framework/JUCE.git GIT_TAG 8.0.10 GIT_SHALLOW TRUE)
+        FetchContent_Declare(JUCE GIT_REPOSITORY https://github.com/juce-framework/JUCE.git GIT_TAG 8.0.12 GIT_SHALLOW TRUE)
         FetchContent_MakeAvailable(JUCE)
     endif()
 endif()
@@ -48,7 +48,7 @@ juce_add_plugin(SkellGlitch
     PLUGIN_CODE SkGl
     PRODUCT_NAME "SkellGlitch"
     PLUGIN_NAME "SkellGlitch"
-    FORMATS VST3 Standalone
+    FORMATS VST3
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
