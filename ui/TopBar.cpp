@@ -171,7 +171,7 @@ TopBar::TopBar(SkellGlitchAudioProcessor& p) : processor(p) {
     power.setName("HEADER_POWER");
     skull.setTooltip("SKELL appearance: click skull to cycle the shared SkellCore skins");
     settings.setTooltip("Engine settings and window sizes");
-    power.setTooltip("POWER: green ON processes audio; red OFF bypasses the effect");
+    power.setTooltip("POWER: lit green glyph processes audio; dim glyph bypasses the effect");
 }
 void TopBar::resized() {
     skull.setBounds(10,4,49,50);

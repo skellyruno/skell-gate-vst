@@ -304,6 +304,15 @@ int main() {
     auto* offTestPower=findParameter("Power");
     if (!offTestPower) return 77;
     offTestPower->setValueNotifyingHost(0.f);
+    // Let the 30 Hz UI timer reflect host-side bypass before saving a
+    // real OFF screenshot. This cannot be done inside the audio callback.
+    juce::Thread::sleep(45);
+    juce::Timer::callPendingTimersSynchronously();
+    auto* offStatus=dynamic_cast<juce::Label*>(findNamed(*editor,"LIVE_START_STATUS"));
+    if (!offStatus || !offStatus->getText().contains("BYPASSED")) {
+        std::cerr << "UI_POWER: bypass status not updated by UI timer\n";
+        return 80;
+    }
     visualHeader->repaint();
     const auto powerOff=editor->createComponentSnapshot(editor->getLocalBounds(),true);
     int redDotPixels=0;
@@ -314,6 +323,12 @@ int main() {
                 ++redDotPixels;
         }
     offTestPower->setValueNotifyingHost(1.f);
+    juce::Thread::sleep(45);
+    juce::Timer::callPendingTimersSynchronously();
+    if (!offStatus->getText().contains("ACTIVE")) {
+        std::cerr << "UI_POWER: active status not restored by UI timer\n";
+        return 81;
+    }
     visualHeader->repaint();
     if (redDotPixels>0) {
         std::cerr << "UI_HEADER: separate red LED dot remains on power button\n";
@@ -794,6 +809,15 @@ int main() {
         return 22;
     }
     editor->setSize(960, 720);
+    // This capture follows the aligned-latency bypass test; settle the
+    // UI-only status timer so OFF glyph and BYPASSED guidance agree.
+    juce::Thread::sleep(45);
+    juce::Timer::callPendingTimersSynchronously();
+    auto* skinStatus=dynamic_cast<juce::Label*>(findNamed(*editor,"LIVE_START_STATUS"));
+    if (!skinStatus || !skinStatus->getText().contains("BYPASSED")) {
+        std::cerr << "UI_POWER: alternate-theme bypass guidance stale\n";
+        return 82;
+    }
     const auto beforeSkin = editor->createComponentSnapshot(editor->getLocalBounds(),true);
     skull->onClick();
     const auto afterSkin = editor->createComponentSnapshot(editor->getLocalBounds(),true);
