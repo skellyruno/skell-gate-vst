@@ -12,6 +12,7 @@
 #include "dsp/Crossfader.h"
 #include "dsp/TriggerRouter.h"
 #include "dsp/GlitchRandomizer.h"
+#include "dsp/shared/LiveLevelGate.h"
 
 class SkellGlitchAudioProcessor final : public juce::AudioProcessor, private juce::AsyncUpdater {
 public:
@@ -74,6 +75,7 @@ private:
     skell::dsp::BandSplitter splitter;
     skell::dsp::TriggerRouter triggers;
     skell::dsp::GlitchRandomizer randomizer;
+    skellcore::experimental::dynamics::LiveLevelGate levelGate;
     std::array<std::atomic<float>*, 32> statePointers{};
     std::array<std::atomic<float>*, 32> probabilityPointers{};
     std::array<std::vector<float>, 2> dryDelay, outsideDelay, gateDelay;

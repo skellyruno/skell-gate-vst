@@ -1,0 +1,58 @@
+SKELLGLITCH 1.7.3 — TESTING PREVIEW ONLY
+
+STATUS AND PERMITTED USE
+
+This package is supplied for evaluation. It is not a commercial release, is not digitally signed, and must not be redistributed or used commercially.
+
+No final end-user license agreement, third-party attribution notice, vendor website, or support contact has been approved for this build. Do not treat the preview as permission to redistribute the software.
+
+The release-manifest.json records the source commit and GitHub Actions build provenance. SHA256SUMS.txt verifies every regular file in the extracted package except itself; the adjacent .zip.sha256 file verifies the complete archive.
+
+VERIFY THE ARCHIVE
+
+Before extracting, verify the archive with its adjacent .zip.sha256 file. In PowerShell:
+
+  Get-FileHash .\SkellGlitch-Windows-VST3-Preview-1.7.3.zip -Algorithm SHA256
+
+Compare the result with the hash in the .zip.sha256 sidecar. Extract the archive only after the hashes match.
+
+WINDOWS INSTALL / UPDATE
+
+Requirements: Windows and PowerShell 7 or newer. Close FL Studio and every other DAW before changing plugin files. Administrator permission is not required.
+
+From the extracted package directory:
+
+  $result = & .\Install-SkellGlitchPreview.ps1 -Action Install
+  $result | Format-List
+
+The installer validates the exact package inventory, release provenance, internal SHA-256 checksums, VST3 module and moduleinfo hashes, and bundle structure before it writes anything.
+
+Default per-user install path:
+
+  %LOCALAPPDATA%\Programs\Common\VST3\SkellGlitch.vst3
+
+Backups are stored under:
+
+  %LOCALAPPDATA%\SkellGlitch\Backups
+
+An existing valid SkellGlitch bundle is preserved in a unique backup before an update. Reinstalling the exact same bundle is a no-op and does not create another backup. The installer refuses machine-wide destinations, reparse points/junctions, tampered or unlisted package files, duplicate VST3 modules, and Standalone executables.
+
+The result object includes the exact BackupPath. Keep that path if you may need to roll back. You can preview an install without changing files by adding -WhatIf.
+
+ROLLBACK
+
+Close every DAW, then use the BackupPath returned by the install/update command:
+
+  & .\Install-SkellGlitchPreview.ps1 -Action Rollback -BackupPath 'PASTE-THE-RETURNED-BACKUP-PATH'
+
+Rollback validates the selected backup before replacing the current bundle. The version being rolled back is preserved in a new safety backup. Rolling back the first install removes only the preview bundle and preserves it in that safety backup.
+
+HOST ACCEPTANCE
+
+After installation, open the DAW and rescan VST3 plugins. Test in a disposable project first. Verify bypass, transport sync, automation, preset/state save-reopen, and compatibility with older FL Studio projects. Do not overwrite or resave production projects until the owner has accepted the preview.
+
+This package does not establish FL Studio acceptance, musical A/B approval, target-PC CPU/latency acceptance, or commercial licensing approval.
+
+DISTRIBUTION LIMIT
+
+Verified preview ZIPs are uploaded by GitHub Actions regardless of repository visibility. Artifacts in public repositories are not private downloads. Use the verified Windows VST3 preview artifact, not the separate UI-snapshot artifact.

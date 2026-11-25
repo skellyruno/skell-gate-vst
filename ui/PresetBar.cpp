@@ -6,10 +6,10 @@
 namespace {
 // This is a presentation order, NOT new preset IDs. Factory ID 0..27
 // and existing FL Studio session/state identifiers remain stable.
-constexpr std::array<int,28> presetOrder{{
+constexpr std::array<int,29> presetOrder{{
     11,
     0,1,5,6,8,10,12,13,14,15,16,
-    3,7,17,18,19,20,21,
+    3,7,17,18,19,20,21,28,
     2,4,9,22,23,24,25,26,27
 }};
 constexpr int saveId = 1001;
@@ -32,6 +32,8 @@ PresetBar::PresetBar(SkellGlitchAudioProcessor& p) : processor(p) {
     next.setTooltip("Next factory preset");
     presetSelector.setTooltip("Factory presets by category, and Save/Open");
     undo.setTooltip("Undo the last automatable parameter change");
+    undo.setButtonText({});
+    redo.setButtonText({});
     redo.setTooltip("Redo the previous change");
 
     previous.onClick = [this] { stepPreset(-1); };
@@ -47,7 +49,7 @@ PresetBar::PresetBar(SkellGlitchAudioProcessor& p) : processor(p) {
 }
 
 void PresetBar::resized() {
-    constexpr int gap=4, arrowWidth=29, historyWidth=45;
+    constexpr int gap=4, arrowWidth=29, historyWidth=30;
     const int nameWidth=std::max(58,getWidth()-2*arrowWidth-2*historyWidth-4*gap);
     int x=0;
     previous.setBounds(x,2,arrowWidth,getHeight()-4); x+=arrowWidth+gap;
@@ -97,8 +99,8 @@ juce::PopupMenu PresetBar::buildPresetMenu() const {
         return submenu;
     };
     menu.addSubMenu("Reverse",subMenu(1,12));
-    menu.addSubMenu("Gate",subMenu(12,19));
-    menu.addSubMenu("Both",subMenu(19,28));
+    menu.addSubMenu("Gate",subMenu(12,20));
+    menu.addSubMenu("Reverse + Gate",subMenu(20,29));
     menu.addSeparator();
     menu.addSectionHeader("PRESET FILES");
     menu.addItem(saveId,"Save preset...");
@@ -115,7 +117,8 @@ juce::PopupMenu PresetBar::buildPresetMenu() const {
 void PresetBar::showPresetMenu() {
     auto menu=buildPresetMenu();
     juce::Component::SafePointer<PresetBar> safe(this);
-    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&presetSelector),
+    menu.setLookAndFeel(&getLookAndFeel());
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&presetSelector).withMinimumWidth(220).withStandardItemHeight(28),
         [safe](int choice) {
             if (safe!=nullptr) safe->executeMenuChoice(choice);
         });

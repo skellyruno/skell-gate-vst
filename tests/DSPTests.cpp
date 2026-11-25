@@ -52,6 +52,47 @@ static void clockTest() {
         else check(ref == boundaries, "block size changed bar boundaries");
     }
 }
+static void tripletPartitionTest() {
+    auto boundaries = [](int sr, int bpm, int division, int blockSize) {
+        TempoClock c; c.prepare(sr);
+        std::vector<int> result;
+        for (int offset = 0; offset < sr * 2; offset += blockSize) {
+            c.setHost(bpm, 4, 4, offset / (sr * 60.0 / bpm), true, true, division, 500);
+            for (int i = 0; i < std::min(blockSize, sr * 2 - offset); ++i)
+                if (c.tick(i).boundary) result.push_back(offset + i);
+        }
+        return result;
+    };
+    for (int sr : {44100, 48000, 96000, 192000})
+        for (int bpm : {60, 87, 120, 127, 180})
+            for (int division : {0, 1, 2, 3}) {
+                const auto reference = boundaries(sr, bpm, division, 1);
+                for (int block : {64, 127, 512, 4096})
+                    check(boundaries(sr, bpm, division, block) == reference,
+                          "host block partition moved a rhythmic boundary");
+            }
+}
+static void transportRangeTest() {
+    for (int sr : {44100, 48000, 96000, 192000})
+        for (int d = 0; d < 9; ++d) {
+            TempoClock c; c.prepare(sr); c.advance(12345);
+            for (double ppq : {std::numeric_limits<double>::max(),
+                              -std::numeric_limits<double>::max(),
+                               1.e20, -1.e20, 1.e9+1, -1.e9-1}) {
+                c.setHost(120, 1, 32, ppq, true, true, d, 500);
+                const auto pos = c.atSample(127);
+                check(std::isfinite(pos.beat) && std::isfinite(pos.phase) &&
+                      pos.phase >= 0 && pos.phase < 1, "invalid host PPQ escaped clock");
+                approx(pos.beat, (12345+127)/(sr/2.0), 1.e-12, "invalid PPQ did not use free clock");
+            }
+            for (double ppq : {-12.25, 0.0, 1.e9, -1.e9}) {
+                c.setHost(120, 1, 32, ppq, true, true, d, 500);
+                const auto pos = c.atSample(0);
+                check(pos.beat == ppq && pos.phase >= 0 && pos.phase < 1,
+                      "valid negative or extended host PPQ changed");
+            }
+        }
+}
 static void sliceTest() {
     SliceCapture b; b.prepare(2, 2048); b.onBoundary();
     for (int i = 0; i < 500; ++i) b.write(static_cast<float>(i / 500.0), static_cast<float>(-i / 500.0));
@@ -403,7 +444,7 @@ static void offlineReproTest() {
 }
 
 int main() {
-    try { clockTest(); sliceTest(); gateTest(); bandTest(); deterministicTest(); offlineReproTest(); filterRobustnessTest(); stressTest(); }
+    try { clockTest(); tripletPartitionTest(); transportRangeTest(); sliceTest(); gateTest(); bandTest(); deterministicTest(); offlineReproTest(); filterRobustnessTest(); stressTest(); }
     catch (const std::exception& ex) { std::cerr << "FAIL: " << ex.what() << '\n'; return EXIT_FAILURE; }
     std::cout << "PASS: TempoClock / SliceCapture / Reverser / GateSequencer / GateShaper / BandSplitter / Crossfader / TriggerRouter / seeded randomness\n";
     return EXIT_SUCCESS;

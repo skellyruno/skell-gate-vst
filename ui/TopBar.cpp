@@ -154,8 +154,8 @@ void SkellGlyphButton::paintButton(juce::Graphics& g, bool hover, bool down) {
             g.strokePath(powerArc,juce::PathStrokeType(.95f));
             g.drawLine(c.x-.8f,c.y-10.1f,c.x-.8f,c.y-1.f,1.f);
         }
-        g.setColour(active ? neon : juce::Colour(0xffe77766));
-        g.fillEllipse(c.x+8.5f,c.y+7.8f,4.9f,4.9f);
+        // The illuminated power glyph already communicates enabled/disabled.
+        // No separate LED dot is painted onto the button face.
     }
     if(hover || down) {
         g.setColour(neon.withAlpha(down?.12f:.055f));
@@ -171,7 +171,7 @@ TopBar::TopBar(SkellGlitchAudioProcessor& p) : processor(p) {
     power.setName("HEADER_POWER");
     skull.setTooltip("SKELL appearance: click skull to cycle the shared SkellCore skins");
     settings.setTooltip("Engine settings and window sizes");
-    power.setTooltip("POWER: green ON processes audio; red OFF bypasses the effect");
+    power.setTooltip("POWER: lit green glyph processes audio; dim glyph bypasses the effect");
 }
 void TopBar::resized() {
     skull.setBounds(10,4,49,50);
@@ -230,18 +230,16 @@ void TopBar::paint(juce::Graphics& g) {
     g.setColour(skell::theme::colour(skell::theme::gray));
     g.setFont(skell::theme::regular(10.5f));
     g.drawText("CUT IT. FLIP IT.",63,38,170,14,juce::Justification::centredLeft);
-    // Small engraved edition mark directly beside the one-word title.
+    // Only the edition mark moves: directly under the final "CH" of GLITCH.
+    // Leave the existing title glyphs, slogan and their positions unchanged.
     g.setColour(skell::theme::colour(skell::theme::gray).withAlpha(.88f));
     g.setFont(skell::theme::mono(9.f));
-    g.drawText("v1.7.s",258,15,55,14,juce::Justification::centredLeft);
+    g.drawText("v1.7.3",192,37,48,13,juce::Justification::centred);
     const double sr=processor.getSampleRate();
     const int latency=processor.displayLatency.load(std::memory_order_relaxed);
     g.setFont(skell::theme::mono(12.f));
     g.setColour(dark.withAlpha(.93f));
-    g.drawText(juce::String(sr>0?sr/1000.0:48.0,1)+" kHz  •  "+juce::String(latency)+" smp",
+    g.drawText(juce::String(juce::roundToInt(sr>0?sr:48000.0))+" Hz  /  "+juce::String(latency)+" smp",
                655,18,165,25,juce::Justification::centredRight);
-    const bool enabled=processor.apvts.getRawParameterValue("power")->load()>=.5f;
-    g.setFont(skell::theme::display(10.4f));
-    g.setColour(enabled ? green.brighter(.16f) : juce::Colour(0xffec8d80));
-    g.drawText(enabled ? "ON" : "OFF",824,19,53,23,juce::Justification::centredRight);
+    // Do not duplicate the power state with ON/OFF text beside its glyph.
 }

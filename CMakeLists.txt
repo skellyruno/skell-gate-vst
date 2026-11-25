@@ -9,6 +9,9 @@ if(SKELL_BUILD_TESTS)
     add_executable(skell_dsp_tests tests/DSPTests.cpp)
     target_include_directories(skell_dsp_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     add_test(NAME skell_dsp_tests COMMAND skell_dsp_tests)
+    add_executable(skell_level_gate_tests tests/LevelGateDSP.cpp)
+    target_include_directories(skell_level_gate_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    add_test(NAME skell_level_gate_tests COMMAND skell_level_gate_tests)
 endif()
 if(SKELL_DSP_ONLY)
     return()
@@ -19,10 +22,10 @@ endif()
 if(DEFINED JUCE_DIR AND EXISTS "${JUCE_DIR}/CMakeLists.txt")
     add_subdirectory("${JUCE_DIR}" "${CMAKE_BINARY_DIR}/juce" EXCLUDE_FROM_ALL)
 else()
-    find_package(JUCE 8 CONFIG QUIET)
+    find_package(JUCE 8.0.12 EXACT CONFIG QUIET)
     if(NOT JUCE_FOUND)
         include(FetchContent)
-        FetchContent_Declare(JUCE GIT_REPOSITORY https://github.com/juce-framework/JUCE.git GIT_TAG 8.0.10 GIT_SHALLOW TRUE)
+        FetchContent_Declare(JUCE GIT_REPOSITORY https://github.com/juce-framework/JUCE.git GIT_TAG 8.0.12 GIT_SHALLOW TRUE)
         FetchContent_MakeAvailable(JUCE)
     endif()
 endif()
@@ -48,7 +51,7 @@ juce_add_plugin(SkellGlitch
     PLUGIN_CODE SkGl
     PRODUCT_NAME "SkellGlitch"
     PLUGIN_NAME "SkellGlitch"
-    FORMATS VST3 Standalone
+    FORMATS VST3
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -68,7 +71,7 @@ target_sources(SkellGlitch PRIVATE
     ui/PresetBar.h ui/PresetBar.cpp
     dsp/TempoClock.h dsp/SliceCapture.h dsp/Reverser.h
     dsp/GateSequencer.h dsp/GateShaper.h dsp/BandSplitter.h
-    dsp/Crossfader.h dsp/TriggerRouter.h dsp/GlitchRandomizer.h)
+    dsp/Crossfader.h dsp/TriggerRouter.h dsp/GlitchRandomizer.h dsp/shared/LiveLevelGate.h)
 
 target_compile_definitions(SkellGlitch PRIVATE
     JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
@@ -94,4 +97,10 @@ if(SKELL_BUILD_UI_SMOKE)
     target_include_directories(SkellGlitchUISmoke PRIVATE
         "$<TARGET_PROPERTY:SkellGlitch,INCLUDE_DIRECTORIES>")
     target_compile_definitions(SkellGlitchUISmoke PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+    juce_add_console_app(SkellGlitchLevelGateHost PRODUCT_NAME "SkellGlitch Level Gate Host Test")
+    target_sources(SkellGlitchLevelGateHost PRIVATE tests/LevelGateHost.cpp)
+    target_link_libraries(SkellGlitchLevelGateHost PRIVATE SkellGlitch juce::juce_audio_utils juce::juce_gui_extra SkellCore::UI)
+    target_include_directories(SkellGlitchLevelGateHost PRIVATE "$<TARGET_PROPERTY:SkellGlitch,INCLUDE_DIRECTORIES>")
+    target_compile_definitions(SkellGlitchLevelGateHost PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+    add_test(NAME SkellGlitchLevelGateHost COMMAND SkellGlitchLevelGateHost)
 endif()
