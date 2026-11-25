@@ -2,14 +2,17 @@
 #include "../PluginProcessor.h"
 ModeRow::ModeRow(SkellGlitchAudioProcessor& p, juce::TextButton& syncControl)
     : processor(p), sync(syncControl),
-      modes{juce::TextButton("REVERSE"), juce::TextButton("GATE"), juce::TextButton("GLITCH")} {
+      modes{EffectButton("REVERSE"), EffectButton("GATE"), EffectButton("GLITCH")} {
     addAndMakeVisible(sync);
     sync.setTooltip("Follow the host tempo for loop and gate timing.");
     for (int i = 0; i < 3; ++i) {
         auto& button=modes[static_cast<size_t>(i)];
         addAndMakeVisible(button);
-        button.setTooltip(i==2?"GLITCH: sound reference pending":"Click to select; Shift-click to combine Reverse and Gate");
-        if (i<2) button.onClick=[this,i] { selectEffect(i,juce::ModifierKeys::getCurrentModifiers().isShiftDown()); };
+        button.setTooltip(i==2?"GLITCH: sound reference pending":"Click to select; right-click or Shift-click to add Reverse/Gate");
+        if (i<2) {
+            button.onClick=[this,i] { selectEffect(i,juce::ModifierKeys::getCurrentModifiers().isShiftDown()); };
+            button.onAdd=[this,i] { selectEffect(i,true); };
+        }
     }
     // Reserve the new effect slot without repurposing the old Mode=Both
     // automation choice or shipping an invented reference effect.

@@ -10,6 +10,7 @@
 #include "../ui/TopBar.h"
 #include "../ui/GateGrid.h"
 #include "../ui/PresetBar.h"
+#include "../ui/ModeRow.h"
 #include "../PluginProcessor.h"
 
 // Reuse the exact processor factory linked into the VST3 wrapper.
@@ -392,6 +393,22 @@ int main() {
         std::cerr << "UI_SETTINGS: failed to render real Settings screenshot\n";
         return 62;
     }
+    auto* advancedButton=dynamic_cast<juce::TextButton*>(findNamed(*editor,"SETTINGS_ADVANCED"));
+    auto* bandLow=dynamic_cast<juce::Slider*>(findNamed(*editor,"BANDLOW"));
+    auto* bandHigh=dynamic_cast<juce::Slider*>(findNamed(*editor,"BANDHIGH"));
+    if (!advancedButton || !bandLow || !bandHigh || !bandLow->isShowing() || !bandHigh->isShowing()) {
+        std::cerr << "UI_SETTINGS: quick settings and band filters missing\n";
+        return 83;
+    }
+    bandLow->setValue(120,juce::sendNotificationSync);
+    if (std::abs(engine->apvts.getRawParameterValue("bandLow")->load()-120.f)>1.f) return 84;
+    bandLow->setValue(20,juce::sendNotificationSync);
+    advancedButton->setToggleState(true,juce::sendNotificationSync);
+    const auto advancedScene=editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    {
+        juce::FileOutputStream out(directory.getChildFile("Skell-Glitch-Advanced-960x720.png"));
+        if (out.failedToOpen() || !png.writeImageToStream(advancedScene,out)) return 85;
+    }
     settingsButton->onClick();
     if (!settingsIcon || !powerIcon || settingsIcon->getWidth() > 38 ||
         powerIcon->getWidth() > 38 || settingsIcon->getHeight() > 38 ||
@@ -700,6 +717,14 @@ int main() {
         std::cerr << "UI_LAYOUT: mode buttons collide with lower rotary knobs\n";
         return 28;
     }
+    auto* effectRow=dynamic_cast<ModeRow*>(modeButton->getParentComponent());
+    auto* reservedGlitch=findButton(*editor,"GLITCH");
+    if (!effectRow || !reservedGlitch || reservedGlitch->isEnabled()) return 86;
+    effectRow->selectEffect(0,false);
+    effectRow->selectEffect(1,true);
+    if (engine->apvts.getRawParameterValue("mode")->load()!=2.f ||
+        !modeButton->getToggleState() || !findButton(*editor,"GATE")->getToggleState()) return 87;
+    effectRow->selectEffect(0,false);
     auto* gateButton = findButton(*editor, "GATE");
     auto* loopButton = findButton(*editor, "1/16");
     auto* syncButton = findButton(*editor, "SYNC ON");

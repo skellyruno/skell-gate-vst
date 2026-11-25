@@ -267,6 +267,37 @@ public:
             }
         };
         addAndMakeVisible(randomSeed);
+        // Basic settings expose the existing working band processor, not
+        // the still-unintegrated native Love Philter engine.
+        for (auto id : {"bandLow","bandHigh"}) {
+            auto slider=std::make_unique<juce::Slider>();
+            slider->setName(juce::String(id).toUpperCase());
+            slider->setSliderStyle(juce::Slider::LinearHorizontal);
+            slider->setTextBoxStyle(juce::Slider::TextBoxRight,false,64,22);
+            addAndMakeVisible(*slider);
+            filterAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.apvts,id,*slider));
+            slider->setNumDecimalPlacesToDisplay(0);
+            slider->textFromValueFunction=[](double v) { return juce::String(juce::roundToInt(v)); };
+            slider->updateText();
+            filters.push_back(std::move(slider));
+        }
+        advanced.setName("SETTINGS_ADVANCED");
+        advanced.setClickingTogglesState(true);
+        advanced.setButtonText("ADVANCED");
+        advanced.onClick=[this] { updatePage(); };
+        addAndMakeVisible(advanced);
+        updatePage();
+    }
+    void updatePage() {
+        const bool detail=advanced.getToggleState();
+        for (auto& s : sliders) s->setVisible(detail);
+        for (size_t i=0;i<combos.size();++i) combos[i]->setVisible(detail || i>=3);
+        for (auto& t : toggles) t->setVisible(detail);
+        for (auto* b : {&manualCopy,&jitter,&randomSeed}) b->setVisible(detail);
+        trigger.setVisible(detail);
+        for (auto& f : filters) f->setVisible(!detail);
+        resized();
+        repaint();
     }
     void paint(juce::Graphics& g) override {
         skell::theme::roundTile(g, getLocalBounds().toFloat().reduced(1.f), 13);
@@ -275,6 +306,18 @@ public:
         g.drawText("SETTINGS", 18, 12, 254, 25, juce::Justification::centredLeft);
         g.setColour(skell::theme::colour(skell::theme::gray));
         g.setFont(skell::theme::regular(12));
+        if (!advanced.getToggleState()) {
+            g.drawText("QUICK SETTINGS",18,49,260,20,juce::Justification::centredLeft);
+            g.drawText("REVERSE STYLE",18,82,128,24,juce::Justification::centredLeft);
+            g.drawText("GATE RATE",18,120,128,24,juce::Justification::centredLeft);
+            g.drawText("LOW CUT (Hz)",18,184,128,24,juce::Justification::centredLeft);
+            g.drawText("HIGH CUT (Hz)",18,222,128,24,juce::Justification::centredLeft);
+            g.drawText("WINDOW SIZE",18,284,128,24,juce::Justification::centredLeft);
+            g.setColour(skell::theme::colour(skell::theme::bone));
+            g.drawFittedText("Only frequencies between the cuts receive the effect. Outside frequencies stay dry.",18,260,365,22,juce::Justification::centredLeft,2,.85f);
+            g.drawFittedText("Choose Advanced for timing, trigger and detailed controls.",18,340,365,45,juce::Justification::centredLeft,2,.85f);
+            return;
+        }
         g.drawText("EFFECT CONTROLS",18,37,250,15,juce::Justification::centredLeft);
         g.drawText("TIMING & BEHAVIOUR",18,263,250,15,juce::Justification::centredLeft);
         for (int i = 0; i < labels.size(); ++i)
@@ -288,6 +331,17 @@ public:
     }
     void resized() override {
         close.setBounds(getWidth() - 44, 10, 28, 28);
+        advanced.setBounds(248,10,96,28);
+        if (!advanced.getToggleState()) {
+            if (combos.size()>=5) {
+                combos[3]->setBounds(145,82,getWidth()-161,26);
+                combos[4]->setBounds(145,120,getWidth()-161,26);
+            }
+            for (size_t i=0;i<filters.size();++i)
+                filters[i]->setBounds(145,184+static_cast<int>(i)*38,getWidth()-161,25);
+            size.setBounds(145,284,135,26);
+            return;
+        }
         for (size_t i = 0; i < sliders.size(); ++i)
             sliders[i]->setBounds(140, 53 + static_cast<int>(i) * 30, getWidth() - 154, 22);
         for (size_t i = 0; i < combos.size(); ++i)
@@ -311,7 +365,9 @@ private:
     }
     SkellGlitchAudioProcessor& processor;
     std::function<void(int)> resizeEditor;
-    juce::TextButton close{"✕"}, manualCopy, jitter, randomSeed;
+    juce::TextButton close{"✕"}, manualCopy, jitter, randomSeed, advanced;
+    std::vector<std::unique_ptr<juce::Slider>> filters;
+    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> filterAttachments;
     MomentaryButton trigger;
     juce::ComboBox size;
     juce::StringArray labels;

@@ -32,6 +32,8 @@ PresetBar::PresetBar(SkellGlitchAudioProcessor& p) : processor(p) {
     next.setTooltip("Next factory preset");
     presetSelector.setTooltip("Factory presets by category, and Save/Open");
     undo.setTooltip("Undo the last automatable parameter change");
+    undo.setButtonText({});
+    redo.setButtonText({});
     redo.setTooltip("Redo the previous change");
 
     previous.onClick = [this] { stepPreset(-1); };
