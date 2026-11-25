@@ -25,7 +25,10 @@ public:
         bpm = std::isfinite(bpmValue) ? std::clamp(bpmValue, 20.0, 400.0) : 120.0;
         numerator = std::clamp(numeratorValue, 1, 32);
         denominator = std::clamp(denominatorValue, 1, 32);
-        hostAvailable = available && std::isfinite(ppq);
+        // A finite but corrupt host PPQ can overflow the slice index and
+        // the gate-cycle index. A billion quarter notes is already centuries
+        // of continuous music; fall back to the free clock outside that range.
+        hostAvailable = available && std::isfinite(ppq) && std::abs(ppq) <= 1.e9;
         startPPQ = hostAvailable ? ppq : 0.0;
         sync = syncEnabled;
         selectedDivision = std::clamp(division, 0, 8);

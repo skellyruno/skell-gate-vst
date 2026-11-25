@@ -72,6 +72,27 @@ static void tripletPartitionTest() {
                           "host block partition moved a rhythmic boundary");
             }
 }
+static void transportRangeTest() {
+    for (int sr : {44100, 48000, 96000, 192000})
+        for (int d = 0; d < 9; ++d) {
+            TempoClock c; c.prepare(sr); c.advance(12345);
+            for (double ppq : {std::numeric_limits<double>::max(),
+                              -std::numeric_limits<double>::max(),
+                               1.e20, -1.e20, 1.e9+1, -1.e9-1}) {
+                c.setHost(120, 1, 32, ppq, true, true, d, 500);
+                const auto pos = c.atSample(127);
+                check(std::isfinite(pos.beat) && std::isfinite(pos.phase) &&
+                      pos.phase >= 0 && pos.phase < 1, "invalid host PPQ escaped clock");
+                approx(pos.beat, (12345+127)/(sr/2.0), 1.e-12, "invalid PPQ did not use free clock");
+            }
+            for (double ppq : {-12.25, 0.0, 1.e9, -1.e9}) {
+                c.setHost(120, 1, 32, ppq, true, true, d, 500);
+                const auto pos = c.atSample(0);
+                check(pos.beat == ppq && pos.phase >= 0 && pos.phase < 1,
+                      "valid negative or extended host PPQ changed");
+            }
+        }
+}
 static void sliceTest() {
     SliceCapture b; b.prepare(2, 2048); b.onBoundary();
     for (int i = 0; i < 500; ++i) b.write(static_cast<float>(i / 500.0), static_cast<float>(-i / 500.0));
@@ -423,7 +444,7 @@ static void offlineReproTest() {
 }
 
 int main() {
-    try { clockTest(); tripletPartitionTest(); sliceTest(); gateTest(); bandTest(); deterministicTest(); offlineReproTest(); filterRobustnessTest(); stressTest(); }
+    try { clockTest(); tripletPartitionTest(); transportRangeTest(); sliceTest(); gateTest(); bandTest(); deterministicTest(); offlineReproTest(); filterRobustnessTest(); stressTest(); }
     catch (const std::exception& ex) { std::cerr << "FAIL: " << ex.what() << '\n'; return EXIT_FAILURE; }
     std::cout << "PASS: TempoClock / SliceCapture / Reverser / GateSequencer / GateShaper / BandSplitter / Crossfader / TriggerRouter / seeded randomness\n";
     return EXIT_SUCCESS;
