@@ -303,7 +303,7 @@ int main() {
     // Capture the real OFF state and reject the old separate red status LED.
     auto* offTestPower=findParameter("Power");
     if (!offTestPower) return 77;
-    offTestPower->setValueNotifyingHost(offTestPower->convertTo0to1(0.f));
+    offTestPower->setValueNotifyingHost(0.f);
     visualHeader->repaint();
     const auto powerOff=editor->createComponentSnapshot(editor->getLocalBounds(),true);
     int redDotPixels=0;
@@ -313,7 +313,7 @@ int main() {
             if (col.getRed()>115 && col.getRed()>col.getGreen()+40)
                 ++redDotPixels;
         }
-    offTestPower->setValueNotifyingHost(offTestPower->convertTo0to1(1.f));
+    offTestPower->setValueNotifyingHost(1.f);
     visualHeader->repaint();
     if (redDotPixels>0) {
         std::cerr << "UI_HEADER: separate red LED dot remains on power button\n";
