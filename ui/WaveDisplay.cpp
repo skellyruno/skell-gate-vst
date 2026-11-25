@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 WaveDisplay::WaveDisplay(SkellGlitchAudioProcessor& p) : processor(p) {
+    setName("LIVE_WAVE_DISPLAY");
     startTimerHz(30);
     setMouseCursor(juce::MouseCursor::CrosshairCursor);
     setTooltip("Waveform: drag to paint steps; Alt+click cycles the step state; scroll to zoom");
@@ -96,13 +97,13 @@ void WaveDisplay::paint(juce::Graphics& g) {
         const float breathing = .63f + .20f * std::sin(
             float(juce::Time::getMillisecondCounterHiRes() * .0023));
         g.setColour(colour(bone).withAlpha(breathing));
-        g.setFont(regular(13.6f));
+        g.setFont(regular(15.0f));
         g.drawText("WAITING FOR INPUT",getLocalBounds().reduced(26),
                    juce::Justification::centred);
         g.setColour(colour(neon).withAlpha(.12f+.13f*breathing));
         const float centre = getWidth()*.5f;
-        g.drawLine(centre-35.f,getHeight()*.64f,centre+35.f,
-                   getHeight()*.64f,1.35f);
+        g.drawLine(centre-35.f,getHeight()*.50f+24.f,centre+35.f,
+                   getHeight()*.50f+24.f,1.35f);
     }
     const int mode=static_cast<int>(processor.apvts.getRawParameterValue("mode")->load());
     if(mode!=0) {
@@ -117,7 +118,7 @@ void WaveDisplay::paint(juce::Graphics& g) {
         }
     }
     g.setColour(colour(bone));
-    g.setFont(mono(10.8f));
+    g.setFont(mono(12.8f));
     g.drawText("LIVE SLICE  /  "+juce::String(zoom,1)+"x",17,9,149,18,juce::Justification::centredLeft);
     if(reverse) {
         g.setColour(colour(magenta));

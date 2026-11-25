@@ -115,7 +115,7 @@ void GateGrid::paint(juce::Graphics& g) {
         }
     }
     g.setColour(skell::theme::colour(skell::theme::gray).withAlpha(.75f));
-    g.setFont(skell::theme::mono(9.4f));
+    g.setFont(skell::theme::mono(11.5f));
     g.drawText("RIGHT-CLICK TO EDIT STEPS", 0, 57, getWidth(), 14,
                juce::Justification::centred);
 }

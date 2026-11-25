@@ -154,18 +154,22 @@ public:
         g.setColour(colour(border).withAlpha(.47f));
         g.drawLine(168,139,431,139,.85f);
         g.drawLine(535,139,792,139,.85f);
-        g.drawLine(196,551,759,551,1.1f);
+        g.drawLine(208,645,752,645,1.1f);
         g.setColour(juce::Colours::white.withAlpha(ivory ? .35f : .11f));
-        g.drawLine(196,552,759,552,.75f);
+        g.drawLine(208,646,752,646,.75f);
         g.setFont(regular(14));
         g.setColour(colour(gray));
-        g.drawText("LOOP LENGTH",426,120,110,24,juce::Justification::centred);
-        g.drawText("FADE IN",63,346,122,25,juce::Justification::centred);
-        g.drawText("FADE OUT",775,346,122,25,juce::Justification::centred);
-        // The five aligned performance controls explain themselves;
-        // removing the isolated MODE engraving restores visual balance.
-        g.drawText("SMOOTH",64,676,120,24,juce::Justification::centred);
-        g.drawText("MIX",776,676,120,24,juce::Justification::centred);
+        g.drawText("LOOP LENGTH",425,120,110,24,juce::Justification::centred);
+        // Captions follow the actual rotary bounds, including future moves.
+        g.setFont(display(15.f));
+        const auto caption = [&](const juce::String& label, juce::Rectangle<int> dial) {
+            g.drawText(label, dial.getCentreX()-50, dial.getBottom()+3,
+                       100, 23, juce::Justification::centred);
+        };
+        caption("FADE IN", fadeInDial);
+        caption("FADE OUT", fadeOutDial);
+        caption("SMOOTH", smoothDial);
+        caption("MIX", mixDial);
         // The version is engraved alongside the brand in the header.
     }
 };
@@ -343,8 +347,8 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     };
     canvas.addAndMakeVisible(previousPattern);
     canvas.addAndMakeVisible(nextPattern);
-    previousPattern.setBounds(169,411,31,32);
-    nextPattern.setBounds(760,411,31,32);
+    previousPattern.setBounds(skell::theme::previousStepPattern);
+    nextPattern.setBounds(skell::theme::nextStepPattern);
     top.setBounds(skell::theme::top);
     loops.setBounds(skell::theme::loops);
     waveform.setBounds(skell::theme::wave);
@@ -354,15 +358,15 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     presets.setBounds(310, 11, 340, 37);
     // Four knobs use the same width, horizontal centres, and mirrored
     // geometry; preserve the hardware metal material and the two dividers.
-    fadeIn.setBounds(53, 198, 141, 148);
-    fadeOut.setBounds(766, 198, 141, 148);
-    smooth.setBounds(53, 532, 141, 141);
-    mix.setBounds(766, 532, 141, 141);
+    fadeIn.setBounds(skell::theme::fadeInDial);
+    fadeOut.setBounds(skell::theme::fadeOutDial);
+    smooth.setBounds(skell::theme::smoothDial);
+    mix.setBounds(skell::theme::mixDial);
     startStatus.setName("LIVE_START_STATUS");
     startStatus.setJustificationType(juce::Justification::centred);
-    startStatus.setFont(skell::theme::mono(13.1f));
+    startStatus.setFont(skell::theme::mono(14.0f));
     startStatus.setColour(juce::Label::textColourId,skell::theme::colour(skell::theme::bone));
-    startStatus.setBounds(308, 581, 344, 46);
+    startStatus.setBounds(240, 650, 480, 32);
     startStatus.setInterceptsMouseClicks(false,false);
     canvas.addAndMakeVisible(startStatus);
     for (auto* slider : {&fadeIn, &fadeOut, &smooth, &mix}) slider->setDoubleClickReturnValue(true, slider == &smooth ? 30. : slider == &mix ? 100. : 0.);

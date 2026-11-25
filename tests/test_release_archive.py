@@ -121,15 +121,18 @@ class PreviewArchiveTests(unittest.TestCase):
         content = workflow.read_text(encoding="utf-8")
         self.assertIn("  push:\n    branches:\n      - main\n      - 'release/**'", content)
 
-    def test_public_repository_product_artifact_upload_is_withheld(self):
+    def test_verified_preview_upload_is_visibility_independent(self):
         workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "build.yml"
         content = workflow.read_text(encoding="utf-8")
         upload_step = content.split(
-            "name: Upload verified Windows VST3 preview archive (private repositories only)", 1
+            "name: Upload verified Windows VST3 preview archive\n", 1
         )[1].split("      - name:", 1)[0]
-        self.assertIn("if: github.event.repository.private == true", upload_step)
-        self.assertIn("if: github.event.repository.private != true", content)
-        self.assertIn("not private downloads", content)
+        self.assertNotIn("github.event.repository.private", content)
+        self.assertNotIn("if:", upload_step)
+        self.assertIn("if-no-files-found: error", upload_step)
+        self.assertIn(".zip.sha256", upload_step)
+        self.assertLess(content.index("Validate packaged VST3 with pluginval"), content.index("name: Upload verified Windows VST3 preview archive"))
+        self.assertLess(content.index("Build deterministic private-preview ZIP and checksums"), content.index("name: Upload verified Windows VST3 preview archive"))
 
     def test_workflow_runs_windows_installer_regressions_before_archive_creation(self):
         workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "build.yml"

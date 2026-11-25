@@ -65,8 +65,8 @@ int main() {
             // even at zero value. Verify that the actual JUCE draw covers the
             // left dial rather than only the parameter's tiny endpoint dot.
             int illuminated = 0;
-            for (int yy = 197; yy <= 333; ++yy)
-                for (int xx = 43; xx <= 170; ++xx) {
+            for (int yy = skell::theme::fadeInDial.getY(); yy < skell::theme::fadeInDial.getBottom(); ++yy)
+                for (int xx = skell::theme::fadeInDial.getX(); xx < skell::theme::fadeInDial.getRight(); ++xx) {
                     const auto pixel = frame.getPixelAt(xx, yy);
                     if (pixel.getGreen() > 165 && pixel.getGreen() > pixel.getRed() + 75
                         && pixel.getGreen() > pixel.getBlue() + 45) ++illuminated;
@@ -279,8 +279,8 @@ int main() {
     for (int y=3;y<58;++y)
         for(int x=10;x<62;++x)
             if (calm.getPixelAt(x,y)!=disrupted.getPixelAt(x,y)) ++skullPixels;
-    for (int y=397;y<447;y+=2)
-        for(int x=214;x<749;x+=2)
+    for (int y=visualSteps->getY();y<visualSteps->getY()+48;y+=2)
+        for(int x=visualSteps->getX()+6;x<visualSteps->getRight()-3;x+=2)
             if (calm.getPixelAt(x,y)!=disrupted.getPixelAt(x,y)) ++stepPixels;
     if (skullPixels<8 || stepPixels<8) {
         std::cerr << "UI_GLITCH: burst does not visibly affect the skull and green sequencer\n";
@@ -370,6 +370,23 @@ int main() {
         std::cerr << "UI_LAYOUT: four hardware knobs are not symmetrical\n";
         return 59;
     }
+    auto* display = findNamed(*editor, "LIVE_WAVE_DISPLAY");
+    if (!display || display->getParentComponent() != leftTop->getParentComponent() ||
+        leftTop->getBounds().getCentreY() != rightTop->getBounds().getCentreY() ||
+        leftBottom->getBounds().getCentreY() != rightBottom->getBounds().getCentreY() ||
+        leftTop->getBounds().getCentreX() != leftBottom->getBounds().getCentreX() ||
+        rightTop->getBounds().getCentreX() != rightBottom->getBounds().getCentreX() ||
+        2*display->getBounds().getCentreX() != leftTop->getBounds().getCentreX()+rightTop->getBounds().getCentreX() ||
+        2*display->getBounds().getCentreY() != leftTop->getBounds().getCentreY()+leftBottom->getBounds().getCentreY() ||
+        display->getBounds().intersects(leftTop->getBounds()) ||
+        display->getBounds().intersects(rightTop->getBounds()) ||
+        display->getBounds().intersects(leftBottom->getBounds()) ||
+        display->getBounds().intersects(rightBottom->getBounds()) ||
+        display->getBottom()+12 > visualSteps->getY()) {
+        std::cerr << "UI_LAYOUT: waveform is not exactly centered between four equal knobs or collides with steps\n";
+        return 73;
+    }
+    std::cout << "UI_LAYOUT: waveform and four-knob centre match exactly\n";
     auto* headerPreset = dynamic_cast<PresetBar*>(
         findNamed(*editor, "HEADER_PRESET_BAR"));
     auto* previousPreset = dynamic_cast<juce::TextButton*>(
@@ -548,11 +565,11 @@ int main() {
             }
         return changed;
     };
-    for (int y = 198; y < 346; y += 2)
-        for (int x = 53; x < 194; x += 2)
+    for (int y = leftTop->getY(); y < leftTop->getBottom(); y += 2)
+        for (int x = leftTop->getX(); x < leftTop->getRight(); x += 2)
             if (dialBefore.getPixelAt(x, y) != dialAfter.getPixelAt(x, y))
                 ++dialChangedPixels;
-    movingFadeArcPixels=countArcChanges(dialBefore,dialAfter,123.5f,272.f);
+    movingFadeArcPixels=countArcChanges(dialBefore,dialAfter, float(leftTop->getBounds().getCentreX()), float(leftTop->getBounds().getCentreY()));
     if (std::abs(fadeParameter->getValue() - .2f) > .005f ||
         dialChangedPixels < 50 || movingFadeArcPixels<24) {
         std::cerr << "UI_CONTROL: Fade In automation or moving green light broken\n";
@@ -564,7 +581,7 @@ int main() {
     const auto outBefore=editor->createComponentSnapshot(editor->getLocalBounds(),true);
     fadeOutKnob->setValue(250.0,juce::sendNotificationSync);
     const auto outAfter=editor->createComponentSnapshot(editor->getLocalBounds(),true);
-    const int outArcChanges=countArcChanges(outBefore,outAfter,836.5f,272.f);
+    const int outArcChanges=countArcChanges(outBefore,outAfter, float(rightTop->getBounds().getCentreX()), float(rightTop->getBounds().getCentreY()));
     fadeOutKnob->setValue(0.0,juce::sendNotificationSync);
     if (outArcChanges<24) {
         std::cerr << "UI_CONTROL: Fade Out green arc remains fixed\n";
