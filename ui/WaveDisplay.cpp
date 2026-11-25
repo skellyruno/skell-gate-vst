@@ -65,14 +65,14 @@ void WaveDisplay::paint(juce::Graphics& g) {
         g.drawRoundedRectangle(inside.reduced(.5f),14.f,1.f);
     }
     for (int beat=1; beat<8; ++beat) {
-        const float x=20.f+(getWidth()-40.f)*beat/8.f;
+        const float x=float(skell::theme::waveInset)+(getWidth()-2.f*skell::theme::waveInset)*beat/8.f;
         g.setColour(black ? colour(neon).withAlpha(.075f)
                           : colour(border).withAlpha(.60f));
         g.drawLine(x,31.f,x,getHeight()-24.f,.85f);
     }
     const float phase=std::clamp(processor.displayPhase.load(std::memory_order_relaxed),0.f,1.f);
     const bool reverse=processor.displayReverse.load(std::memory_order_relaxed)!=0;
-    const float playX=20.f+(getWidth()-40.f)*(reverse?1.f-phase:phase);
+    const float playX=float(skell::theme::waveInset)+(getWidth()-2.f*skell::theme::waveInset)*(reverse?1.f-phase:phase);
     bool hasWaveform=false;
     for (const auto& peak:processor.waveform)
         if (peak.load(std::memory_order_relaxed)>.001f) { hasWaveform=true;break; }
@@ -82,7 +82,7 @@ void WaveDisplay::paint(juce::Graphics& g) {
             const auto src=static_cast<size_t>(std::clamp(static_cast<int>(bar*visible/160),0,159));
             const auto index=reverse?159-src:src;
             const float amplitude=std::min(1.f,processor.waveform[index].load(std::memory_order_relaxed)*3.4f);
-            const float x=20.f+bar*(getWidth()-40.f)/160.f;
+            const float x=float(skell::theme::waveInset)+bar*(getWidth()-2.f*skell::theme::waveInset)/160.f;
             const float h=std::max(1.3f,amplitude*(getHeight()-70.f)*.5f);
             const bool played=reverse?x>=playX:x<=playX;
             g.setColour(colour(played?neon:dim).withAlpha(played?.97f:.63f));
@@ -111,9 +111,9 @@ void WaveDisplay::paint(juce::Graphics& g) {
         for(int i=0;i<count;++i) {
             const auto p=processor.apvts.getRawParameterValue("step"+juce::String(i+1)+"_state");
             if(p && p->load()<.5f) {
-                const float x=20.f+(getWidth()-40.f)*i/count;
+                const float x=float(skell::theme::waveInset)+(getWidth()-2.f*skell::theme::waveInset)*i/count;
                 g.setColour(colour(dim).withAlpha(.13f));
-                g.fillRect(x,31.f,(getWidth()-40.f)/count,static_cast<float>(getHeight()-55));
+                g.fillRect(x,31.f,(getWidth()-2.f*skell::theme::waveInset)/count,static_cast<float>(getHeight()-55));
             }
         }
     }
@@ -131,7 +131,7 @@ void WaveDisplay::paint(juce::Graphics& g) {
 }
 void WaveDisplay::editAt(const juce::MouseEvent& e) {
     const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);
-    const int index = std::clamp(static_cast<int>((e.position.x - 20.f) / (getWidth() - 40.f) * steps), 0, steps - 1);
+    const int index = std::clamp(static_cast<int>((e.position.x - float(skell::theme::waveInset)) / (getWidth() - 2.f*skell::theme::waveInset) * steps), 0, steps - 1);
     if (index == lastEdited) return;
     lastEdited = index;
     const auto key = "step" + juce::String(index + 1) + "_state";
@@ -144,7 +144,7 @@ void WaveDisplay::editAt(const juce::MouseEvent& e) {
 void WaveDisplay::mouseDown(const juce::MouseEvent& e) {
     lastEdited = -1;
     const int steps = std::clamp(static_cast<int>(processor.apvts.getRawParameterValue("gateSteps")->load()), 1, 32);
-    const int idx = std::clamp(static_cast<int>((e.position.x - 20.f) / (getWidth() - 40.f) * steps), 0, steps - 1);
+    const int idx = std::clamp(static_cast<int>((e.position.x - float(skell::theme::waveInset)) / (getWidth() - 2.f*skell::theme::waveInset) * steps), 0, steps - 1);
     const auto key = "step" + juce::String(idx + 1) + "_state";
     paintOn = processor.apvts.getRawParameterValue(key)->load() < .5f;
     editAt(e);

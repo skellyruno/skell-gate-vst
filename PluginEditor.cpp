@@ -378,6 +378,20 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     fadeOutAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.apvts, "fadeOut", fadeOut);
     smoothAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.apvts, "smooth", smooth);
     mixAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.apvts, "mix", mix);
+    const std::array<GlitchKnob*,4> dials{&fadeIn,&fadeOut,&smooth,&mix};
+    for (std::size_t i=0;i<dials.size();++i) {
+        auto& value=knobValues[i];
+        const auto bounds=dials[i]->getBounds();
+        value.setName(dials[i]->getName()+" VALUE");
+        value.setBounds(bounds.getCentreX()-45,bounds.getBottom()+25,90,22);
+        value.setJustificationType(juce::Justification::centred);
+        value.setFont(skell::theme::mono(14.f));
+        value.setColour(juce::Label::textColourId,skell::theme::colour(skell::theme::bone));
+        value.setInterceptsMouseClicks(false,false);
+        canvas.addAndMakeVisible(value);
+        dials[i]->onValueChange=[this,i] { refreshKnobValue(i); };
+        refreshKnobValue(i);
+    }
     top.sync.setClickingTogglesState(true); top.power.setClickingTogglesState(true);
     syncAttach = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.apvts, "sync", top.sync);
     powerAttach = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.apvts, "power", top.power);
@@ -405,6 +419,7 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
         modes.repaint(); presets.repaint(); previousPattern.repaint(); nextPattern.repaint();
         startStatus.setColour(juce::Label::textColourId,skell::theme::colour(skell::theme::bone));
         for (auto* dial : {&fadeIn, &fadeOut, &smooth, &mix}) dial->repaint();
+        for (auto& value : knobValues) value.setColour(juce::Label::textColourId,skell::theme::colour(skell::theme::bone));
         settings->repaint();
     };
     tooltips = std::make_unique<juce::TooltipWindow>(this, 700);
@@ -428,6 +443,13 @@ void SkellGlitchAudioProcessorEditor::applyWindowSize(int index) {
     processor.setSavedSize(index);
     setSize(juce::roundToInt(skell::theme::width * uiScale),
             juce::roundToInt(skell::theme::height * uiScale));
+}
+void SkellGlitchAudioProcessorEditor::refreshKnobValue(std::size_t index) {
+    const std::array<GlitchKnob*,4> dials{&fadeIn,&fadeOut,&smooth,&mix};
+    const double v=dials[index]->getValue();
+    const auto text=index<2 ? (v<.5 ? juce::String("INST") : juce::String(v,0)+" ms")
+                            : juce::String(v,0)+"%";
+    knobValues[index].setText(text,juce::dontSendNotification);
 }
 void SkellGlitchAudioProcessorEditor::resized() {
     uiScale = getWidth() / static_cast<float>(skell::theme::width);

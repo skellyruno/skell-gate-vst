@@ -382,7 +382,9 @@ int main() {
         display->getBounds().intersects(rightTop->getBounds()) ||
         display->getBounds().intersects(leftBottom->getBounds()) ||
         display->getBounds().intersects(rightBottom->getBounds()) ||
-        display->getBottom()+12 > visualSteps->getY()) {
+        display->getBottom()+12 > visualSteps->getY() ||
+        visualSteps->getX()!=display->getX()+skell::theme::waveInset ||
+        visualSteps->getRight()!=display->getRight()-skell::theme::waveInset) {
         std::cerr << "UI_LAYOUT: waveform is not exactly centered between four equal knobs or collides with steps\n";
         return 73;
     }
@@ -546,6 +548,11 @@ int main() {
     const auto dialBefore = editor->createComponentSnapshot(editor->getLocalBounds(), true);
     fadeInKnob->setValue(100.0, juce::sendNotificationSync);
     const auto dialAfter = editor->createComponentSnapshot(editor->getLocalBounds(), true);
+    auto* valueLabel=dynamic_cast<juce::Label*>(findNamed(*editor,"FADE IN VALUE"));
+    if (!valueLabel || valueLabel->getText()!="100 ms" || valueLabel->getBounds().getCentreX()!=leftTop->getBounds().getCentreX()) {
+        std::cerr << "UI_CONTROL: persistent fade readout not aligned or updated\n";
+        return 74;
+    }
     int dialChangedPixels = 0, movingFadeArcPixels=0;
     const auto countArcChanges=[&](const juce::Image& a,const juce::Image& b,
                                   float cx,float cy) {

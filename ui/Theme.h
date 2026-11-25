@@ -145,10 +145,11 @@ inline const juce::Rectangle<int> fadeOutDial{764,158,144,144};
 inline const juce::Rectangle<int> smoothDial{52,378,144,144};
 inline const juce::Rectangle<int> mixDial{764,378,144,144};
 inline const juce::Rectangle<int> wave{208,176,544,328};
-inline const juce::Rectangle<int> gate{208,520,544,75};
+inline constexpr int waveInset=20;
+inline const juce::Rectangle<int> gate{wave.getX()+waveInset,520,wave.getWidth()-2*waveInset,75};
 inline const juce::Rectangle<int> modes{208,600,544,41};
-inline const juce::Rectangle<int> previousStepPattern{174,532,26,32};
-inline const juce::Rectangle<int> nextStepPattern{760,532,26,32};
+inline const juce::Rectangle<int> previousStepPattern{194,532,26,32};
+inline const juce::Rectangle<int> nextStepPattern{740,532,26,32};
 inline const juce::Rectangle<int> presets{310,11,340,37};
 // Filter parameters remain serialized for backwards compatibility;
 // the low/high cut widget is intentionally absent from the editor.

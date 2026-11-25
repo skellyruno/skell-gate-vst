@@ -1,5 +1,6 @@
 #pragma once
 #include <JuceHeader.h>
+#include <array>
 #include "ui/LookAndFeel.h"
 #include "ui/TopBar.h"
 #include "ui/LoopRow.h"
@@ -32,6 +33,8 @@ private:
     ModeRow modes;
     PresetBar presets;
     juce::Label startStatus;
+    std::array<juce::Label, 4> knobValues;
+    void refreshKnobValue(std::size_t index);
     GlitchKnob fadeIn{"FADE IN"}, fadeOut{"FADE OUT"}, smooth{"SMOOTH"}, mix{"MIX"};
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> fadeInAttach, fadeOutAttach, smoothAttach, mixAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> syncAttach, powerAttach;
