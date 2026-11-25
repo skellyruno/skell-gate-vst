@@ -167,7 +167,7 @@ int main() {
     // external host presets or file I/O.
     const auto names=SkellGlitchAudioProcessor::factoryPresetNames();
     auto* engine=dynamic_cast<SkellGlitchAudioProcessor*>(processor.get());
-    if (!engine || names.size()!=28 || names[11]!="Default" ||
+    if (!engine || names.size()!=29 || names[11]!="Default" || names[28]!="Level Cleanup" ||
         engine->currentPresetName()!="Default") {
         std::cerr << "PRESET: stable factory index or Default name incorrect\n";
         return 51;
@@ -396,7 +396,20 @@ int main() {
     auto* advancedButton=dynamic_cast<juce::TextButton*>(findNamed(*editor,"SETTINGS_ADVANCED"));
     auto* bandLow=dynamic_cast<juce::Slider*>(findNamed(*editor,"BANDLOW"));
     auto* bandHigh=dynamic_cast<juce::Slider*>(findNamed(*editor,"BANDHIGH"));
-    if (!advancedButton || !bandLow || !bandHigh || !bandLow->isShowing() || !bandHigh->isShowing()) {
+    // Offscreen editor has no desktop peer, so Component::isShowing() is
+    // false even for genuinely visible snapshot children. Verify actual
+    // ancestor visibility and in-parent geometry without weakening the check.
+    auto visibleInSnapshot = [&](juce::Component* c) {
+        if (!c) return false;
+        while (c && c != editor.get()) {
+            auto* parentComponent = c->getParentComponent();
+            if (!c->isVisible() || c->getBounds().isEmpty() || !parentComponent ||
+                !parentComponent->getLocalBounds().contains(c->getBounds())) return false;
+            c = parentComponent;
+        }
+        return c == editor.get() && c->isVisible();
+    };
+    if (!visibleInSnapshot(advancedButton) || !visibleInSnapshot(bandLow) || !visibleInSnapshot(bandHigh)) {
         std::cerr << "UI_SETTINGS: quick settings and band filters missing\n";
         return 83;
     }
@@ -545,7 +558,7 @@ int main() {
     // rather than a flat ComboBox or a duplicate TOOLS control.
     auto popup=headerPreset->buildPresetMenu();
     bool reverseCategory=false,gateCategory=false,bothCategory=false;
-    bool saveItem=false,openItem=false,snapshots=false;
+    bool saveItem=false,openItem=false,snapshots=false,levelPreset=false;
     juce::PopupMenu::MenuItemIterator topItems(popup);
     while(topItems.next()) {
         const auto& item=topItems.getItem();
@@ -559,9 +572,10 @@ int main() {
         const auto& item=allItems.getItem();
         if(item.itemID==1001) saveItem=true;
         if(item.itemID==1002) openItem=true;
+        if(item.itemID==29 && item.text=="Level Cleanup") levelPreset=true;
     }
     if(!reverseCategory || !gateCategory || !bothCategory ||
-       !saveItem || !openItem || !snapshots) {
+       !saveItem || !openItem || !snapshots || !levelPreset) {
         std::cerr << "UI_PRESET: cascade categories or Save/Open commands missing\n";
         return 66;
     }

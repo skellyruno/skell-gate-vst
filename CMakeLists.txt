@@ -9,6 +9,9 @@ if(SKELL_BUILD_TESTS)
     add_executable(skell_dsp_tests tests/DSPTests.cpp)
     target_include_directories(skell_dsp_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     add_test(NAME skell_dsp_tests COMMAND skell_dsp_tests)
+    add_executable(skell_level_gate_tests tests/LevelGateDSP.cpp)
+    target_include_directories(skell_level_gate_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    add_test(NAME skell_level_gate_tests COMMAND skell_level_gate_tests)
 endif()
 if(SKELL_DSP_ONLY)
     return()
@@ -68,7 +71,7 @@ target_sources(SkellGlitch PRIVATE
     ui/PresetBar.h ui/PresetBar.cpp
     dsp/TempoClock.h dsp/SliceCapture.h dsp/Reverser.h
     dsp/GateSequencer.h dsp/GateShaper.h dsp/BandSplitter.h
-    dsp/Crossfader.h dsp/TriggerRouter.h dsp/GlitchRandomizer.h)
+    dsp/Crossfader.h dsp/TriggerRouter.h dsp/GlitchRandomizer.h dsp/shared/LiveLevelGate.h)
 
 target_compile_definitions(SkellGlitch PRIVATE
     JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
@@ -94,4 +97,10 @@ if(SKELL_BUILD_UI_SMOKE)
     target_include_directories(SkellGlitchUISmoke PRIVATE
         "$<TARGET_PROPERTY:SkellGlitch,INCLUDE_DIRECTORIES>")
     target_compile_definitions(SkellGlitchUISmoke PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+    juce_add_console_app(SkellGlitchLevelGateHost PRODUCT_NAME "SkellGlitch Level Gate Host Test")
+    target_sources(SkellGlitchLevelGateHost PRIVATE tests/LevelGateHost.cpp)
+    target_link_libraries(SkellGlitchLevelGateHost PRIVATE SkellGlitch juce::juce_audio_utils juce::juce_gui_extra SkellCore::UI)
+    target_include_directories(SkellGlitchLevelGateHost PRIVATE "$<TARGET_PROPERTY:SkellGlitch,INCLUDE_DIRECTORIES>")
+    target_compile_definitions(SkellGlitchLevelGateHost PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+    add_test(NAME SkellGlitchLevelGateHost COMMAND SkellGlitchLevelGateHost)
 endif()

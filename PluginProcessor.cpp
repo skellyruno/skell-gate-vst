@@ -11,6 +11,17 @@ using APID = juce::ParameterID;
 constexpr int maxHoldSeconds = 32;
 const juce::StringArray loopLabels {"1/16", "1/8T", "1/8", "1/4", "1/2", "1 Bar", "2 Bars", "4 Bars", "8 Bars"};
 float raw(const P& state, const char* name) { auto* value = state.getRawParameterValue(name); return value ? value->load() : 0.f; }
+// APVTS does not reset an absent value when loading into an existing instance.
+juce::ValueTree withLevelGateDefaults(juce::ValueTree tree) {
+    for (const auto& item : std::array<std::pair<const char*,float>,3>{{{"levelGateAmount",0.f},{"levelGateThreshold",-45.f},{"levelGateExpansion",4.f}}}) {
+        if (tree.getChildWithProperty("id",item.first).isValid()) continue;
+        juce::ValueTree child("PARAM");
+        child.setProperty("id",item.first,nullptr);
+        child.setProperty("value",item.second,nullptr);
+        tree.appendChild(child,nullptr);
+    }
+    return tree;
+}
 void writeParam(P& state, const juce::String& id, float real) {
     if (auto* p = state.getParameter(id)) {
         p->beginChangeGesture();
@@ -69,6 +80,10 @@ P::ParameterLayout SkellGlitchAudioProcessor::makeLayout() {
     choice("triggerSource", "Trigger source", {"Auto", "MIDI", "Sidechain", "Manual"}, 0);
     choice("latencyMode", "Latency mode", {"Zero", "Aligned"}, 0);
     boolean("deltaListen", "Delta listen", false);
+    // Additive version-2 IDs: all existing parameters and normalized ranges stay unchanged.
+    v.push_back(std::make_unique<juce::AudioParameterFloat>(APID{"levelGateAmount", 2}, "Level Gate Amount", juce::NormalisableRange<float>(0.f,100.f,.1f),0.f));
+    v.push_back(std::make_unique<juce::AudioParameterFloat>(APID{"levelGateThreshold", 2}, "Level Gate Threshold dB", juce::NormalisableRange<float>(-85.f,-15.f,.1f),-45.f));
+    v.push_back(std::make_unique<juce::AudioParameterFloat>(APID{"levelGateExpansion", 2}, "Level Gate Expansion", juce::NormalisableRange<float>(0.f,12.f,.1f),4.f));
     return {std::make_move_iterator(v.begin()), std::make_move_iterator(v.end())};
 }
 
@@ -106,6 +121,7 @@ void SkellGlitchAudioProcessor::prepareToPlay(double sr, int) {
     const int maximum = static_cast<int>(std::ceil(currentSampleRate * maxHoldSeconds));
     capture.prepare(getMainBusNumInputChannels(), maximum);
     splitter.prepare(currentSampleRate);
+    levelGate.prepare(currentSampleRate);
     triggers.prepare(currentSampleRate);
     for (auto& g : shapers) g.prepare(currentSampleRate);
     delayCapacity = maximum + 4096;
@@ -197,6 +213,8 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     const int latency = std::clamp(getLatencySamples(), 0, delayCapacity - 8);
     displayLatency.store(latency, std::memory_order_relaxed);
     const int mode = static_cast<int>(raw(apvts, "mode"));
+    levelGate.setParameters(mode == 1 || mode == 2 ? raw(apvts,"levelGateAmount") * .01f : 0.f,
+                            raw(apvts,"levelGateThreshold"),raw(apvts,"levelGateExpansion"));
     const int style = static_cast<int>(raw(apvts, "reverseStyle"));
     const int rate = static_cast<int>(raw(apvts, "gateRate"));
     const int steps = std::clamp(static_cast<int>(raw(apvts, "gateSteps")), 1, 32);
@@ -316,6 +334,11 @@ void SkellGlitchAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
             if (invert) std::swap(inside[ch], outside[ch]);
             shaped[ch] = shapers[static_cast<size_t>(ch)].next(gateTarget, curve);
         }
+        // Level cleanup before pattern/reverse capture, applied to selected band
+        // only. One linked gain preserves stereo and leaves dry/PDC paths intact.
+        const auto levelGain = static_cast<float>(levelGate.next(inside[0],channels > 1 ? inside[1] : inside[0]));
+        if (levelGain != 1.f)
+            for (int ch = 0; ch < channels; ++ch) inside[ch] *= levelGain;
         const auto activeSliceSamples = std::max(16.0, clock.getSamplesPerSlice());
         // User-specified fades still operate normally; SMOOTH now performs a
         // real transition from the previous wet output at slice onset.
@@ -404,7 +427,7 @@ void SkellGlitchAudioProcessor::setStateInformation(const void* data, int bytes)
                 const juce::String slot = tree.getProperty(i == 0 ? "abA" : "abB").toString();
                 if (auto slotXml = juce::parseXML(slot)) ab[static_cast<size_t>(i)] = juce::ValueTree::fromXml(*slotXml);
             }
-            apvts.replaceState(tree);
+            apvts.replaceState(withLevelGateDefaults(tree));
         }
     }
 }
@@ -438,7 +461,7 @@ juce::StringArray SkellGlitchAudioProcessor::factoryPresetNames() {
             "Fast Flip", "Glass Backspin", "Vinyl Brake", "Vocal Pickup", "Pitch Down",
             "Sharp Sixteenths", "Triplet Pulse", "Sparse Pump", "Kick Duck", "Double Cut",
             "Stutter Driver", "Reverse Storm", "Chop And Flip", "Slow Motion",
-            "Breakbeat Scatter", "Micro Chop"};
+            "Breakbeat Scatter", "Micro Chop", "Level Cleanup"};
 }
 void SkellGlitchAudioProcessor::loadFactoryPreset(int index) {
     const auto names=factoryPresetNames();
@@ -482,6 +505,7 @@ void SkellGlitchAudioProcessor::loadFactoryPreset(int index) {
     case 25: setParameter("mode",2); setParameter("loopLength",6); setParameter("reversePitch",-7); setParameter("mix",60); break;
     case 26: setParameter("mode",2); setParameter("chaos",48); for(int i=0;i<16;++i) pattern[i]=i%4==0?2:(i%4==3?0:1); break;
     case 27: setParameter("mode",2); setParameter("loopLength",0); setParameter("gateRate",3); setParameter("smooth",7); break;
+    case 28: setParameter("mode",1); setParameter("levelGateAmount",100); setParameter("levelGateThreshold",-45); setParameter("levelGateExpansion",4); pattern.fill(1); break;
     default: break;
     }
     setPattern(pattern);
@@ -493,7 +517,7 @@ void SkellGlitchAudioProcessor::snapshotAB(int slot) {
 }
 void SkellGlitchAudioProcessor::recallAB(int slot) {
     if (slot < 0 || slot > 1 || !ab[static_cast<size_t>(slot)].isValid()) return;
-    apvts.replaceState(ab[static_cast<size_t>(slot)].createCopy());
+    apvts.replaceState(withLevelGateDefaults(ab[static_cast<size_t>(slot)].createCopy()));
 }
 void SkellGlitchAudioProcessor::copyAB(int source, int destination) {
     if (source < 0 || source > 1 || destination < 0 || destination > 1 || !ab[static_cast<size_t>(source)].isValid()) return;
@@ -512,7 +536,7 @@ bool SkellGlitchAudioProcessor::loadUserPreset(const juce::File& file) {
     if (auto xml = juce::XmlDocument::parse(file)) {
         auto tree = juce::ValueTree::fromXml(*xml);
         if (tree.isValid() && tree.hasType(apvts.state.getType())) {
-            apvts.replaceState(tree);
+            apvts.replaceState(withLevelGateDefaults(tree));
             return true;
         }
     }

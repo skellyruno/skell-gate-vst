@@ -27,6 +27,9 @@ jobs:
           python-version: '3.x'
       - name: Test Windows VST3 release verifier and preview archive
         run: python -m unittest discover -s tests -p "test_release_*.py" -v
+      - name: Verify shared gate source provenance
+        shell: bash
+        run: test "$(git hash-object dsp/shared/LiveLevelGate.h)" = 182403aa74ea6162eab482175be4c71d66a51a0c
       - name: Configure C++ DSP regression
         run: cmake -S . -B build-dsp -DCMAKE_BUILD_TYPE=Release -DSKELL_DSP_ONLY=ON
       - name: Compile DSP tests
@@ -58,10 +61,10 @@ jobs:
         run: cmake -S . -B build -DJUCE_DIR="$GITHUB_WORKSPACE/JUCE" -DSKELLCORE_DIR="$GITHUB_WORKSPACE/SkellCoreSource" -DSKELL_BUILD_UI_SMOKE=ON
       - name: Compile Windows VST3 and UI smoke target
         shell: bash
-        run: cmake --build build --config Release --target SkellGlitch_VST3 SkellGlitchUISmoke --parallel 3
+        run: cmake --build build --config Release --target SkellGlitch_VST3 SkellGlitchUISmoke SkellGlitchLevelGateHost --parallel 3
       - name: Compile Windows DSP test executable
         shell: bash
-        run: cmake --build build --config Release --target skell_dsp_tests --parallel 2
+        run: cmake --build build --config Release --target skell_dsp_tests skell_level_gate_tests --parallel 2
       - name: Test DSP
         shell: bash
         run: ctest --test-dir build -C Release --output-on-failure --verbose
