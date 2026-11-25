@@ -396,7 +396,17 @@ int main() {
     auto* advancedButton=dynamic_cast<juce::TextButton*>(findNamed(*editor,"SETTINGS_ADVANCED"));
     auto* bandLow=dynamic_cast<juce::Slider*>(findNamed(*editor,"BANDLOW"));
     auto* bandHigh=dynamic_cast<juce::Slider*>(findNamed(*editor,"BANDHIGH"));
-    if (!advancedButton || !bandLow || !bandHigh || !bandLow->isShowing() || !bandHigh->isShowing()) {
+    // The native smoke editor is intentionally offscreen and has no
+    // desktop peer. isShowing() would reject every child even if rendered.
+    const auto visibleInEditor=[&](juce::Component* component) {
+        for (auto* c=component;c!=nullptr;c=c->getParentComponent()) {
+            if (c==editor.get()) return true;
+            if (!c->isVisible() || c->getBounds().isEmpty()) return false;
+        }
+        return false;
+    };
+    if (!visibleInEditor(advancedButton) || !visibleInEditor(bandLow) || !visibleInEditor(bandHigh) ||
+        visibleInEditor(findNamed(*editor,"SETTING_GATEATTACK"))) {
         std::cerr << "UI_SETTINGS: quick settings and band filters missing\n";
         return 83;
     }
@@ -404,6 +414,11 @@ int main() {
     if (std::abs(engine->apvts.getRawParameterValue("bandLow")->load()-120.f)>1.f) return 84;
     bandLow->setValue(20,juce::sendNotificationSync);
     advancedButton->setToggleState(true,juce::sendNotificationSync);
+    if (visibleInEditor(bandLow) || visibleInEditor(bandHigh) ||
+        !visibleInEditor(findNamed(*editor,"SETTING_GATEATTACK"))) {
+        std::cerr << "UI_SETTINGS: advanced page did not replace quick controls\n";
+        return 88;
+    }
     const auto advancedScene=editor->createComponentSnapshot(editor->getLocalBounds(),true);
     {
         juce::FileOutputStream out(directory.getChildFile("Skell-Glitch-Advanced-960x720.png"));
