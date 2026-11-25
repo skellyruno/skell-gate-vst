@@ -383,7 +383,8 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
         auto& value=knobValues[i];
         const auto bounds=dials[i]->getBounds();
         value.setName(dials[i]->getName()+" VALUE");
-        value.setBounds(bounds.getCentreX()-45,bounds.getBottom()+25,90,22);
+        // Separate the engraved caption from the live numeric readout.
+        value.setBounds(bounds.getCentreX()-45,bounds.getBottom()+29,90,20);
         value.setJustificationType(juce::Justification::centred);
         value.setFont(skell::theme::mono(14.f));
         value.setColour(juce::Label::textColourId,skell::theme::colour(skell::theme::bone));

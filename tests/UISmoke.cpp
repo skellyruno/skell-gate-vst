@@ -272,6 +272,58 @@ int main() {
     }
     editor->setSize(960,720);
     const auto calm = editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    // The small version must live below "CH", not to the right of GLITCH.
+    // Check visible engraved pixels and absence of the previous right-side mark.
+    int versionPixels=0, staleVersionPixels=0, headerStatusPixels=0;
+    for (int y=39;y<=49;++y)
+        for (int x=194;x<=238;++x) {
+            const auto col=calm.getPixelAt(x,y);
+            if (col.getRed()>55 && col.getGreen()>55 && col.getBlue()>55)
+                ++versionPixels;
+        }
+    for (int y=16;y<=28;++y)
+        for (int x=260;x<=310;++x) {
+            const auto col=calm.getPixelAt(x,y);
+            if (col.getRed()>65 && col.getGreen()>65 && col.getBlue()>65)
+                ++staleVersionPixels;
+        }
+    // The former "ON" label occupied this otherwise empty header region.
+    for (int y=19;y<=39;++y)
+        for (int x=843;x<=876;++x) {
+            const auto col=calm.getPixelAt(x,y);
+            if (col.getGreen()>110 && col.getGreen()>col.getRed()+45)
+                ++headerStatusPixels;
+        }
+    if (versionPixels<8 || staleVersionPixels>3 || headerStatusPixels>3) {
+        std::cerr << "UI_HEADER: version placement or redundant ON label regressed "
+                  << versionPixels << "/" << staleVersionPixels << "/"
+                  << headerStatusPixels << "\n";
+        return 76;
+    }
+    // Capture the real OFF state and reject the old separate red status LED.
+    auto* offTestPower=processor->apvts.getParameter("power");
+    if (!offTestPower) return 77;
+    offTestPower->setValueNotifyingHost(offTestPower->convertTo0to1(0.f));
+    visualHeader->repaint();
+    const auto powerOff=editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    int redDotPixels=0;
+    for (int y=37;y<=42;++y)
+        for (int x=945;x<=949;++x) {
+            const auto col=powerOff.getPixelAt(x,y);
+            if (col.getRed()>115 && col.getRed()>col.getGreen()+40)
+                ++redDotPixels;
+        }
+    offTestPower->setValueNotifyingHost(offTestPower->convertTo0to1(1.f));
+    visualHeader->repaint();
+    if (redDotPixels>0) {
+        std::cerr << "UI_HEADER: separate red LED dot remains on power button\n";
+        return 78;
+    }
+    {
+        juce::FileOutputStream stream(directory.getChildFile("Skell-Glitch-Power-Off-960x720.png"));
+        if (stream.failedToOpen() || !png.writeImageToStream(powerOff,stream))
+            return 79;
+    }
     visualHeader->setGlitchBurst(3,0xac861b32u);
     visualSteps->setGlitchBurst(3,0xac861b32u);
     const auto disrupted = editor->createComponentSnapshot(editor->getLocalBounds(),true);
@@ -389,6 +441,26 @@ int main() {
         return 73;
     }
     std::cout << "UI_LAYOUT: waveform and four-knob centre match exactly\n";
+    // Confirm balanced clearances and distinct title/value lanes, not just
+    // symmetry. These previously looked cramped despite passing centering.
+    const auto* topLeftValue=findNamed(*editor,"FADE IN VALUE");
+    const auto* topRightValue=findNamed(*editor,"FADE OUT VALUE");
+    const auto* bottomLeftValue=findNamed(*editor,"SMOOTH VALUE");
+    const auto* bottomRightValue=findNamed(*editor,"MIX VALUE");
+    if (!topLeftValue || !topRightValue || !bottomLeftValue || !bottomRightValue ||
+        display->getX()-leftTop->getRight()!=20 ||
+        rightTop->getX()-display->getRight()!=20 ||
+        leftTop->getY()!=rightTop->getY() ||
+        leftBottom->getY()!=rightBottom->getY() ||
+        topLeftValue->getBottom()>=leftBottom->getY() ||
+        topRightValue->getBottom()>=rightBottom->getY() ||
+        topLeftValue->getX()+topLeftValue->getWidth()/2!=leftTop->getBounds().getCentreX() ||
+        bottomRightValue->getBounds().getCentreX()!=rightBottom->getBounds().getCentreX() ||
+        bottomLeftValue->getBounds().getCentreX()!=leftBottom->getBounds().getCentreX() ||
+        topRightValue->getBounds().getCentreX()!=rightTop->getBounds().getCentreX()) {
+        std::cerr << "UI_LAYOUT: dial clearance, caption or readout placement regressed\n";
+        return 75;
+    }
     auto* headerPreset = dynamic_cast<PresetBar*>(
         findNamed(*editor, "HEADER_PRESET_BAR"));
     auto* previousPreset = dynamic_cast<juce::TextButton*>(
