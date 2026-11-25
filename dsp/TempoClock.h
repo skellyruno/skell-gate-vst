@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 namespace skell::dsp {
 struct ClockPosition {
@@ -42,6 +43,15 @@ public:
         double raw;
         if (sync && hostAvailable) raw = (startPPQ + static_cast<double>(offset) / samplesPerQuarter()) / quarterNotesPerSlice();
         else raw = static_cast<double>(runningSamples + offset) / len;
+        // Equivalent host PPQ partitions can land a few ULPs either side of
+        // an exact rhythmic boundary (especially triplets). Snap only that
+        // floating-point roundoff, not a musical fraction of a sample.
+        if (sync && hostAvailable) {
+            const double nearest = std::round(raw);
+            const double tolerance = std::min(1.e-8, 8.0 * std::numeric_limits<double>::epsilon()
+                                                        * std::max(1.0, std::abs(raw)));
+            if (std::abs(raw - nearest) <= tolerance) raw = nearest;
+        }
         const double whole = std::floor(raw);
         return {sync && hostAvailable ? startPPQ + offset / samplesPerQuarter() :
                     (runningSamples + offset) / samplesPerQuarter(),

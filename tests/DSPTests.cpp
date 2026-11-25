@@ -52,6 +52,26 @@ static void clockTest() {
         else check(ref == boundaries, "block size changed bar boundaries");
     }
 }
+static void tripletPartitionTest() {
+    auto boundaries = [](int sr, int bpm, int division, int blockSize) {
+        TempoClock c; c.prepare(sr);
+        std::vector<int> result;
+        for (int offset = 0; offset < sr * 2; offset += blockSize) {
+            c.setHost(bpm, 4, 4, offset / (sr * 60.0 / bpm), true, true, division, 500);
+            for (int i = 0; i < std::min(blockSize, sr * 2 - offset); ++i)
+                if (c.tick(i).boundary) result.push_back(offset + i);
+        }
+        return result;
+    };
+    for (int sr : {44100, 48000, 96000, 192000})
+        for (int bpm : {60, 87, 120, 127, 180})
+            for (int division : {0, 1, 2, 3}) {
+                const auto reference = boundaries(sr, bpm, division, 1);
+                for (int block : {64, 127, 512, 4096})
+                    check(boundaries(sr, bpm, division, block) == reference,
+                          "host block partition moved a rhythmic boundary");
+            }
+}
 static void sliceTest() {
     SliceCapture b; b.prepare(2, 2048); b.onBoundary();
     for (int i = 0; i < 500; ++i) b.write(static_cast<float>(i / 500.0), static_cast<float>(-i / 500.0));
@@ -403,7 +423,7 @@ static void offlineReproTest() {
 }
 
 int main() {
-    try { clockTest(); sliceTest(); gateTest(); bandTest(); deterministicTest(); offlineReproTest(); filterRobustnessTest(); stressTest(); }
+    try { clockTest(); tripletPartitionTest(); sliceTest(); gateTest(); bandTest(); deterministicTest(); offlineReproTest(); filterRobustnessTest(); stressTest(); }
     catch (const std::exception& ex) { std::cerr << "FAIL: " << ex.what() << '\n'; return EXIT_FAILURE; }
     std::cout << "PASS: TempoClock / SliceCapture / Reverser / GateSequencer / GateShaper / BandSplitter / Crossfader / TriggerRouter / seeded randomness\n";
     return EXIT_SUCCESS;
