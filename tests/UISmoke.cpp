@@ -301,7 +301,7 @@ int main() {
         return 76;
     }
     // Capture the real OFF state and reject the old separate red status LED.
-    auto* offTestPower=processor->apvts.getParameter("power");
+    auto* offTestPower=findParameter("Power");
     if (!offTestPower) return 77;
     offTestPower->setValueNotifyingHost(offTestPower->convertTo0to1(0.f));
     visualHeader->repaint();
