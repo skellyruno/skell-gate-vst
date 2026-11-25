@@ -139,14 +139,14 @@ inline void roundTile(juce::Graphics& g, juce::Rectangle<float> bounds, float co
 }
 inline const juce::Rectangle<int> top{0,0,width,59};
 inline const juce::Rectangle<int> loops{22,72,924,71};
-// All four dial faces surround the same centre as the display: (480, 340).
-// Keep 20 px of air between the live glass and each equal-sized dial.
-// The dial rows mirror around the live display centre (480, 340), even
-// at XS/L editor scales. Leave room for captions and value readouts.
+// Equal-sized dial pairs mirror horizontally around x=480.
+// Keep 20 px of air between the live glass and each dial.
+// The lower pair sits 12 px lower than the former vertically symmetric
+// layout, by visual preference. Captions and readouts follow each dial.
 inline const juce::Rectangle<int> fadeInDial{44,166,144,144};
 inline const juce::Rectangle<int> fadeOutDial{772,166,144,144};
-inline const juce::Rectangle<int> smoothDial{44,370,144,144};
-inline const juce::Rectangle<int> mixDial{772,370,144,144};
+inline const juce::Rectangle<int> smoothDial{44,382,144,144};
+inline const juce::Rectangle<int> mixDial{772,382,144,144};
 inline const juce::Rectangle<int> wave{208,176,544,328};
 inline constexpr int waveInset=20;
 inline const juce::Rectangle<int> gate{wave.getX()+waveInset,520,wave.getWidth()-2*waveInset,75};

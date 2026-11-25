@@ -444,7 +444,13 @@ int main() {
         leftTop->getBounds().getCentreX() != leftBottom->getBounds().getCentreX() ||
         rightTop->getBounds().getCentreX() != rightBottom->getBounds().getCentreX() ||
         2*display->getBounds().getCentreX() != leftTop->getBounds().getCentreX()+rightTop->getBounds().getCentreX() ||
-        2*display->getBounds().getCentreY() != leftTop->getBounds().getCentreY()+leftBottom->getBounds().getCentreY() ||
+        leftTop->getBounds()!=juce::Rectangle<int>(44,166,144,144) ||
+        rightTop->getBounds()!=juce::Rectangle<int>(772,166,144,144) ||
+        leftBottom->getBounds()!=juce::Rectangle<int>(44,382,144,144) ||
+        rightBottom->getBounds()!=juce::Rectangle<int>(772,382,144,144) ||
+        display->getBounds()!=juce::Rectangle<int>(208,176,544,328) ||
+        // The approved lower-row shift adds 6 px to the four-dial midpoint.
+        2*display->getBounds().getCentreY()+12 != leftTop->getBounds().getCentreY()+leftBottom->getBounds().getCentreY() ||
         display->getBounds().intersects(leftTop->getBounds()) ||
         display->getBounds().intersects(rightTop->getBounds()) ||
         display->getBounds().intersects(leftBottom->getBounds()) ||
@@ -452,10 +458,10 @@ int main() {
         display->getBottom()+12 > visualSteps->getY() ||
         visualSteps->getX()!=display->getX()+skell::theme::waveInset ||
         visualSteps->getRight()!=display->getRight()-skell::theme::waveInset) {
-        std::cerr << "UI_LAYOUT: waveform is not exactly centered between four equal knobs or collides with steps\n";
+        std::cerr << "UI_LAYOUT: approved dial or waveform placement regressed or collides with steps\n";
         return 73;
     }
-    std::cout << "UI_LAYOUT: waveform and four-knob centre match exactly\n";
+    std::cout << "UI_LAYOUT: horizontal symmetry and approved 12 px lower dial offset passed\n";
     // Confirm balanced clearances and distinct title/value lanes, not just
     // symmetry. These previously looked cramped despite passing centering.
     const auto* topLeftValue=findNamed(*editor,"FADE IN VALUE");
@@ -468,6 +474,12 @@ int main() {
         leftTop->getY()!=rightTop->getY() ||
         leftBottom->getY()!=rightBottom->getY() ||
         topLeftValue->getBottom()>=leftBottom->getY() ||
+        bottomLeftValue->getY()!=leftBottom->getBottom()+29 ||
+        bottomRightValue->getY()!=rightBottom->getBottom()+29 ||
+        bottomLeftValue->getBottom()>600 ||
+        bottomRightValue->getBottom()>600 ||
+        bottomLeftValue->getBounds().intersects(visualSteps->getBounds()) ||
+        bottomRightValue->getBounds().intersects(visualSteps->getBounds()) ||
         topRightValue->getBottom()>=rightBottom->getY() ||
         topLeftValue->getX()+topLeftValue->getWidth()/2!=leftTop->getBounds().getCentreX() ||
         bottomRightValue->getBounds().getCentreX()!=rightBottom->getBounds().getCentreX() ||
