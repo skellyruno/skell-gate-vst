@@ -154,18 +154,22 @@ public:
         g.setColour(colour(border).withAlpha(.47f));
         g.drawLine(168,139,431,139,.85f);
         g.drawLine(535,139,792,139,.85f);
-        g.drawLine(196,551,759,551,1.1f);
+        g.drawLine(208,645,752,645,1.1f);
         g.setColour(juce::Colours::white.withAlpha(ivory ? .35f : .11f));
-        g.drawLine(196,552,759,552,.75f);
+        g.drawLine(208,646,752,646,.75f);
         g.setFont(regular(14));
         g.setColour(colour(gray));
-        g.drawText("LOOP LENGTH",426,120,110,24,juce::Justification::centred);
-        g.drawText("FADE IN",63,346,122,25,juce::Justification::centred);
-        g.drawText("FADE OUT",775,346,122,25,juce::Justification::centred);
-        // The five aligned performance controls explain themselves;
-        // removing the isolated MODE engraving restores visual balance.
-        g.drawText("SMOOTH",64,676,120,24,juce::Justification::centred);
-        g.drawText("MIX",776,676,120,24,juce::Justification::centred);
+        g.drawText("LOOP LENGTH",425,120,110,24,juce::Justification::centred);
+        // Captions follow the actual rotary bounds, including future moves.
+        g.setFont(display(15.f));
+        const auto caption = [&](const juce::String& label, juce::Rectangle<int> dial) {
+            g.drawText(label, dial.getCentreX()-50, dial.getBottom()+3,
+                       100, 23, juce::Justification::centred);
+        };
+        caption("FADE IN", fadeInDial);
+        caption("FADE OUT", fadeOutDial);
+        caption("SMOOTH", smoothDial);
+        caption("MIX", mixDial);
         // The version is engraved alongside the brand in the header.
     }
 };
@@ -203,12 +207,12 @@ public:
             slider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 54, 19);
             slider->setDoubleClickReturnValue(true, p.apvts.getParameter(param)->convertFrom0to1(p.apvts.getParameter(param)->getDefaultValue()));
             const juce::String key(param);
-            const juce::String label=key=="reversePitch"?"PITCH"
-                :key=="gateAttack"?"ATTACK"
-                :key=="gateRelease"?"RELEASE"
-                :key=="gateSwing"?"SWING"
-                :key=="loopMs"?"FREE LENGTH"
-                :key=="gateSteps"?"STEPS":"CHAOS";
+            const juce::String label=key=="reversePitch"?"PITCH (st)"
+                :key=="gateAttack"?"ATTACK (ms)"
+                :key=="gateRelease"?"RELEASE (ms)"
+                :key=="gateSwing"?"SWING (%)"
+                :key=="loopMs"?"FREE LENGTH (ms)"
+                :key=="gateSteps"?"STEP COUNT":"CHAOS (%)";
             labels.add(label);
             slider->setName("SETTING_"+key.toUpperCase());
             addAndMakeVisible(*slider);
@@ -226,21 +230,21 @@ public:
             sliders.push_back(std::move(slider));
         }
         addCombo("triggerSource", {"Auto", "MIDI", "Sidechain", "Manual"});
-        addCombo("latencyMode", {"Zero (previous slice)", "Aligned (delay dry)"});
+        addCombo("latencyMode", {"Live (zero delay)", "Aligned (host delay)"});
         addCombo("gateCurve", {"Linear", "Exponential", "S-Curve"});
         // Advanced rhythm/style controls remain automatable and are now
         // housed here, never deleted or silently disconnected.
         addCombo("reverseStyle", {"Classic", "Tape", "Ping-Pong", "Stutter"});
         addCombo("gateRate", {"1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T"});
         for (const auto& param : {"seedLock", "deltaListen"}) {
-            auto t = std::make_unique<juce::TextButton>(param);
+            auto t = std::make_unique<juce::TextButton>(juce::String(param)=="seedLock"?"LOCK RANDOM SEED":"LISTEN TO DIFFERENCE");
             t->setClickingTogglesState(true);
             addAndMakeVisible(*t);
             toggleAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.apvts, param, *t));
             toggles.push_back(std::move(t));
         }
         addAndMakeVisible(trigger);
-        manualCopy.setButtonText("GATE > REVERSE");
+        manualCopy.setButtonText("GATE BEFORE REVERSE");
         manualCopy.setClickingTogglesState(true);
         manualCopy.setToggleState(p.gateFirst.load(), juce::dontSendNotification);
         manualCopy.onClick = [this] { processor.gateFirst.store(manualCopy.getToggleState()); };
@@ -254,7 +258,7 @@ public:
         size.setSelectedId(p.getSavedSize() + 1, juce::dontSendNotification);
         size.onChange = [this] { if (size.getSelectedId() > 0) resizeEditor(size.getSelectedId() - 1); };
         addAndMakeVisible(size);
-        randomSeed.setButtonText("RE-SEED");
+        randomSeed.setButtonText("NEW SEED");
         randomSeed.onClick = [this] {
             if (auto* p = processor.apvts.getParameter("seed")) {
                 const int old = static_cast<int>(processor.apvts.getRawParameterValue("seed")->load());
@@ -263,14 +267,59 @@ public:
             }
         };
         addAndMakeVisible(randomSeed);
+        // Basic settings expose the existing working band processor, not
+        // the still-unintegrated native Love Philter engine.
+        for (auto id : {"bandLow","bandHigh"}) {
+            auto slider=std::make_unique<juce::Slider>();
+            slider->setName(juce::String(id).toUpperCase());
+            slider->setSliderStyle(juce::Slider::LinearHorizontal);
+            slider->setTextBoxStyle(juce::Slider::TextBoxRight,false,64,22);
+            addAndMakeVisible(*slider);
+            filterAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.apvts,id,*slider));
+            slider->setNumDecimalPlacesToDisplay(0);
+            slider->textFromValueFunction=[](double v) { return juce::String(juce::roundToInt(v)); };
+            slider->updateText();
+            filters.push_back(std::move(slider));
+        }
+        advanced.setName("SETTINGS_ADVANCED");
+        advanced.setClickingTogglesState(true);
+        advanced.setButtonText("ADVANCED");
+        advanced.onClick=[this] { updatePage(); };
+        addAndMakeVisible(advanced);
+        updatePage();
+    }
+    void updatePage() {
+        const bool detail=advanced.getToggleState();
+        for (auto& s : sliders) s->setVisible(detail);
+        for (size_t i=0;i<combos.size();++i) combos[i]->setVisible(detail || i>=3);
+        for (auto& t : toggles) t->setVisible(detail);
+        for (auto* b : {&manualCopy,&jitter,&randomSeed}) b->setVisible(detail);
+        trigger.setVisible(detail);
+        for (auto& f : filters) f->setVisible(!detail);
+        resized();
+        repaint();
     }
     void paint(juce::Graphics& g) override {
         skell::theme::roundTile(g, getLocalBounds().toFloat().reduced(1.f), 13);
         g.setColour(skell::theme::colour(skell::theme::neon));
         g.setFont(skell::theme::display(19));
-        g.drawText("ENGINE SETTINGS", 18, 12, 254, 25, juce::Justification::centredLeft);
+        g.drawText("SETTINGS", 18, 12, 254, 25, juce::Justification::centredLeft);
         g.setColour(skell::theme::colour(skell::theme::gray));
         g.setFont(skell::theme::regular(12));
+        if (!advanced.getToggleState()) {
+            g.drawText("QUICK SETTINGS",18,49,260,20,juce::Justification::centredLeft);
+            g.drawText("REVERSE STYLE",18,82,128,24,juce::Justification::centredLeft);
+            g.drawText("GATE RATE",18,120,128,24,juce::Justification::centredLeft);
+            g.drawText("LOW CUT (Hz)",18,184,128,24,juce::Justification::centredLeft);
+            g.drawText("HIGH CUT (Hz)",18,222,128,24,juce::Justification::centredLeft);
+            g.drawText("WINDOW SIZE",18,284,128,24,juce::Justification::centredLeft);
+            g.setColour(skell::theme::colour(skell::theme::bone));
+            g.drawFittedText("Only frequencies between the cuts receive the effect. Outside frequencies stay dry.",18,260,365,22,juce::Justification::centredLeft,2,.85f);
+            g.drawFittedText("Choose Advanced for timing, trigger and detailed controls.",18,340,365,45,juce::Justification::centredLeft,2,.85f);
+            return;
+        }
+        g.drawText("EFFECT CONTROLS",18,37,250,15,juce::Justification::centredLeft);
+        g.drawText("TIMING & BEHAVIOUR",18,263,250,15,juce::Justification::centredLeft);
         for (int i = 0; i < labels.size(); ++i)
             g.drawText(labels[i].toUpperCase(), 18, 53 + i * 30, 126, 22, juce::Justification::centredLeft);
         constexpr const char* comboLabels[] = {"TRIGGER SOURCE", "LATENCY", "GATE CURVE",
@@ -282,6 +331,17 @@ public:
     }
     void resized() override {
         close.setBounds(getWidth() - 44, 10, 28, 28);
+        advanced.setBounds(248,10,96,28);
+        if (!advanced.getToggleState()) {
+            if (combos.size()>=5) {
+                combos[3]->setBounds(145,82,getWidth()-161,26);
+                combos[4]->setBounds(145,120,getWidth()-161,26);
+            }
+            for (size_t i=0;i<filters.size();++i)
+                filters[i]->setBounds(145,184+static_cast<int>(i)*38,getWidth()-161,25);
+            size.setBounds(145,284,135,26);
+            return;
+        }
         for (size_t i = 0; i < sliders.size(); ++i)
             sliders[i]->setBounds(140, 53 + static_cast<int>(i) * 30, getWidth() - 154, 22);
         for (size_t i = 0; i < combos.size(); ++i)
@@ -305,7 +365,9 @@ private:
     }
     SkellGlitchAudioProcessor& processor;
     std::function<void(int)> resizeEditor;
-    juce::TextButton close{"✕"}, manualCopy, jitter, randomSeed;
+    juce::TextButton close{"✕"}, manualCopy, jitter, randomSeed, advanced;
+    std::vector<std::unique_ptr<juce::Slider>> filters;
+    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> filterAttachments;
     MomentaryButton trigger;
     juce::ComboBox size;
     juce::StringArray labels;
@@ -343,8 +405,8 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     };
     canvas.addAndMakeVisible(previousPattern);
     canvas.addAndMakeVisible(nextPattern);
-    previousPattern.setBounds(169,411,31,32);
-    nextPattern.setBounds(760,411,31,32);
+    previousPattern.setBounds(skell::theme::previousStepPattern);
+    nextPattern.setBounds(skell::theme::nextStepPattern);
     top.setBounds(skell::theme::top);
     loops.setBounds(skell::theme::loops);
     waveform.setBounds(skell::theme::wave);
@@ -354,15 +416,15 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     presets.setBounds(310, 11, 340, 37);
     // Four knobs use the same width, horizontal centres, and mirrored
     // geometry; preserve the hardware metal material and the two dividers.
-    fadeIn.setBounds(53, 198, 141, 148);
-    fadeOut.setBounds(766, 198, 141, 148);
-    smooth.setBounds(53, 532, 141, 141);
-    mix.setBounds(766, 532, 141, 141);
+    fadeIn.setBounds(skell::theme::fadeInDial);
+    fadeOut.setBounds(skell::theme::fadeOutDial);
+    smooth.setBounds(skell::theme::smoothDial);
+    mix.setBounds(skell::theme::mixDial);
     startStatus.setName("LIVE_START_STATUS");
     startStatus.setJustificationType(juce::Justification::centred);
-    startStatus.setFont(skell::theme::mono(13.1f));
+    startStatus.setFont(skell::theme::mono(14.0f));
     startStatus.setColour(juce::Label::textColourId,skell::theme::colour(skell::theme::bone));
-    startStatus.setBounds(308, 581, 344, 46);
+    startStatus.setBounds(240, 650, 480, 32);
     startStatus.setInterceptsMouseClicks(false,false);
     canvas.addAndMakeVisible(startStatus);
     for (auto* slider : {&fadeIn, &fadeOut, &smooth, &mix}) slider->setDoubleClickReturnValue(true, slider == &smooth ? 30. : slider == &mix ? 100. : 0.);
@@ -374,6 +436,21 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
     fadeOutAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.apvts, "fadeOut", fadeOut);
     smoothAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.apvts, "smooth", smooth);
     mixAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.apvts, "mix", mix);
+    const std::array<GlitchKnob*,4> dials{&fadeIn,&fadeOut,&smooth,&mix};
+    for (std::size_t i=0;i<dials.size();++i) {
+        auto& value=knobValues[i];
+        const auto bounds=dials[i]->getBounds();
+        value.setName(dials[i]->getName()+" VALUE");
+        // Separate the engraved caption from the live numeric readout.
+        value.setBounds(bounds.getCentreX()-45,bounds.getBottom()+29,90,20);
+        value.setJustificationType(juce::Justification::centred);
+        value.setFont(skell::theme::mono(14.f));
+        value.setColour(juce::Label::textColourId,skell::theme::colour(skell::theme::bone));
+        value.setInterceptsMouseClicks(false,false);
+        canvas.addAndMakeVisible(value);
+        dials[i]->onValueChange=[this,i] { refreshKnobValue(i); };
+        refreshKnobValue(i);
+    }
     top.sync.setClickingTogglesState(true); top.power.setClickingTogglesState(true);
     syncAttach = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.apvts, "sync", top.sync);
     powerAttach = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.apvts, "power", top.power);
@@ -401,6 +478,7 @@ SkellGlitchAudioProcessorEditor::SkellGlitchAudioProcessorEditor(SkellGlitchAudi
         modes.repaint(); presets.repaint(); previousPattern.repaint(); nextPattern.repaint();
         startStatus.setColour(juce::Label::textColourId,skell::theme::colour(skell::theme::bone));
         for (auto* dial : {&fadeIn, &fadeOut, &smooth, &mix}) dial->repaint();
+        for (auto& value : knobValues) value.setColour(juce::Label::textColourId,skell::theme::colour(skell::theme::bone));
         settings->repaint();
     };
     tooltips = std::make_unique<juce::TooltipWindow>(this, 700);
@@ -424,6 +502,13 @@ void SkellGlitchAudioProcessorEditor::applyWindowSize(int index) {
     processor.setSavedSize(index);
     setSize(juce::roundToInt(skell::theme::width * uiScale),
             juce::roundToInt(skell::theme::height * uiScale));
+}
+void SkellGlitchAudioProcessorEditor::refreshKnobValue(std::size_t index) {
+    const std::array<GlitchKnob*,4> dials{&fadeIn,&fadeOut,&smooth,&mix};
+    const double v=dials[index]->getValue();
+    const auto text=index<2 ? (v<.5 ? juce::String("INST") : juce::String(v,0)+" ms")
+                            : juce::String(v,0)+"%";
+    knobValues[index].setText(text,juce::dontSendNotification);
 }
 void SkellGlitchAudioProcessorEditor::resized() {
     uiScale = getWidth() / static_cast<float>(skell::theme::width);
@@ -449,7 +534,12 @@ void SkellGlitchAudioProcessorEditor::timerCallback() {
     if (powerOn != lastPower || activeMode != lastMode) {
         lastPower = powerOn;
         lastMode = activeMode;
-        const juce::String modeText = activeMode==0?"REVERSE":activeMode==1?"GATE":"BOTH";
+        // Hardware-style bypass: dim the processing surface, not the
+        // power/header controls. Keep controls editable while bypassed.
+        for (juce::Component* c : std::array<juce::Component*,10>{&loops,&waveform,&gate,&modes,&fadeIn,&fadeOut,&smooth,&mix,&previousPattern,&nextPattern})
+            c->setAlpha(powerOn?1.f:.38f);
+        for (auto& value : knobValues) value.setAlpha(powerOn?1.f:.50f);
+        const juce::String modeText = activeMode==0?"REVERSE":activeMode==1?"GATE":"REVERSE + GATE";
         startStatus.setText(powerOn ? "ACTIVE  /  "+modeText+"  /  PLAY AUDIO"
                                     : "BYPASSED  /  PRESS POWER TO START",
                             juce::dontSendNotification);

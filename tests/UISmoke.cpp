@@ -10,6 +10,7 @@
 #include "../ui/TopBar.h"
 #include "../ui/GateGrid.h"
 #include "../ui/PresetBar.h"
+#include "../ui/ModeRow.h"
 #include "../PluginProcessor.h"
 
 // Reuse the exact processor factory linked into the VST3 wrapper.
@@ -61,18 +62,16 @@ int main() {
                 std::cerr << "UI_THEME: initial chassis is not matte black\n";
                 return 25;
             }
-            // The reference's Inst fade knobs have a deliberately lit bezel
-            // even at zero value. Verify that the actual JUCE draw covers the
-            // left dial rather than only the parameter's tiny endpoint dot.
+            // Zero fade shows a truthful illuminated endpoint, not false progress.
             int illuminated = 0;
-            for (int yy = 197; yy <= 333; ++yy)
-                for (int xx = 43; xx <= 170; ++xx) {
+            for (int yy = skell::theme::fadeInDial.getY(); yy < skell::theme::fadeInDial.getBottom(); ++yy)
+                for (int xx = skell::theme::fadeInDial.getX(); xx < skell::theme::fadeInDial.getRight(); ++xx) {
                     const auto pixel = frame.getPixelAt(xx, yy);
                     if (pixel.getGreen() > 165 && pixel.getGreen() > pixel.getRed() + 75
                         && pixel.getGreen() > pixel.getBlue() + 45) ++illuminated;
                 }
-            if (illuminated < 110) {
-                std::cerr << "UI_REFERENCE: fade bezel lacks green illumination\n";
+            if (illuminated < 10) {
+                std::cerr << "UI_REFERENCE: zero fade position marker lacks green illumination\n";
                 return 24;
             }
             std::cout << "UI_REFERENCE: fade illuminated pixels=" << illuminated << "\n";
@@ -272,6 +271,73 @@ int main() {
     }
     editor->setSize(960,720);
     const auto calm = editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    // The small version must live below "CH", not to the right of GLITCH.
+    // Check visible engraved pixels and absence of the previous right-side mark.
+    int versionPixels=0, staleVersionPixels=0, headerStatusPixels=0;
+    for (int y=39;y<=49;++y)
+        for (int x=194;x<=238;++x) {
+            const auto col=calm.getPixelAt(x,y);
+            if (col.getRed()>55 && col.getGreen()>55 && col.getBlue()>55)
+                ++versionPixels;
+        }
+    for (int y=16;y<=28;++y)
+        for (int x=260;x<=310;++x) {
+            const auto col=calm.getPixelAt(x,y);
+            if (col.getRed()>65 && col.getGreen()>65 && col.getBlue()>65)
+                ++staleVersionPixels;
+        }
+    // The former "ON" label occupied this otherwise empty header region.
+    for (int y=19;y<=39;++y)
+        for (int x=843;x<=876;++x) {
+            const auto col=calm.getPixelAt(x,y);
+            if (col.getGreen()>110 && col.getGreen()>col.getRed()+45)
+                ++headerStatusPixels;
+        }
+    if (versionPixels<8 || staleVersionPixels>3 || headerStatusPixels>3) {
+        std::cerr << "UI_HEADER: version placement or redundant ON label regressed "
+                  << versionPixels << "/" << staleVersionPixels << "/"
+                  << headerStatusPixels << "\n";
+        return 76;
+    }
+    // Capture the real OFF state and reject the old separate red status LED.
+    auto* offTestPower=findParameter("Power");
+    if (!offTestPower) return 77;
+    offTestPower->setValueNotifyingHost(0.f);
+    // Let the 30 Hz UI timer reflect host-side bypass before saving a
+    // real OFF screenshot. This cannot be done inside the audio callback.
+    juce::Thread::sleep(45);
+    juce::Timer::callPendingTimersSynchronously();
+    auto* offStatus=dynamic_cast<juce::Label*>(findNamed(*editor,"LIVE_START_STATUS"));
+    if (!offStatus || !offStatus->getText().contains("BYPASSED")) {
+        std::cerr << "UI_POWER: bypass status not updated by UI timer\n";
+        return 80;
+    }
+    visualHeader->repaint();
+    const auto powerOff=editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    int redDotPixels=0;
+    for (int y=37;y<=42;++y)
+        for (int x=945;x<=949;++x) {
+            const auto col=powerOff.getPixelAt(x,y);
+            if (col.getRed()>115 && col.getRed()>col.getGreen()+40)
+                ++redDotPixels;
+        }
+    offTestPower->setValueNotifyingHost(1.f);
+    juce::Thread::sleep(45);
+    juce::Timer::callPendingTimersSynchronously();
+    if (!offStatus->getText().contains("ACTIVE")) {
+        std::cerr << "UI_POWER: active status not restored by UI timer\n";
+        return 81;
+    }
+    visualHeader->repaint();
+    if (redDotPixels>0) {
+        std::cerr << "UI_HEADER: separate red LED dot remains on power button\n";
+        return 78;
+    }
+    {
+        juce::FileOutputStream stream(directory.getChildFile("Skell-Glitch-Power-Off-960x720.png"));
+        if (stream.failedToOpen() || !png.writeImageToStream(powerOff,stream))
+            return 79;
+    }
     visualHeader->setGlitchBurst(3,0xac861b32u);
     visualSteps->setGlitchBurst(3,0xac861b32u);
     const auto disrupted = editor->createComponentSnapshot(editor->getLocalBounds(),true);
@@ -279,8 +345,8 @@ int main() {
     for (int y=3;y<58;++y)
         for(int x=10;x<62;++x)
             if (calm.getPixelAt(x,y)!=disrupted.getPixelAt(x,y)) ++skullPixels;
-    for (int y=397;y<447;y+=2)
-        for(int x=214;x<749;x+=2)
+    for (int y=visualSteps->getY();y<visualSteps->getY()+48;y+=2)
+        for(int x=visualSteps->getX()+6;x<visualSteps->getRight()-3;x+=2)
             if (calm.getPixelAt(x,y)!=disrupted.getPixelAt(x,y)) ++stepPixels;
     if (skullPixels<8 || stepPixels<8) {
         std::cerr << "UI_GLITCH: burst does not visibly affect the skull and green sequencer\n";
@@ -327,6 +393,37 @@ int main() {
         std::cerr << "UI_SETTINGS: failed to render real Settings screenshot\n";
         return 62;
     }
+    auto* advancedButton=dynamic_cast<juce::TextButton*>(findNamed(*editor,"SETTINGS_ADVANCED"));
+    auto* bandLow=dynamic_cast<juce::Slider*>(findNamed(*editor,"BANDLOW"));
+    auto* bandHigh=dynamic_cast<juce::Slider*>(findNamed(*editor,"BANDHIGH"));
+    // The native smoke editor is intentionally offscreen and has no
+    // desktop peer. isShowing() would reject every child even if rendered.
+    const auto visibleInEditor=[&](juce::Component* component) {
+        for (auto* c=component;c!=nullptr;c=c->getParentComponent()) {
+            if (c==editor.get()) return true;
+            if (!c->isVisible() || c->getBounds().isEmpty()) return false;
+        }
+        return false;
+    };
+    if (!visibleInEditor(advancedButton) || !visibleInEditor(bandLow) || !visibleInEditor(bandHigh) ||
+        visibleInEditor(findNamed(*editor,"SETTING_GATEATTACK"))) {
+        std::cerr << "UI_SETTINGS: quick settings and band filters missing\n";
+        return 83;
+    }
+    bandLow->setValue(120,juce::sendNotificationSync);
+    if (std::abs(engine->apvts.getRawParameterValue("bandLow")->load()-120.f)>1.f) return 84;
+    bandLow->setValue(20,juce::sendNotificationSync);
+    advancedButton->setToggleState(true,juce::sendNotificationSync);
+    if (visibleInEditor(bandLow) || visibleInEditor(bandHigh) ||
+        !visibleInEditor(findNamed(*editor,"SETTING_GATEATTACK"))) {
+        std::cerr << "UI_SETTINGS: advanced page did not replace quick controls\n";
+        return 88;
+    }
+    const auto advancedScene=editor->createComponentSnapshot(editor->getLocalBounds(),true);
+    {
+        juce::FileOutputStream out(directory.getChildFile("Skell-Glitch-Advanced-960x720.png"));
+        if (out.failedToOpen() || !png.writeImageToStream(advancedScene,out)) return 85;
+    }
     settingsButton->onClick();
     if (!settingsIcon || !powerIcon || settingsIcon->getWidth() > 38 ||
         powerIcon->getWidth() > 38 || settingsIcon->getHeight() > 38 ||
@@ -369,6 +466,57 @@ int main() {
                  rightBottom->getBounds().getCentreX()-960)>2) {
         std::cerr << "UI_LAYOUT: four hardware knobs are not symmetrical\n";
         return 59;
+    }
+    auto* display = findNamed(*editor, "LIVE_WAVE_DISPLAY");
+    if (!display || display->getParentComponent() != leftTop->getParentComponent() ||
+        leftTop->getBounds().getCentreY() != rightTop->getBounds().getCentreY() ||
+        leftBottom->getBounds().getCentreY() != rightBottom->getBounds().getCentreY() ||
+        leftTop->getBounds().getCentreX() != leftBottom->getBounds().getCentreX() ||
+        rightTop->getBounds().getCentreX() != rightBottom->getBounds().getCentreX() ||
+        2*display->getBounds().getCentreX() != leftTop->getBounds().getCentreX()+rightTop->getBounds().getCentreX() ||
+        leftTop->getBounds()!=juce::Rectangle<int>(44,166,144,144) ||
+        rightTop->getBounds()!=juce::Rectangle<int>(772,166,144,144) ||
+        leftBottom->getBounds()!=juce::Rectangle<int>(44,426,144,144) ||
+        rightBottom->getBounds()!=juce::Rectangle<int>(772,426,144,144) ||
+        display->getBounds()!=juce::Rectangle<int>(208,176,544,328) ||
+        // Lower dial row is intentionally below the symmetric position.
+        2*display->getBounds().getCentreY()+56 != leftTop->getBounds().getCentreY()+leftBottom->getBounds().getCentreY() ||
+        display->getBounds().intersects(leftTop->getBounds()) ||
+        display->getBounds().intersects(rightTop->getBounds()) ||
+        display->getBounds().intersects(leftBottom->getBounds()) ||
+        display->getBounds().intersects(rightBottom->getBounds()) ||
+        display->getBottom()+12 > visualSteps->getY() ||
+        visualSteps->getX()!=display->getX()+skell::theme::waveInset ||
+        visualSteps->getRight()!=display->getRight()-skell::theme::waveInset) {
+        std::cerr << "UI_LAYOUT: approved dial or waveform placement regressed or collides with steps\n";
+        return 73;
+    }
+    std::cout << "UI_LAYOUT: horizontal symmetry and approved lower dial offset passed\n";
+    // Confirm balanced clearances and distinct title/value lanes, not just
+    // symmetry. These previously looked cramped despite passing centering.
+    const auto* topLeftValue=findNamed(*editor,"FADE IN VALUE");
+    const auto* topRightValue=findNamed(*editor,"FADE OUT VALUE");
+    const auto* bottomLeftValue=findNamed(*editor,"SMOOTH VALUE");
+    const auto* bottomRightValue=findNamed(*editor,"MIX VALUE");
+    if (!topLeftValue || !topRightValue || !bottomLeftValue || !bottomRightValue ||
+        display->getX()-leftTop->getRight()!=20 ||
+        rightTop->getX()-display->getRight()!=20 ||
+        leftTop->getY()!=rightTop->getY() ||
+        leftBottom->getY()!=rightBottom->getY() ||
+        topLeftValue->getBottom()>=leftBottom->getY() ||
+        bottomLeftValue->getY()!=leftBottom->getBottom()+29 ||
+        bottomRightValue->getY()!=rightBottom->getBottom()+29 ||
+        bottomLeftValue->getBottom()>660 ||
+        bottomRightValue->getBottom()>660 ||
+        bottomLeftValue->getBounds().intersects(visualSteps->getBounds()) ||
+        bottomRightValue->getBounds().intersects(visualSteps->getBounds()) ||
+        topRightValue->getBottom()>=rightBottom->getY() ||
+        topLeftValue->getX()+topLeftValue->getWidth()/2!=leftTop->getBounds().getCentreX() ||
+        bottomRightValue->getBounds().getCentreX()!=rightBottom->getBounds().getCentreX() ||
+        bottomLeftValue->getBounds().getCentreX()!=leftBottom->getBounds().getCentreX() ||
+        topRightValue->getBounds().getCentreX()!=rightTop->getBounds().getCentreX()) {
+        std::cerr << "UI_LAYOUT: dial clearance, caption or readout placement regressed\n";
+        return 75;
     }
     auto* headerPreset = dynamic_cast<PresetBar*>(
         findNamed(*editor, "HEADER_PRESET_BAR"));
@@ -418,7 +566,7 @@ int main() {
         const auto& item=topItems.getItem();
         if(item.text=="Reverse" && item.subMenu) reverseCategory=true;
         if(item.text=="Gate" && item.subMenu) gateCategory=true;
-        if(item.text=="Both" && item.subMenu) bothCategory=true;
+        if(item.text=="Reverse + Gate" && item.subMenu) bothCategory=true;
         if(item.text=="A / B snapshots" && item.subMenu) snapshots=true;
     }
     juce::PopupMenu::MenuItemIterator allItems(popup,true);
@@ -529,6 +677,11 @@ int main() {
     const auto dialBefore = editor->createComponentSnapshot(editor->getLocalBounds(), true);
     fadeInKnob->setValue(100.0, juce::sendNotificationSync);
     const auto dialAfter = editor->createComponentSnapshot(editor->getLocalBounds(), true);
+    auto* valueLabel=dynamic_cast<juce::Label*>(findNamed(*editor,"FADE IN VALUE"));
+    if (!valueLabel || valueLabel->getText()!="100 ms" || valueLabel->getBounds().getCentreX()!=leftTop->getBounds().getCentreX()) {
+        std::cerr << "UI_CONTROL: persistent fade readout not aligned or updated\n";
+        return 74;
+    }
     int dialChangedPixels = 0, movingFadeArcPixels=0;
     const auto countArcChanges=[&](const juce::Image& a,const juce::Image& b,
                                   float cx,float cy) {
@@ -548,11 +701,11 @@ int main() {
             }
         return changed;
     };
-    for (int y = 198; y < 346; y += 2)
-        for (int x = 53; x < 194; x += 2)
+    for (int y = leftTop->getY(); y < leftTop->getBottom(); y += 2)
+        for (int x = leftTop->getX(); x < leftTop->getRight(); x += 2)
             if (dialBefore.getPixelAt(x, y) != dialAfter.getPixelAt(x, y))
                 ++dialChangedPixels;
-    movingFadeArcPixels=countArcChanges(dialBefore,dialAfter,123.5f,272.f);
+    movingFadeArcPixels=countArcChanges(dialBefore,dialAfter, float(leftTop->getBounds().getCentreX()), float(leftTop->getBounds().getCentreY()));
     if (std::abs(fadeParameter->getValue() - .2f) > .005f ||
         dialChangedPixels < 50 || movingFadeArcPixels<24) {
         std::cerr << "UI_CONTROL: Fade In automation or moving green light broken\n";
@@ -564,7 +717,7 @@ int main() {
     const auto outBefore=editor->createComponentSnapshot(editor->getLocalBounds(),true);
     fadeOutKnob->setValue(250.0,juce::sendNotificationSync);
     const auto outAfter=editor->createComponentSnapshot(editor->getLocalBounds(),true);
-    const int outArcChanges=countArcChanges(outBefore,outAfter,836.5f,272.f);
+    const int outArcChanges=countArcChanges(outBefore,outAfter, float(rightTop->getBounds().getCentreX()), float(rightTop->getBounds().getCentreY()));
     fadeOutKnob->setValue(0.0,juce::sendNotificationSync);
     if (outArcChanges<24) {
         std::cerr << "UI_CONTROL: Fade Out green arc remains fixed\n";
@@ -579,6 +732,14 @@ int main() {
         std::cerr << "UI_LAYOUT: mode buttons collide with lower rotary knobs\n";
         return 28;
     }
+    auto* effectRow=dynamic_cast<ModeRow*>(modeButton->getParentComponent());
+    auto* reservedGlitch=findButton(*editor,"GLITCH");
+    if (!effectRow || !reservedGlitch || reservedGlitch->isEnabled()) return 86;
+    effectRow->selectEffect(0,false);
+    effectRow->selectEffect(1,true);
+    if (engine->apvts.getRawParameterValue("mode")->load()!=2.f ||
+        !modeButton->getToggleState() || !findButton(*editor,"GATE")->getToggleState()) return 87;
+    effectRow->selectEffect(0,false);
     auto* gateButton = findButton(*editor, "GATE");
     auto* loopButton = findButton(*editor, "1/16");
     auto* syncButton = findButton(*editor, "SYNC ON");
@@ -604,7 +765,7 @@ int main() {
     }
     freezeButton->setToggleState(false, juce::sendNotificationSync);
     const std::array<juce::String, 5> performanceLabels{
-        "SYNC ON", "REVERSE", "GATE", "BOTH", "FREEZE"};
+        "SYNC ON", "REVERSE", "GATE", "GLITCH", "FREEZE"};
     juce::Component* parent = nullptr;
     juce::TextButton* previous = nullptr;
     for (const auto& label : performanceLabels) {
@@ -698,6 +859,15 @@ int main() {
         return 22;
     }
     editor->setSize(960, 720);
+    // This capture follows the aligned-latency bypass test; settle the
+    // UI-only status timer so OFF glyph and BYPASSED guidance agree.
+    juce::Thread::sleep(45);
+    juce::Timer::callPendingTimersSynchronously();
+    auto* skinStatus=dynamic_cast<juce::Label*>(findNamed(*editor,"LIVE_START_STATUS"));
+    if (!skinStatus || !skinStatus->getText().contains("BYPASSED")) {
+        std::cerr << "UI_POWER: alternate-theme bypass guidance stale\n";
+        return 82;
+    }
     const auto beforeSkin = editor->createComponentSnapshot(editor->getLocalBounds(),true);
     skull->onClick();
     const auto afterSkin = editor->createComponentSnapshot(editor->getLocalBounds(),true);

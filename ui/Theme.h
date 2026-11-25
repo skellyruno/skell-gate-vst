@@ -139,9 +139,19 @@ inline void roundTile(juce::Graphics& g, juce::Rectangle<float> bounds, float co
 }
 inline const juce::Rectangle<int> top{0,0,width,59};
 inline const juce::Rectangle<int> loops{22,72,924,71};
-inline const juce::Rectangle<int> wave{208,178,544,212};
-inline const juce::Rectangle<int> gate{208,399,544,85};
-inline const juce::Rectangle<int> modes{208,491,544,41};
+// Equal-sized dial pairs mirror horizontally around x=480.
+// Keep 20 px of air between the live glass and each dial.
+// The lower pair sits visibly lower on the chassis, by user preference. Captions and readouts follow each dial.
+inline const juce::Rectangle<int> fadeInDial{44,166,144,144};
+inline const juce::Rectangle<int> fadeOutDial{772,166,144,144};
+inline const juce::Rectangle<int> smoothDial{44,426,144,144};
+inline const juce::Rectangle<int> mixDial{772,426,144,144};
+inline const juce::Rectangle<int> wave{208,176,544,328};
+inline constexpr int waveInset=20;
+inline const juce::Rectangle<int> gate{wave.getX()+waveInset,520,wave.getWidth()-2*waveInset,75};
+inline const juce::Rectangle<int> modes{208,600,544,41};
+inline const juce::Rectangle<int> previousStepPattern{194,532,26,32};
+inline const juce::Rectangle<int> nextStepPattern{740,532,26,32};
 inline const juce::Rectangle<int> presets{310,11,340,37};
 // Filter parameters remain serialized for backwards compatibility;
 // the low/high cut widget is intentionally absent from the editor.

@@ -112,17 +112,15 @@ jobs:
         shell: pwsh
         run: |
           Copy-Item -LiteralPath 'docs/WINDOWS-VST3-PRIVATE-PREVIEW.txt' -Destination 'release-package/WINDOWS-VST3-PRIVATE-PREVIEW.txt'
+          Copy-Item -LiteralPath 'scripts/Install-SkellGlitchPreview.ps1' -Destination 'release-package/Install-SkellGlitchPreview.ps1'
+          pwsh -NoLogo -NoProfile -File tests/Test-SkellGlitchPreviewInstaller.ps1 -InstallerPath 'release-package/Install-SkellGlitchPreview.ps1'
+          if ($LASTEXITCODE -ne 0) { throw "Windows installer/update/rollback tests failed (exit $LASTEXITCODE)" }
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "Windows per-user installer, idempotent update, rollback and fail-closed package checks passed."
           python scripts/package_windows_vst3.py --package-dir release-package --output SkellGlitch-Windows-VST3-Preview-1.7.3.zip
           if ($LASTEXITCODE -ne 0) { throw "Private preview archive creation failed (exit $LASTEXITCODE)" }
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Deterministic private-preview archive"
           Get-Content -LiteralPath 'SkellGlitch-Windows-VST3-Preview-1.7.3.zip.sha256' | Add-Content -Path $env:GITHUB_STEP_SUMMARY
-      - name: Report product preview withheld for public repository
-        if: github.event.repository.private != true
-        shell: pwsh
-        run: |
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "Product preview ZIP was built and validated but not uploaded because this repository is public. GitHub Actions artifacts from public repositories are publicly accessible, not private downloads."
-      - name: Upload verified Windows VST3 preview archive (private repositories only)
-        if: github.event.repository.private == true
+      - name: Upload verified Windows VST3 preview archive
         uses: actions/upload-artifact@v7
         with:
           name: Skell-Glitch-Windows-VST3-Preview

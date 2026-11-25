@@ -115,7 +115,7 @@ void GateGrid::paint(juce::Graphics& g) {
         }
     }
     g.setColour(skell::theme::colour(skell::theme::gray).withAlpha(.75f));
-    g.setFont(skell::theme::mono(9.4f));
+    g.setFont(skell::theme::mono(11.5f));
     g.drawText("RIGHT-CLICK TO EDIT STEPS", 0, 57, getWidth(), 14,
                juce::Justification::centred);
 }
@@ -203,16 +203,16 @@ void GateGrid::showSequencerMenu() {
     // accidentally executing an edit command.
     juce::PopupMenu routed;
     routed.addSectionHeader("STEP SEQUENCER");
-    juce::PopupMenu editRouted, patternsRouted;
+    juce::PopupMenu patternsRouted;
     const juce::StringArray edits{"Randomize steps", "Shift left",
                                   "Shift right", "Invert steps", "Clear steps"};
-    for (int i = 0; i < edits.size(); ++i)
-        editRouted.addItem(101 + i, edits[i]);
     for (int i = 0; i < 13; ++i)
         patternsRouted.addItem(201 + i, patternNames[i]);
-    routed.addSubMenu("Edit steps", editRouted);
-    routed.addSubMenu("Load pattern", patternsRouted);
-    routed.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this),
+    routed.addSubMenu("Patterns", patternsRouted);
+    routed.addSeparator();
+    for (int i=0; i<edits.size(); ++i) routed.addItem(101+i,edits[i]);
+    routed.setLookAndFeel(&getLookAndFeel());
+    routed.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this).withMinimumWidth(200).withStandardItemHeight(28),
         [safe](int choice) {
             if (safe == nullptr) return;
             if (choice >= 101 && choice <= 105) safe->applyPattern(choice - 101);

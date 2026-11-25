@@ -14,6 +14,7 @@ from typing import Iterable
 REQUIRED_FILES = {
     "release-manifest.json",
     "WINDOWS-VST3-PRIVATE-PREVIEW.txt",
+    "Install-SkellGlitchPreview.ps1",
 }
 
 

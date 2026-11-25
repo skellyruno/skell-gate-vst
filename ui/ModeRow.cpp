@@ -2,18 +2,21 @@
 #include "../PluginProcessor.h"
 ModeRow::ModeRow(SkellGlitchAudioProcessor& p, juce::TextButton& syncControl)
     : processor(p), sync(syncControl),
-      modes{juce::TextButton("REVERSE"), juce::TextButton("GATE"), juce::TextButton("BOTH")} {
+      modes{EffectButton("REVERSE"), EffectButton("GATE"), EffectButton("GLITCH")} {
     addAndMakeVisible(sync);
     sync.setTooltip("Follow the host tempo for loop and gate timing.");
     for (int i = 0; i < 3; ++i) {
-        addAndMakeVisible(modes[static_cast<size_t>(i)]);
-        modes[static_cast<size_t>(i)].onClick = [this, i] {
-            if (auto* p = processor.apvts.getParameter("mode")) {
-                p->beginChangeGesture(); p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(i))); p->endChangeGesture();
-                timerCallback(); // Update the selected mode immediately.
-            }
-        };
+        auto& button=modes[static_cast<size_t>(i)];
+        addAndMakeVisible(button);
+        button.setTooltip(i==2?"GLITCH: sound reference pending":"Click to select; right-click or Shift-click to add Reverse/Gate");
+        if (i<2) {
+            button.onClick=[this,i] { selectEffect(i,juce::ModifierKeys::getCurrentModifiers().isShiftDown()); };
+            button.onAdd=[this,i] { selectEffect(i,true); };
+        }
     }
+    // Reserve the new effect slot without repurposing the old Mode=Both
+    // automation choice or shipping an invented reference effect.
+    modes[2].setEnabled(false);
     freeze.setName("PERFORMANCE_FREEZE");
     freeze.setTooltip("Hold the captured slice until Freeze is switched off");
     freeze.setClickingTogglesState(true);
@@ -22,6 +25,17 @@ ModeRow::ModeRow(SkellGlitchAudioProcessor& p, juce::TextButton& syncControl)
         processor.apvts, "freeze", freeze);
     timerCallback(); // Correct active mode on first paint.
     startTimerHz(20);
+}
+void ModeRow::selectEffect(int index, bool add) {
+    if (index<0 || index>1) return;
+    const int current=static_cast<int>(processor.apvts.getRawParameterValue("mode")->load());
+    const int next=add && (current==2 || current!=index) ? 2 : index;
+    if (auto* p=processor.apvts.getParameter("mode")) {
+        p->beginChangeGesture();
+        p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(next)));
+        p->endChangeGesture();
+        timerCallback();
+    }
 }
 void ModeRow::resized() {
     constexpr int gap = 11, count = 5, w = 92;
@@ -42,5 +56,5 @@ void ModeRow::timerCallback() {
         return;
     }
     displayedMode = mode;
-    for (int i = 0; i < 3; ++i) modes[static_cast<size_t>(i)].setToggleState(i == mode, juce::dontSendNotification);
+    for (int i=0;i<2;++i) modes[static_cast<size_t>(i)].setToggleState(i==mode || mode==2,juce::dontSendNotification);
 }

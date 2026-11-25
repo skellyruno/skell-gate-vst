@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 namespace skell::dsp {
 struct ClockPosition {
@@ -24,7 +25,10 @@ public:
         bpm = std::isfinite(bpmValue) ? std::clamp(bpmValue, 20.0, 400.0) : 120.0;
         numerator = std::clamp(numeratorValue, 1, 32);
         denominator = std::clamp(denominatorValue, 1, 32);
-        hostAvailable = available && std::isfinite(ppq);
+        // A finite but corrupt host PPQ can overflow the slice index and
+        // the gate-cycle index. A billion quarter notes is already centuries
+        // of continuous music; fall back to the free clock outside that range.
+        hostAvailable = available && std::isfinite(ppq) && std::abs(ppq) <= 1.e9;
         startPPQ = hostAvailable ? ppq : 0.0;
         sync = syncEnabled;
         selectedDivision = std::clamp(division, 0, 8);
@@ -42,6 +46,15 @@ public:
         double raw;
         if (sync && hostAvailable) raw = (startPPQ + static_cast<double>(offset) / samplesPerQuarter()) / quarterNotesPerSlice();
         else raw = static_cast<double>(runningSamples + offset) / len;
+        // Equivalent host PPQ partitions can land a few ULPs either side of
+        // an exact rhythmic boundary (especially triplets). Snap only that
+        // floating-point roundoff, not a musical fraction of a sample.
+        if (sync && hostAvailable) {
+            const double nearest = std::round(raw);
+            const double tolerance = std::min(1.e-8, 8.0 * std::numeric_limits<double>::epsilon()
+                                                        * std::max(1.0, std::abs(raw)));
+            if (std::abs(raw - nearest) <= tolerance) raw = nearest;
+        }
         const double whole = std::floor(raw);
         return {sync && hostAvailable ? startPPQ + offset / samplesPerQuarter() :
                     (runningSamples + offset) / samplesPerQuarter(),
