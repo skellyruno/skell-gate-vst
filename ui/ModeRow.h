@@ -6,6 +6,7 @@ public:
     ModeRow(SkellGlitchAudioProcessor&, juce::TextButton& syncControl);
     void resized() override;
     void paint(juce::Graphics&) override;
+    void selectEffect(int index, bool add);
 private:
     void timerCallback() override;
     SkellGlitchAudioProcessor& processor;

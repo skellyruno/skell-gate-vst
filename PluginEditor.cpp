@@ -207,12 +207,12 @@ public:
             slider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 54, 19);
             slider->setDoubleClickReturnValue(true, p.apvts.getParameter(param)->convertFrom0to1(p.apvts.getParameter(param)->getDefaultValue()));
             const juce::String key(param);
-            const juce::String label=key=="reversePitch"?"PITCH"
-                :key=="gateAttack"?"ATTACK"
-                :key=="gateRelease"?"RELEASE"
-                :key=="gateSwing"?"SWING"
-                :key=="loopMs"?"FREE LENGTH"
-                :key=="gateSteps"?"STEPS":"CHAOS";
+            const juce::String label=key=="reversePitch"?"PITCH (st)"
+                :key=="gateAttack"?"ATTACK (ms)"
+                :key=="gateRelease"?"RELEASE (ms)"
+                :key=="gateSwing"?"SWING (%)"
+                :key=="loopMs"?"FREE LENGTH (ms)"
+                :key=="gateSteps"?"STEP COUNT":"CHAOS (%)";
             labels.add(label);
             slider->setName("SETTING_"+key.toUpperCase());
             addAndMakeVisible(*slider);
@@ -230,21 +230,21 @@ public:
             sliders.push_back(std::move(slider));
         }
         addCombo("triggerSource", {"Auto", "MIDI", "Sidechain", "Manual"});
-        addCombo("latencyMode", {"Zero (previous slice)", "Aligned (delay dry)"});
+        addCombo("latencyMode", {"Live (zero delay)", "Aligned (host delay)"});
         addCombo("gateCurve", {"Linear", "Exponential", "S-Curve"});
         // Advanced rhythm/style controls remain automatable and are now
         // housed here, never deleted or silently disconnected.
         addCombo("reverseStyle", {"Classic", "Tape", "Ping-Pong", "Stutter"});
         addCombo("gateRate", {"1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T"});
         for (const auto& param : {"seedLock", "deltaListen"}) {
-            auto t = std::make_unique<juce::TextButton>(param);
+            auto t = std::make_unique<juce::TextButton>(juce::String(param)=="seedLock"?"LOCK RANDOM SEED":"LISTEN TO DIFFERENCE");
             t->setClickingTogglesState(true);
             addAndMakeVisible(*t);
             toggleAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.apvts, param, *t));
             toggles.push_back(std::move(t));
         }
         addAndMakeVisible(trigger);
-        manualCopy.setButtonText("GATE > REVERSE");
+        manualCopy.setButtonText("GATE BEFORE REVERSE");
         manualCopy.setClickingTogglesState(true);
         manualCopy.setToggleState(p.gateFirst.load(), juce::dontSendNotification);
         manualCopy.onClick = [this] { processor.gateFirst.store(manualCopy.getToggleState()); };
@@ -258,7 +258,7 @@ public:
         size.setSelectedId(p.getSavedSize() + 1, juce::dontSendNotification);
         size.onChange = [this] { if (size.getSelectedId() > 0) resizeEditor(size.getSelectedId() - 1); };
         addAndMakeVisible(size);
-        randomSeed.setButtonText("RE-SEED");
+        randomSeed.setButtonText("NEW SEED");
         randomSeed.onClick = [this] {
             if (auto* p = processor.apvts.getParameter("seed")) {
                 const int old = static_cast<int>(processor.apvts.getRawParameterValue("seed")->load());
@@ -272,9 +272,11 @@ public:
         skell::theme::roundTile(g, getLocalBounds().toFloat().reduced(1.f), 13);
         g.setColour(skell::theme::colour(skell::theme::neon));
         g.setFont(skell::theme::display(19));
-        g.drawText("ENGINE SETTINGS", 18, 12, 254, 25, juce::Justification::centredLeft);
+        g.drawText("SETTINGS", 18, 12, 254, 25, juce::Justification::centredLeft);
         g.setColour(skell::theme::colour(skell::theme::gray));
         g.setFont(skell::theme::regular(12));
+        g.drawText("EFFECT CONTROLS",18,37,250,15,juce::Justification::centredLeft);
+        g.drawText("TIMING & BEHAVIOUR",18,263,250,15,juce::Justification::centredLeft);
         for (int i = 0; i < labels.size(); ++i)
             g.drawText(labels[i].toUpperCase(), 18, 53 + i * 30, 126, 22, juce::Justification::centredLeft);
         constexpr const char* comboLabels[] = {"TRIGGER SOURCE", "LATENCY", "GATE CURVE",
@@ -476,7 +478,12 @@ void SkellGlitchAudioProcessorEditor::timerCallback() {
     if (powerOn != lastPower || activeMode != lastMode) {
         lastPower = powerOn;
         lastMode = activeMode;
-        const juce::String modeText = activeMode==0?"REVERSE":activeMode==1?"GATE":"BOTH";
+        // Hardware-style bypass: dim the processing surface, not the
+        // power/header controls. Keep controls editable while bypassed.
+        for (juce::Component* c : std::array<juce::Component*,10>{&loops,&waveform,&gate,&modes,&fadeIn,&fadeOut,&smooth,&mix,&previousPattern,&nextPattern})
+            c->setAlpha(powerOn?1.f:.38f);
+        for (auto& value : knobValues) value.setAlpha(powerOn?1.f:.50f);
+        const juce::String modeText = activeMode==0?"REVERSE":activeMode==1?"GATE":"REVERSE + GATE";
         startStatus.setText(powerOn ? "ACTIVE  /  "+modeText+"  /  PLAY AUDIO"
                                     : "BYPASSED  /  PRESS POWER TO START",
                             juce::dontSendNotification);

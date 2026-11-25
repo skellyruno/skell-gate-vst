@@ -61,9 +61,7 @@ int main() {
                 std::cerr << "UI_THEME: initial chassis is not matte black\n";
                 return 25;
             }
-            // The reference's Inst fade knobs have a deliberately lit bezel
-            // even at zero value. Verify that the actual JUCE draw covers the
-            // left dial rather than only the parameter's tiny endpoint dot.
+            // Zero fade shows a truthful illuminated endpoint, not false progress.
             int illuminated = 0;
             for (int yy = skell::theme::fadeInDial.getY(); yy < skell::theme::fadeInDial.getBottom(); ++yy)
                 for (int xx = skell::theme::fadeInDial.getX(); xx < skell::theme::fadeInDial.getRight(); ++xx) {
@@ -71,8 +69,8 @@ int main() {
                     if (pixel.getGreen() > 165 && pixel.getGreen() > pixel.getRed() + 75
                         && pixel.getGreen() > pixel.getBlue() + 45) ++illuminated;
                 }
-            if (illuminated < 110) {
-                std::cerr << "UI_REFERENCE: fade bezel lacks green illumination\n";
+            if (illuminated < 10) {
+                std::cerr << "UI_REFERENCE: zero fade position marker lacks green illumination\n";
                 return 24;
             }
             std::cout << "UI_REFERENCE: fade illuminated pixels=" << illuminated << "\n";
@@ -446,11 +444,11 @@ int main() {
         2*display->getBounds().getCentreX() != leftTop->getBounds().getCentreX()+rightTop->getBounds().getCentreX() ||
         leftTop->getBounds()!=juce::Rectangle<int>(44,166,144,144) ||
         rightTop->getBounds()!=juce::Rectangle<int>(772,166,144,144) ||
-        leftBottom->getBounds()!=juce::Rectangle<int>(44,382,144,144) ||
-        rightBottom->getBounds()!=juce::Rectangle<int>(772,382,144,144) ||
+        leftBottom->getBounds()!=juce::Rectangle<int>(44,426,144,144) ||
+        rightBottom->getBounds()!=juce::Rectangle<int>(772,426,144,144) ||
         display->getBounds()!=juce::Rectangle<int>(208,176,544,328) ||
-        // The approved lower-row shift adds 6 px to the four-dial midpoint.
-        2*display->getBounds().getCentreY()+12 != leftTop->getBounds().getCentreY()+leftBottom->getBounds().getCentreY() ||
+        // Lower dial row is intentionally below the symmetric position.
+        2*display->getBounds().getCentreY()+56 != leftTop->getBounds().getCentreY()+leftBottom->getBounds().getCentreY() ||
         display->getBounds().intersects(leftTop->getBounds()) ||
         display->getBounds().intersects(rightTop->getBounds()) ||
         display->getBounds().intersects(leftBottom->getBounds()) ||
@@ -461,7 +459,7 @@ int main() {
         std::cerr << "UI_LAYOUT: approved dial or waveform placement regressed or collides with steps\n";
         return 73;
     }
-    std::cout << "UI_LAYOUT: horizontal symmetry and approved 12 px lower dial offset passed\n";
+    std::cout << "UI_LAYOUT: horizontal symmetry and approved lower dial offset passed\n";
     // Confirm balanced clearances and distinct title/value lanes, not just
     // symmetry. These previously looked cramped despite passing centering.
     const auto* topLeftValue=findNamed(*editor,"FADE IN VALUE");
@@ -476,8 +474,8 @@ int main() {
         topLeftValue->getBottom()>=leftBottom->getY() ||
         bottomLeftValue->getY()!=leftBottom->getBottom()+29 ||
         bottomRightValue->getY()!=rightBottom->getBottom()+29 ||
-        bottomLeftValue->getBottom()>600 ||
-        bottomRightValue->getBottom()>600 ||
+        bottomLeftValue->getBottom()>660 ||
+        bottomRightValue->getBottom()>660 ||
         bottomLeftValue->getBounds().intersects(visualSteps->getBounds()) ||
         bottomRightValue->getBounds().intersects(visualSteps->getBounds()) ||
         topRightValue->getBottom()>=rightBottom->getY() ||
@@ -536,7 +534,7 @@ int main() {
         const auto& item=topItems.getItem();
         if(item.text=="Reverse" && item.subMenu) reverseCategory=true;
         if(item.text=="Gate" && item.subMenu) gateCategory=true;
-        if(item.text=="Both" && item.subMenu) bothCategory=true;
+        if(item.text=="Reverse + Gate" && item.subMenu) bothCategory=true;
         if(item.text=="A / B snapshots" && item.subMenu) snapshots=true;
     }
     juce::PopupMenu::MenuItemIterator allItems(popup,true);
@@ -727,7 +725,7 @@ int main() {
     }
     freezeButton->setToggleState(false, juce::sendNotificationSync);
     const std::array<juce::String, 5> performanceLabels{
-        "SYNC ON", "REVERSE", "GATE", "BOTH", "FREEZE"};
+        "SYNC ON", "REVERSE", "GATE", "GLITCH", "FREEZE"};
     juce::Component* parent = nullptr;
     juce::TextButton* previous = nullptr;
     for (const auto& label : performanceLabels) {

@@ -119,7 +119,7 @@ void WaveDisplay::paint(juce::Graphics& g) {
     }
     g.setColour(colour(bone));
     g.setFont(mono(12.8f));
-    g.drawText("LIVE SLICE  /  "+juce::String(zoom,1)+"x",17,9,149,18,juce::Justification::centredLeft);
+    g.drawText("LIVE SLICE  /  "+juce::String(juce::roundToInt(zoom*100.f))+"%",17,9,149,18,juce::Justification::centredLeft);
     if(reverse) {
         g.setColour(colour(magenta));
         g.drawText("REVERSE",getWidth()-120,9,84,18,juce::Justification::centredRight);

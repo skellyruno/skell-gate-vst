@@ -49,6 +49,23 @@ void SkellLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& b, 
     }
 }
 void SkellLookAndFeel::drawButtonText(juce::Graphics& g, juce::TextButton& b, bool, bool) {
+    if (b.getName()=="PRESET_UNDO" || b.getName()=="PRESET_REDO") {
+        juce::Graphics::ScopedSaveState saved(g);
+        const bool undo=b.getName()=="PRESET_UNDO";
+        const float cx=b.getWidth()*.5f, cy=b.getHeight()*.5f;
+        g.addTransform(juce::AffineTransform::scale(undo?1.f:-1.f,1.f,cx,cy));
+        juce::Path arrow;
+        arrow.startNewSubPath(cx-7.f,cy-1.f);
+        arrow.cubicTo(cx-1.f,cy-9.f,cx+10.f,cy-6.f,cx+8.f,cy+3.f);
+        arrow.lineTo(cx+6.f,cy+6.f);
+        arrow.startNewSubPath(cx-7.f,cy-1.f);
+        arrow.lineTo(cx-7.f,cy-7.f);
+        arrow.startNewSubPath(cx-7.f,cy-1.f);
+        arrow.lineTo(cx-1.f,cy-1.f);
+        g.setColour(skell::theme::colour(skell::theme::bone).withAlpha(b.isEnabled()?1.f:.30f));
+        g.strokePath(arrow,juce::PathStrokeType(1.7f,juce::PathStrokeType::curved,juce::PathStrokeType::rounded));
+        return;
+    }
     g.setColour(b.getToggleState() && !skell::theme::matteBlack()
                    ? juce::Colour(0xff121910)
                    : skell::theme::colour(skell::theme::bone));
@@ -72,7 +89,7 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     const auto bronze = darkSkin
         ? juce::Colour(0xff29372b) : skell::theme::colour(skell::theme::tile);
     const auto ink = skell::theme::colour(skell::theme::bone);
-    const bool fade = slider.getName() == "FADE IN" || slider.getName() == "FADE OUT";
+    juce::ignoreUnused(slider);
     const auto ellipse = [&](float radius) {
         return juce::Rectangle<float>(c.x-radius,c.y-radius,2.f*radius,2.f*radius);
     };
@@ -161,28 +178,18 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
     g.setColour(skell::theme::colour(skell::theme::dim).darker(.15f).withAlpha(.82f));
     g.strokePath(track,juce::PathStrokeType(3.5f,juce::PathStrokeType::curved,
                                            juce::PathStrokeType::rounded));
-    // The fade glow MUST track its automatable value. Previously the fade
-    // arc was deliberately fixed at 71.5% of the track, so it appeared
-    // broken even though the pointer dot moved. A short active green sweep
-    // now follows the dial at every position, including the Inst endpoint.
-    // Other knobs retain a fill-from-start value meter.
-    juce::Path illuminated;
-    if (fade) {
-        const float segment = (end-start)*.12f;
-        const float from = std::clamp(angle-segment*.5f,start,end-segment);
-        illuminated.addCentredArc(c.x,c.y,ringRadius,ringRadius,0.f,
-                                 from,from+segment,true);
-    } else {
-        illuminated = progress;
+    // One truthful fill-from-start meter for every dial. At zero only
+    // the position marker is lit; no decorative false progress.
+    if (fraction > 0.f) {
+        g.setColour(neon.darker(.46f).withAlpha(.65f));
+        g.strokePath(progress,juce::PathStrokeType(7.f,juce::PathStrokeType::curved,
+                                                 juce::PathStrokeType::rounded));
+        g.setColour(neon);
+        g.strokePath(progress,lightTrack);
+        g.setColour(neon.brighter(.3f).withAlpha(.63f));
+        g.strokePath(progress,juce::PathStrokeType(1.15f,juce::PathStrokeType::curved,
+                                                 juce::PathStrokeType::rounded));
     }
-    g.setColour(neon.darker(.46f).withAlpha(.65f));
-    g.strokePath(illuminated,juce::PathStrokeType(7.f,juce::PathStrokeType::curved,
-                                                 juce::PathStrokeType::rounded));
-    g.setColour(neon);
-    g.strokePath(illuminated,lightTrack);
-    g.setColour(neon.brighter(.3f).withAlpha(.63f));
-    g.strokePath(illuminated,juce::PathStrokeType(1.15f,juce::PathStrokeType::curved,
-                                                 juce::PathStrokeType::rounded));
 
     // The dial is a raised ceramic-metal cap with an engraved outer groove.
     const float cap = outer*.69f;
@@ -274,7 +281,7 @@ void SkellLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, 
         g.setColour(juce::Colours::black.withAlpha(.27f));
         g.drawEllipse(tip.x-4.0f,tip.y-3.5f,8.0f,8.0f,.45f);
     }
-    // Value readouts live in the hover/drag badge, not on the metal cap.
+    // Persistent value readouts sit below the dial.
     // The rotating inlaid pointer and ring remain true to automation.
 
 }

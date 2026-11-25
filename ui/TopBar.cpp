@@ -239,7 +239,7 @@ void TopBar::paint(juce::Graphics& g) {
     const int latency=processor.displayLatency.load(std::memory_order_relaxed);
     g.setFont(skell::theme::mono(12.f));
     g.setColour(dark.withAlpha(.93f));
-    g.drawText(juce::String(sr>0?sr/1000.0:48.0,1)+" kHz  •  "+juce::String(latency)+" smp",
+    g.drawText(juce::String(juce::roundToInt(sr>0?sr:48000.0))+" Hz  /  "+juce::String(latency)+" smp",
                655,18,165,25,juce::Justification::centredRight);
     // Do not duplicate the power state with ON/OFF text beside its glyph.
 }

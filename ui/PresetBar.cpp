@@ -47,7 +47,7 @@ PresetBar::PresetBar(SkellGlitchAudioProcessor& p) : processor(p) {
 }
 
 void PresetBar::resized() {
-    constexpr int gap=4, arrowWidth=29, historyWidth=45;
+    constexpr int gap=4, arrowWidth=29, historyWidth=30;
     const int nameWidth=std::max(58,getWidth()-2*arrowWidth-2*historyWidth-4*gap);
     int x=0;
     previous.setBounds(x,2,arrowWidth,getHeight()-4); x+=arrowWidth+gap;
@@ -98,7 +98,7 @@ juce::PopupMenu PresetBar::buildPresetMenu() const {
     };
     menu.addSubMenu("Reverse",subMenu(1,12));
     menu.addSubMenu("Gate",subMenu(12,19));
-    menu.addSubMenu("Both",subMenu(19,28));
+    menu.addSubMenu("Reverse + Gate",subMenu(19,28));
     menu.addSeparator();
     menu.addSectionHeader("PRESET FILES");
     menu.addItem(saveId,"Save preset...");
@@ -115,7 +115,8 @@ juce::PopupMenu PresetBar::buildPresetMenu() const {
 void PresetBar::showPresetMenu() {
     auto menu=buildPresetMenu();
     juce::Component::SafePointer<PresetBar> safe(this);
-    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&presetSelector),
+    menu.setLookAndFeel(&getLookAndFeel());
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&presetSelector).withMinimumWidth(220).withStandardItemHeight(28),
         [safe](int choice) {
             if (safe!=nullptr) safe->executeMenuChoice(choice);
         });
